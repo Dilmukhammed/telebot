@@ -92,8 +92,8 @@ export default function LessonDetail() {
       setAttendance(result)
       setAttendanceError(null)
       setAttendanceSaved(true)
-      if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success')
+      if ((window as any).Telegram?.WebApp) {
+        (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success')
       }
     } catch (e: any) {
       setAttendanceError(e.message || 'Error saving attendance')
@@ -136,7 +136,7 @@ export default function LessonDetail() {
   }
 
   const openTitleModal = () => {
-    setEditTitle(lesson?.custom_title || lesson?.title || '')
+    setEditTitle(lesson?.title || '')
     setShowTitleModal(true)
   }
 

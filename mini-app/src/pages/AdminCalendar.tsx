@@ -547,7 +547,6 @@ function AdminLessonCard({ lesson, todayStr, onClick }: { lesson: AdminLessonOut
   const isUnmarked = status === 'unmarked'
   const isCancelled = status === 'cancelled'
   const isRescheduled = status === 'rescheduled'
-  const isPlanned = status === 'planned'
 
   const borderColor = isCancelled ? 'var(--color-error, #ba1a1a)'
     : isRescheduled ? '#d97706'

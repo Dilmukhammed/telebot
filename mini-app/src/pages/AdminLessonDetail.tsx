@@ -125,7 +125,7 @@ export default function AdminLessonDetail() {
   }
 
   const openTitleModal = () => {
-    setEditTitle(lesson?.custom_title || lesson?.title || '')
+    setEditTitle(lesson?.title || '')
     setShowTitleModal(true)
   }
 
