@@ -21,14 +21,14 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     # Start reminder scheduler
     start_scheduler()
-    # Try to start bot polling in background (non-blocking)
+    # Start bot polling in background (non-blocking)
     async def start_bot():
         try:
             await bot.delete_webhook(drop_pending_updates=True)
             await dp.start_polling(bot)
         except Exception as e:
             print(f"Bot polling error: {e}")
-    
+
     bot_task = asyncio.create_task(start_bot())
     print("Backend started, bot connecting in background...")
     yield
@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
-app = FastAPI(title="Mock Test Bot API", version="1.0.0", lifespan=lifespan, debug=debug)
+app = FastAPI(title="EduCenter API", version="1.0.0", lifespan=lifespan, debug=debug)
 
 # CORS middleware
 app.add_middleware(

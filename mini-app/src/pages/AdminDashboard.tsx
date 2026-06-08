@@ -69,7 +69,7 @@ export default function AdminDashboard() {
               <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
                 admin_panel_settings
               </span>
-              Администратор &middot; ZuhraMath &middot; {new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+              Администратор &middot; EduCenter &middot; {new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
             </p>
           </div>
         </section>

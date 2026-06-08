@@ -1,23 +1,23 @@
-// ZuhraMath Center Configuration
+// Center Configuration
 // Change all center info in this one place
 
 export const CENTER = {
   // Basic info
-  name: 'ZuhraMath',
+  name: 'EduCenter',
   fullName: {
-    ru: 'Учебный центр ZuhraMath',
-    en: 'ZuhraMath Learning Center',
-    uz: 'ZuhraMath o\'quv markazi',
+    ru: 'Учебный центр EduCenter',
+    en: 'EduCenter Learning Center',
+    uz: 'EduCenter o\'quv markazi',
   },
-  
+
   // Contacts
-  phone: '+998 50 870 31 98',
-  phoneRaw: '+998508703198', // For tel: links
-  
+  phone: '+998 90 123 45 67',
+  phoneRaw: '+998901234567', // For tel: links
+
   // Telegram
-  telegramUsername: 'ZUHRAMATH',
-  telegramUrl: 'https://t.me/ZUHRAMATH',
-  
+  telegramUsername: 'educenter_support',
+  telegramUrl: 'https://t.me/educenter_support',
+
   // Address
   address: {
     ru: 'г. Ташкент',
@@ -25,22 +25,22 @@ export const CENTER = {
     uz: 'Toshkent',
   },
   addressFull: {
-    ru: 'г. Ташкент, ул. Фидокор, 7А',
-    en: 'Tashkent, Fidokor 7A',
-    uz: 'Toshkent, Fidokor 7A',
+    ru: 'г. Ташкент, ул. Амира Темура, 15',
+    en: 'Tashkent, Amir Temur 15',
+    uz: 'Toshkent, Amir Temur 15',
   },
-  
+
   // Social / Website
   website: '',
   instagram: '',
-  
+
   // Support
   supportHours: {
     ru: 'Пн-Сб, 9:00-18:00',
     en: 'Mon-Sat, 9:00-18:00',
     uz: 'Du-Sha, 9:00-18:00',
   },
-  
+
   // Schedule
   timezone: 'Asia/Tashkent',
   timezoneOffset: 5, // UTC+5

@@ -101,4 +101,4 @@ async def handle_contact(message: Message):
         "✅ Номер сохранён!\n\nНажми кнопку ниже, чтобы вернуться в приложение.",
         reply_markup=ReplyKeyboardRemove(),
     )
-    await message.answer("📱 Войти в ZuhraMath", reply_markup=kb)
+    await message.answer("📱 Войти в EduCenter", reply_markup=kb)

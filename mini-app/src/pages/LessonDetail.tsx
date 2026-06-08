@@ -236,7 +236,7 @@ export default function LessonDetail() {
               </a>
             ) : (
               <a
-                href="https://t.me/ZuhraMathSupportBot"
+                href="https://t.me/educenter_support"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.telegramButton}
