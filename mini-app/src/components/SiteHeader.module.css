@@ -1,0 +1,122 @@
+.header {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  z-index: 100;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: rgba(249, 249, 255, 0.75);
+  border-bottom: 1px solid rgba(99, 14, 212, 0.08);
+}
+
+.headerInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 52px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.2s ease;
+}
+
+.headerLeft:hover {
+  opacity: 0.9;
+}
+
+.logoIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #7c3aed 0%, #630ed4 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(99, 14, 212, 0.25);
+}
+
+.logoIcon span {
+  font-variation-settings: 'FILL' 1, 'wght' 600;
+}
+
+.headerTitle {
+  font-size: 16px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #151c27 0%, #3a3247 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.3px;
+}
+
+/* Adaptive Back Navigation Styles */
+.headerLeftBack {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 50%;
+  color: var(--color-on-surface);
+  transition: all 0.2s ease;
+}
+
+.backButton:hover {
+  background: rgba(99, 14, 212, 0.08);
+  color: var(--color-primary);
+}
+
+.headerPageTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-on-surface);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.2s ease;
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+
+.headerButton:hover {
+  background: rgba(99, 14, 212, 0.08);
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(124, 58, 237, 0.3);
+  box-shadow: 0 1px 4px rgba(124, 58, 237, 0.15);
+}

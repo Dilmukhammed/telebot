@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.db
+*.log
+node_modules/
+dist/
+.vite/
+*.egg-info/
+.pytest_cache/
+tunnel_url.txt

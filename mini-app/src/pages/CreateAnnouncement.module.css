@@ -1,0 +1,205 @@
+.page {
+  min-height: 100vh;
+  background: var(--color-surface);
+  padding-bottom: 40px;
+  font-family: 'Inter', sans-serif;
+  color: var(--color-on-surface);
+}
+
+.main {
+  padding: var(--spacing-md) var(--spacing-md) 0;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.field {
+  margin-bottom: var(--spacing-lg);
+}
+
+.label {
+  display: block;
+  font-size: var(--font-xs);
+  font-weight: var(--font-semibold);
+  color: var(--color-on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--spacing-sm);
+  opacity: 0.8;
+}
+
+.input {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--color-surface-container-lowest);
+  border: 1px solid rgba(204, 195, 216, 0.2);
+  border-radius: var(--radius-md);
+  font-size: var(--font-md);
+  color: var(--color-on-surface);
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.input:focus {
+  border-color: var(--color-primary);
+}
+
+.textarea {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--color-surface-container-lowest);
+  border: 1px solid rgba(204, 195, 216, 0.2);
+  border-radius: var(--radius-md);
+  font-size: var(--font-md);
+  color: var(--color-on-surface);
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  min-height: 120px;
+  transition: border-color var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.textarea:focus {
+  border-color: var(--color-primary);
+}
+
+.charCount {
+  display: block;
+  text-align: right;
+  font-size: var(--font-xs);
+  color: var(--color-outline);
+  margin-top: 4px;
+}
+
+.targetButtons {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.targetButton {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  background: var(--color-surface-container-lowest);
+  border: 1.5px solid rgba(204, 195, 216, 0.2);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-on-surface-variant);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.targetButtonActive {
+  border-color: var(--color-primary);
+  background: rgba(99, 14, 212, 0.05);
+  color: var(--color-primary);
+}
+
+.courseList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.courseCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--color-surface-container-lowest);
+  border: 1.5px solid rgba(204, 195, 216, 0.2);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.courseCardActive {
+  border-color: var(--color-primary);
+  background: rgba(99, 14, 212, 0.05);
+}
+
+.courseName {
+  font-size: var(--font-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-on-surface);
+}
+
+.courseCount {
+  font-size: var(--font-xs);
+  color: var(--color-on-surface-variant);
+}
+
+.studentList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.studentCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--color-surface-container-lowest);
+  border: 1.5px solid rgba(204, 195, 216, 0.2);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.studentCardActive {
+  border-color: var(--color-primary);
+  background: rgba(99, 14, 212, 0.05);
+}
+
+.studentName {
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-on-surface);
+}
+
+.studentUsername {
+  font-size: var(--font-xs);
+  color: var(--color-on-surface-variant);
+}
+
+.error {
+  font-size: var(--font-sm);
+  color: #ba1a1a;
+  margin: var(--spacing-sm) 0;
+  text-align: center;
+}
+
+.sendButton {
+  width: 100%;
+  padding: 14px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-md);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 12px rgba(99, 14, 212, 0.15);
+  margin-top: var(--spacing-md);
+}
+
+.sendButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sendButton:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.bottomSpacer {
+  height: 40px;
+}

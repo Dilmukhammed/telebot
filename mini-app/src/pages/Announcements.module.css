@@ -1,0 +1,89 @@
+.page {
+  min-height: 100vh;
+  background: var(--color-surface);
+  padding-bottom: 40px;
+  font-family: 'Inter', sans-serif;
+  color: var(--color-on-surface);
+}
+
+.main {
+  padding: var(--spacing-md) var(--spacing-md) 0;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.card {
+  padding: var(--spacing-md);
+  background: var(--color-surface-container-lowest);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(204, 195, 216, 0.15);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.card:active {
+  transform: scale(0.98);
+  background: rgba(99, 14, 212, 0.02);
+}
+
+.cardContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardTitle {
+  font-size: var(--font-md);
+  font-weight: var(--font-semibold);
+  color: var(--color-on-surface);
+  margin: 0 0 var(--spacing-xs) 0;
+}
+
+.cardSender {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-xs);
+  font-weight: var(--font-medium);
+  color: var(--color-primary);
+  margin-bottom: 4px;
+}
+
+.cardMessage {
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-on-surface-variant);
+  margin: 0 0 var(--spacing-xs) 0;
+  line-height: 1.5;
+}
+
+.cardDate {
+  font-size: var(--font-xs);
+  color: var(--color-outline);
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px var(--spacing-md);
+  gap: var(--spacing-md);
+  text-align: center;
+}
+
+.emptyState p {
+  font-size: var(--font-md);
+  color: var(--color-on-surface-variant);
+  margin: 0;
+}
+
+.bottomSpacer {
+  height: 40px;
+}

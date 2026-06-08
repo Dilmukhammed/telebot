@@ -1,0 +1,364 @@
+import WebApp from '@twa-dev/sdk'
+import type { TestOut, RegistrationOut, ResultOut, UserOut, OnboardingData, DashboardOut, CalendarWeekOut, CourseOut, CourseDetailOut, LessonDetailOut, TeacherDashboardOut, TeacherStudentsOut, TeacherStudentDetailOut, AnnouncementOut, AnnouncementRecipient, TeacherStudentOut, LessonStatusOut, AttendanceRecordIn, AttendanceListOut, TeacherAvailabilityOut, AdminStats, AdminLessonOut, SearchResultOut, AdminAnnouncementCreate, AdminAnnouncementOut, AdminSubjectOut, AdminSubjectDetailOut, AuditLogOut } from '../shared/types'
+
+const BASE_URL = import.meta.env.VITE_API_URL || ''
+
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+
+  // Primary: send initData (for HMAC validation on server)
+  const initData = WebApp.initData
+  if (initData) {
+    headers['X-Telegram-Init-Data'] = initData
+  }
+
+  // Fallback: send user info directly from WebApp SDK
+  // This works even when initData is empty (e.g. in dev/tunnel)
+  // Base64 encode to avoid non-ISO-8859-1 characters in headers
+  const user = (WebApp as any).initDataUnsafe?.user
+    || (window as any).Telegram?.WebApp?.initDataUnsafe?.user
+  if (user) {
+    const userJson = JSON.stringify({
+      id: user.id,
+      username: user.username || '',
+      first_name: user.first_name || '',
+      photo_url: user.photo_url || '',
+    })
+    headers['X-Telegram-User'] = btoa(unescape(encodeURIComponent(userJson)))
+  }
+
+  console.log('[API] initData:', initData ? `len=${initData.length}` : 'EMPTY')
+  console.log('[API] user:', user ? `id=${user.id} name=${user.first_name}` : 'NONE')
+
+  return headers
+}
+
+async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const url = `${BASE_URL}${path}`
+  const authHeaders = getAuthHeaders()
+
+  const response = await fetch(url, {
+    ...options,
+    headers: { ...authHeaders, ...(options.headers as Record<string, string> || {}) },
+  })
+
+  if (!response.ok) {
+    let message = `Ошибка (${response.status})`
+    try {
+      const body = await response.json()
+      if (body.detail) message = body.detail
+    } catch { /* ignore */ }
+    throw new Error(message)
+  }
+
+  return response.json() as Promise<T>
+}
+
+export function getTests(): Promise<TestOut[]> {
+  return api<TestOut[]>('/api/tests')
+}
+
+export function getTest(id: number): Promise<TestOut> {
+  return api<TestOut>(`/api/tests/${id}`)
+}
+
+export function registerForTest(id: number): Promise<RegistrationOut> {
+  return api<RegistrationOut>(`/api/tests/${id}/register`, {
+    method: 'POST',
+  })
+}
+
+export function getMyRegistrations(): Promise<RegistrationOut[]> {
+  return api<RegistrationOut[]>('/api/registrations/my')
+}
+
+export function cancelRegistration(id: number): Promise<void> {
+  return api<void>(`/api/registrations/${id}/cancel`, {
+    method: 'POST',
+  })
+}
+
+export function getMyResults(): Promise<ResultOut[]> {
+  return api<ResultOut[]>('/api/results/my')
+}
+
+export function getMe(): Promise<UserOut> {
+  return api<UserOut>('/api/users/me')
+}
+
+export function completeOnboarding(data: OnboardingData): Promise<UserOut> {
+  return api<UserOut>('/api/users/onboarding', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export function getDashboard(): Promise<DashboardOut> {
+  return api<DashboardOut>('/api/dashboard')
+}
+
+export function getCalendar(weekOffset: number = 0): Promise<CalendarWeekOut> {
+  return api<CalendarWeekOut>(`/api/dashboard/calendar?week_offset=${weekOffset}`)
+}
+
+export function getCourses(): Promise<CourseOut[]> {
+  return api<CourseOut[]>('/api/courses')
+}
+
+export function getCourseDetail(id: number): Promise<CourseDetailOut> {
+  return api<CourseDetailOut>(`/api/courses/${id}`)
+}
+
+export function getLessonDetail(id: number, date?: string): Promise<LessonDetailOut> {
+  const params = date ? `?date=${date}` : ''
+  return api<LessonDetailOut>(`/api/courses/lessons/${id}${params}`)
+}
+
+export function getTeacherDashboard(): Promise<TeacherDashboardOut> {
+  return api<TeacherDashboardOut>('/api/teacher/dashboard')
+}
+
+export function getTeacherStudents(): Promise<TeacherStudentsOut> {
+  return api<TeacherStudentsOut>('/api/teacher/students')
+}
+
+export function getTeacherStudentDetail(studentId: number): Promise<TeacherStudentDetailOut> {
+  return api<TeacherStudentDetailOut>(`/api/teacher/students/${studentId}`)
+}
+
+export function getAnnouncements(): Promise<AnnouncementOut[]> {
+  return api<AnnouncementOut[]>('/api/dashboard/announcements')
+}
+
+export function getTeacherAnnouncements(): Promise<AnnouncementOut[]> {
+  return api<AnnouncementOut[]>('/api/teacher/announcements')
+}
+
+export function getTeacherAnnouncementDetail(id: number): Promise<AnnouncementOut> {
+  return api<AnnouncementOut>(`/api/teacher/announcements/${id}`)
+}
+
+export function getAnnouncementRecipients(id: number): Promise<AnnouncementRecipient[]> {
+  return api<AnnouncementRecipient[]>(`/api/teacher/announcements/${id}/recipients`)
+}
+
+export function createAnnouncement(data: {
+  title?: string
+  message: string
+  target_type: 'course' | 'students'
+  course_ids?: number[]
+  student_ids?: number[]
+}): Promise<AnnouncementOut> {
+  return api<AnnouncementOut>('/api/teacher/announcements', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export function getTeacherCourses(): Promise<{ id: number; name: string; student_count: number }[]> {
+  return api('/api/teacher/courses')
+}
+
+export function getCourseStudents(courseId: number): Promise<TeacherStudentOut[]> {
+  return api<TeacherStudentOut[]>(`/api/teacher/courses/${courseId}/students`)
+}
+
+export function getAnnouncementDetail(id: number): Promise<AnnouncementOut> {
+  return api<AnnouncementOut>(`/api/dashboard/announcements/${id}`)
+}
+
+export function updateName(first_name: string, last_name?: string): Promise<UserOut> {
+  return api<UserOut>('/api/users/me/name', {
+    method: 'PUT',
+    body: JSON.stringify({ first_name, last_name }),
+  })
+}
+
+export function markLessonStatus(lessonId: number, date: string, status: 'happened' | 'cancelled'): Promise<LessonStatusOut> {
+  return api<LessonStatusOut>(`/api/teacher/lessons/${lessonId}/status`, {
+    method: 'POST',
+    body: JSON.stringify({ lesson_id: lessonId, date, status }),
+  })
+}
+
+export function markAttendance(lessonId: number, date: string, records: AttendanceRecordIn[]): Promise<AttendanceListOut> {
+  return api<AttendanceListOut>(`/api/teacher/lessons/${lessonId}/attendance`, {
+    method: 'POST',
+    body: JSON.stringify({ lesson_id: lessonId, date, records }),
+  })
+}
+
+export function getLessonAttendance(lessonId: number, date: string): Promise<AttendanceListOut> {
+  return api<AttendanceListOut>(`/api/teacher/lessons/${lessonId}/attendance?date=${date}`)
+}
+
+export function updateLesson(lessonId: number, data: { custom_title?: string | null; lesson_plan?: string | null }): Promise<LessonDetailOut> {
+  return api<LessonDetailOut>(`/api/teacher/lessons/${lessonId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export function getAvailability(): Promise<TeacherAvailabilityOut[]> {
+  return api<TeacherAvailabilityOut[]>('/api/teacher/availability')
+}
+
+export function createAvailability(day_of_week: number, start_time: string, end_time: string): Promise<TeacherAvailabilityOut> {
+  return api<TeacherAvailabilityOut>('/api/teacher/availability', {
+    method: 'POST',
+    body: JSON.stringify({ day_of_week, start_time, end_time }),
+  })
+}
+
+export function deleteAvailability(id: number): Promise<void> {
+  return api<void>(`/api/teacher/availability/${id}`, { method: 'DELETE' })
+}
+
+// ── Admin API ──────────────────────────────────────────────────────
+
+export function getAdminStats(): Promise<AdminStats> {
+  return api<AdminStats>('/api/admin/stats')
+}
+
+export function getAdminLessons(params: { week_offset?: number; teacher_id?: number; subject_id?: number } = {}): Promise<AdminLessonOut[]> {
+  const searchParams = new URLSearchParams()
+  if (params.week_offset !== undefined) searchParams.append('week_offset', String(params.week_offset))
+  if (params.teacher_id !== undefined) searchParams.append('teacher_id', String(params.teacher_id))
+  if (params.subject_id !== undefined) searchParams.append('subject_id', String(params.subject_id))
+  const query = searchParams.toString()
+  return api<AdminLessonOut[]>(`/api/admin/lessons${query ? '?' + query : ''}`)
+}
+
+export function adminSearchCourses(params: { days: number[]; time_from: string; time_to: string; teacher_id?: number; subject_id?: number }): Promise<SearchResultOut> {
+  const searchParams = new URLSearchParams()
+  params.days.forEach(day => searchParams.append('days', String(day)))
+  searchParams.append('time_from', params.time_from)
+  searchParams.append('time_to', params.time_to)
+  if (params.teacher_id !== undefined) searchParams.append('teacher_id', String(params.teacher_id))
+  if (params.subject_id !== undefined) searchParams.append('subject_id', String(params.subject_id))
+  return api<SearchResultOut>(`/api/admin/search?${searchParams.toString()}`)
+}
+
+export function rescheduleLesson(lessonId: number, data: { date: string; new_date: string; new_time?: string }): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/admin/lessons/${lessonId}/reschedule`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export function cancelAdminLesson(lessonId: number, data: { date: string }): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/admin/lessons/${lessonId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export function markAdminLessonStatus(lessonId: number, data: { date: string; status: string }): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/admin/lessons/${lessonId}/status`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export function getAdminAnnouncements(): Promise<AdminAnnouncementOut[]> {
+  return api<AdminAnnouncementOut[]>('/api/admin/announcements')
+}
+
+export function getAdminAnnouncementDetail(id: number): Promise<AdminAnnouncementOut> {
+  return api<AdminAnnouncementOut>(`/api/admin/announcements/${id}`)
+}
+
+export function getAdminAnnouncementRecipients(id: number): Promise<AnnouncementRecipient[]> {
+  return api<AnnouncementRecipient[]>(`/api/admin/announcements/${id}/recipients`)
+}
+
+export function createAdminAnnouncement(data: AdminAnnouncementCreate): Promise<AdminAnnouncementOut> {
+  return api<AdminAnnouncementOut>('/api/admin/announcements', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export function getAdminSubjects(): Promise<AdminSubjectOut[]> {
+  return api<AdminSubjectOut[]>('/api/admin/subjects')
+}
+
+export function getAdminSubjectDetail(id: number): Promise<AdminSubjectDetailOut> {
+  return api<AdminSubjectDetailOut>(`/api/admin/subjects/${id}`)
+}
+
+export function getAdminUsers(params: { role?: string } = {}): Promise<UserOut[]> {
+  const searchParams = new URLSearchParams()
+  if (params.role) searchParams.append('role', params.role)
+  const query = searchParams.toString()
+  return api<UserOut[]>(`/api/admin/users/${query ? '?' + query : ''}`)
+}
+
+export function getAdminUser(id: number): Promise<UserOut> {
+  return api<UserOut>(`/api/admin/users/${id}`)
+}
+
+export function updateAdminUserRole(id: number, role: string): Promise<UserOut> {
+  return api<UserOut>(`/api/admin/users/${id}/role`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role }),
+  })
+}
+
+export function toggleAdminLessonActive(lessonId: number): Promise<{ ok: boolean; is_active: boolean }> {
+  return api(`/api/admin/lessons/${lessonId}/toggle-active`, { method: 'PATCH' })
+}
+
+export function adminEnrollStudent(lessonId: number, userId: number): Promise<{ ok: boolean }> {
+  return api(`/api/admin/lessons/${lessonId}/enroll`, {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId }),
+  })
+}
+
+export function adminUnenrollStudent(lessonId: number, userId: number): Promise<{ ok: boolean }> {
+  return api(`/api/admin/lessons/${lessonId}/enroll/${userId}`, { method: 'DELETE' })
+}
+
+export function adminGetLessonAttendance(lessonId: number, date: string): Promise<AttendanceListOut> {
+  return api(`/api/admin/lessons/${lessonId}/attendance?date=${date}`)
+}
+
+export function adminMarkAttendance(lessonId: number, date: string, records: AttendanceRecordIn[]): Promise<AttendanceListOut> {
+  return api(`/api/admin/lessons/${lessonId}/attendance`, {
+    method: 'POST',
+    body: JSON.stringify({ lesson_id: lessonId, date, records }),
+  })
+}
+
+export function adminUpdateLesson(lessonId: number, data: { custom_title?: string | null; lesson_plan?: string | null }): Promise<LessonDetailOut> {
+  return api(`/api/admin/lessons/${lessonId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export function updateSubject(id: number, data: { name?: string; description?: string; start_date?: string; duration_weeks?: number; duration_minutes?: number }): Promise<any> {
+  return api(`/api/admin/subjects/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export function adminCreateLesson(subjectId: number, data: { teacher_name: string; teacher_id?: number; day_of_week: number; time: string; room: string; location?: string; max_capacity?: number }): Promise<AdminLessonOut> {
+  return api(`/api/admin/subjects/${subjectId}/lessons`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export function getAdminAuditLog(params?: { entity_type?: string; entity_id?: number; limit?: number }): Promise<AuditLogOut[]> {
+  const searchParams = new URLSearchParams()
+  if (params?.entity_type) searchParams.append('entity_type', params.entity_type)
+  if (params?.entity_id) searchParams.append('entity_id', String(params.entity_id))
+  if (params?.limit) searchParams.append('limit', String(params.limit))
+  const query = searchParams.toString()
+  return api(`/api/admin/audit-log${query ? '?' + query : ''}`)
+}

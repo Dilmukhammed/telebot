@@ -1,0 +1,35 @@
+.card {
+  background-color: var(--tg-bg-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-md);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  border: 1px solid var(--color-gray-200);
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.clickable:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-md);
+}
+
+.clickable:focus-visible {
+  outline: 2px solid var(--tg-button-color);
+  outline-offset: 2px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .card {
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-md);
+  }
+}

@@ -1,0 +1,329 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_
+from datetime import datetime, timedelta
+
+from database import get_db
+from models import Subject, Lesson, User, LessonStatus
+from schemas import CourseOut, CourseDetailOut, CourseLessonOut, LessonDetailOut, LessonMaterialOut, LessonAgendaItemOut, LessonHomeworkOut
+from api.deps import get_telegram_user
+
+router = APIRouter(prefix="/courses", tags=["courses"])
+
+DAY_NAMES_RU = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
+DAY_NAMES_SHORT_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+
+
+def _calculate_end_time(start_time: str, duration_minutes: int = 90) -> str:
+    try:
+        h, m = map(int, start_time.split(":"))
+        total = h * 60 + m + duration_minutes
+        return f"{total // 60:02d}:{total % 60:02d}"
+    except Exception:
+        return ""
+
+
+def _get_tashkent_now():
+    import datetime as _dt
+    tashkent_tz = _dt.timezone(_dt.timedelta(hours=5))
+    return _dt.datetime.now(tashkent_tz).replace(tzinfo=None)
+
+
+def _get_next_date(day_of_week: int) -> datetime:
+    """Get next date for a given day of week (0=Mon)."""
+    today = _get_tashkent_now()
+    days_ahead = day_of_week - today.weekday()
+    if days_ahead < 0:
+        days_ahead += 7
+    return today + timedelta(days=days_ahead)
+
+
+@router.get("", response_model=list[CourseOut])
+async def list_courses(db: AsyncSession = Depends(get_db)):
+    """Get all active courses (subjects with lessons)."""
+    result = await db.execute(
+        select(Subject)
+        .join(Lesson, Lesson.subject_id == Subject.id)
+        .where(Lesson.is_active == True)
+        .distinct()
+        .order_by(Subject.name)
+    )
+    subjects = result.scalars().all()
+
+    courses = []
+    for subject in subjects:
+        lessons_result = await db.execute(
+            select(Lesson)
+            .where(Lesson.subject_id == subject.id, Lesson.is_active == True)
+            .order_by(Lesson.day_of_week, Lesson.time)
+        )
+        lessons = lessons_result.scalars().all()
+        first_lesson = lessons[0] if lessons else None
+
+        courses.append(CourseOut(
+            id=subject.id,
+            name=subject.name,
+            teacher_name=first_lesson.teacher_name if first_lesson else "",
+            lesson_count=len(lessons),
+        ))
+
+    return courses
+
+
+@router.get("/lessons/{lesson_id}", response_model=LessonDetailOut)
+async def get_lesson_detail(
+    lesson_id: int,
+    date: str = None,  # Optional date parameter for recurring lessons
+    user: User = Depends(get_telegram_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get detailed lesson information."""
+    # Get lesson
+    result = await db.execute(
+        select(Lesson)
+        .where(Lesson.id == lesson_id, Lesson.is_active == True)
+    )
+    lesson = result.scalar_one_or_none()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    # Get subject
+    subject_result = await db.execute(select(Subject).where(Subject.id == lesson.subject_id))
+    subject = subject_result.scalar_one_or_none()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    # Get teacher info if available
+    teacher_photo_url = None
+    teacher_title = None
+    teacher_username = None
+    if lesson.teacher_id:
+        teacher_result = await db.execute(select(User).where(User.id == lesson.teacher_id))
+        teacher = teacher_result.scalar_one_or_none()
+        if teacher:
+            teacher_photo_url = teacher.photo_url
+            teacher_username = teacher.username
+            teacher_title = "Mathematics Department Head"  # Could be stored in DB
+
+    # Calculate end time
+    end_time = _calculate_end_time(lesson.time, subject.duration_minutes or 90)
+
+    # Calculate date and status
+    today = _get_tashkent_now().date()
+    if date:
+        try:
+            lesson_date = datetime.strptime(date, "%Y-%m-%d").date()
+        except ValueError:
+            lesson_date = _get_next_date(lesson.day_of_week).date()
+    else:
+        lesson_date = _get_next_date(lesson.day_of_week).date()
+
+    if lesson_date == today:
+        current_time_str = _get_tashkent_now().strftime("%H:%M")
+        if current_time_str > end_time:
+            status = "past"
+        else:
+            status = "today"
+    elif lesson_date > today:
+        status = "upcoming"
+    else:
+        status = "past"
+
+    # Generate title based on lesson number
+    if lesson.custom_title:
+        title = lesson.custom_title
+    else:
+        # Calculate lesson number: count weeks from course start
+        if subject.start_date:
+            course_start = subject.start_date.date()
+            # Find the first occurrence of this weekday on or after course start
+            days_until = (lesson.day_of_week - course_start.weekday()) % 7
+            first_lesson_date = course_start + timedelta(days=days_until)
+            if lesson_date >= first_lesson_date:
+                lesson_number = ((lesson_date - first_lesson_date).days // 7) + 1
+            else:
+                lesson_number = 1
+        else:
+            lesson_number = 1
+        title = f"Занятие {lesson_number}"
+
+    # Mock materials (in real app, these would come from database)
+    materials = [
+        LessonMaterialOut(id=1, title="Lecture Slides", type="slides"),
+        LessonMaterialOut(id=2, title="Worksheet", type="worksheet"),
+        LessonMaterialOut(id=3, title="Class Recording", type="video"),
+    ]
+
+    # Parse lesson plan from DB (JSON field)
+    import json
+    agenda = []
+    if lesson.lesson_plan:
+        try:
+            plan_items = json.loads(lesson.lesson_plan)
+            agenda = [
+                LessonAgendaItemOut(id=i + 1, title=item.get("title", ""), description=item.get("description"))
+                for i, item in enumerate(plan_items)
+            ]
+        except (json.JSONDecodeError, TypeError):
+            agenda = []
+
+    # Mock homework (in real app, this would come from database)
+    homework = None
+    if status == "today" or status == "upcoming":
+        homework = LessonHomeworkOut(
+            id=1,
+            title="Problem Set #4",
+            description="Complete exercises 1-15 from the worksheet",
+            due_date=(lesson_date + timedelta(days=5)).strftime("%Y-%m-%d"),
+            status="pending"
+        )
+
+    # Query lesson status for this instance
+    lesson_status_str = None
+    ls_result = await db.execute(
+        select(LessonStatus).where(
+            and_(LessonStatus.lesson_id == lesson_id, LessonStatus.date == lesson_date)
+        )
+    )
+    ls = ls_result.scalar_one_or_none()
+    if ls:
+        lesson_status_str = ls.status
+
+    is_teacher = user.role in ("teacher", "admin") and (user.id == lesson.teacher_id or user.role == "admin")
+
+    return LessonDetailOut(
+        id=lesson.id,
+        subject_id=subject.id,
+        subject_name=subject.name,
+        title=title,
+        teacher_name=lesson.teacher_name,
+        teacher_username=teacher_username,
+        teacher_title=teacher_title,
+        teacher_photo_url=teacher_photo_url,
+        day_of_week=lesson.day_of_week,
+        day_name=DAY_NAMES_SHORT_RU[lesson.day_of_week],
+        time=lesson.time,
+        end_time=end_time,
+        room=lesson.room,
+        location=lesson.location,
+        date=lesson_date.strftime("%Y-%m-%d"),
+        status=status,
+        duration_minutes=subject.duration_minutes or 90,
+        materials=materials,
+        agenda=agenda,
+        homework=homework,
+        lesson_status=lesson_status_str,
+        is_teacher=is_teacher,
+        custom_title=lesson.custom_title,
+    )
+
+
+@router.get("/{course_id}", response_model=CourseDetailOut)
+async def get_course_detail(
+    course_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get course detail with lessons grouped by status."""
+    # Get subject
+    result = await db.execute(select(Subject).where(Subject.id == course_id))
+    subject = result.scalar_one_or_none()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Get lessons
+    lessons_result = await db.execute(
+        select(Lesson)
+        .where(Lesson.subject_id == course_id, Lesson.is_active == True)
+        .order_by(Lesson.day_of_week, Lesson.time)
+    )
+    lessons = lessons_result.scalars().all()
+
+    today = _get_tashkent_now().date()
+    today_weekday = today.weekday()
+
+    # Determine the range of weeks to generate
+    course_start = subject.start_date.date() if subject.start_date else None
+    course_end = None
+    if course_start and subject.duration_weeks:
+        course_end = course_start + timedelta(weeks=subject.duration_weeks)
+
+    # Start from course_start (or today if not set)
+    effective_start = course_start if course_start else today
+    # Find the Monday of the week containing effective_start
+    start_monday = effective_start - timedelta(days=effective_start.weekday())
+
+    # Generate enough weeks to cover up to course_end (or today + 4 weeks if no end)
+    if course_end:
+        weeks_needed = ((course_end - start_monday).days + 6) // 7
+        weeks_needed = max(weeks_needed, 1)
+    else:
+        # Generate from start_monday up to today + 4 weeks
+        weeks_needed = ((today + timedelta(weeks=4) - start_monday).days + 6) // 7
+        weeks_needed = max(weeks_needed, 4)
+
+    # Generate multiple instances per recurring lesson
+    course_lessons = []
+
+    for lesson in lessons:
+        for week in range(weeks_needed):
+            instance_date = start_monday + timedelta(days=lesson.day_of_week + week * 7)
+
+            # Skip if before course start
+            if course_start and instance_date < course_start:
+                continue
+            # Skip if after course end
+            if course_end and instance_date >= course_end:
+                continue
+
+            # Determine status
+            end_time_str = _calculate_end_time(lesson.time, subject.duration_minutes or 90)
+            if instance_date == today:
+                current_time_str = _get_tashkent_now().strftime("%H:%M")
+                if current_time_str > end_time_str:
+                    status = "past"
+                else:
+                    status = "today"
+            elif instance_date > today:
+                status = "upcoming"
+            else:
+                status = "past"
+
+            course_lessons.append(CourseLessonOut(
+                id=lesson.id,
+                lesson_number=0,  # Will be assigned after sorting
+                title="",  # Will be assigned after sorting
+                day_name=DAY_NAMES_SHORT_RU[lesson.day_of_week],
+                day_of_week=lesson.day_of_week,
+                time=lesson.time,
+                end_time=end_time_str,
+                room=lesson.room,
+                location=lesson.location,
+                teacher_name=lesson.teacher_name,
+                status=status,
+                date=instance_date.strftime("%Y-%m-%d"),
+            ))
+
+    # Sort by date
+    course_lessons.sort(key=lambda x: x.date)
+
+    # Assign sequential numbers after sorting
+    for i, lesson in enumerate(course_lessons):
+        lesson.lesson_number = i + 1
+        lesson.title = f"Занятие {i + 1}"
+
+    # Get teacher name and location from first lesson
+    teacher_name = lessons[0].teacher_name if lessons else ""
+    location = lessons[0].location if lessons else None
+
+    return CourseDetailOut(
+        id=subject.id,
+        name=subject.name,
+        teacher_name=teacher_name,
+        description=subject.description or "",
+        location=location,
+        lesson_count=len(lessons),
+        duration_weeks=subject.duration_weeks,
+        duration_minutes=subject.duration_minutes or 90,
+        start_date=subject.start_date.strftime("%Y-%m-%d") if subject.start_date else None,
+        lessons=course_lessons,
+    )

@@ -1,0 +1,344 @@
+/* Overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(21, 28, 39, 0.2);
+  backdrop-filter: blur(4px);
+  padding: 16px;
+  overflow: hidden;
+}
+
+/* Modal */
+.modal {
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(124, 58, 237, 0.15);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transform: scale(1);
+  transition: all 0.3s ease;
+}
+
+/* Hero Section */
+.heroSection {
+  height: 112px;
+  width: 100%;
+  background: linear-gradient(135deg, #630ed4, #5f34a8, #7c3aed);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.heroDecor {
+  position: absolute;
+  inset: 0;
+  opacity: 0.2;
+}
+
+.heroDecor::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  left: -40px;
+  width: 160px;
+  height: 160px;
+  background: white;
+  border-radius: 50%;
+  filter: blur(40px);
+}
+
+.heroDecor::after {
+  content: '';
+  position: absolute;
+  bottom: -40px;
+  right: -40px;
+  width: 160px;
+  height: 160px;
+  background: #d2bbff;
+  border-radius: 50%;
+  filter: blur(40px);
+}
+
+.heroIcon {
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  padding: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.heroMathSymbol {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  opacity: 0.1;
+}
+
+/* Content */
+.content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(90vh - 120px);
+  overflow-y: auto;
+}
+
+/* Greeting */
+.greeting {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.greetingTitle {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 30px;
+  letter-spacing: -0.02em;
+  color: #151c27;
+  margin: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.greetingSubtitle {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  color: #4a4455;
+  margin: 0;
+}
+
+/* Grade Grid */
+.gradeGrid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.gradeButton {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(204, 195, 216, 0.3);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.gradeButton:hover {
+  border-color: rgba(99, 14, 212, 0.5);
+  background: rgba(99, 14, 212, 0.05);
+}
+
+.gradeButton:active {
+  transform: scale(0.95);
+}
+
+.gradeButtonActive {
+  border-color: #630ed4;
+  background: rgba(99, 14, 212, 0.1);
+  box-shadow: 0 0 0 2px rgba(99, 14, 212, 0.2);
+}
+
+.gradeButtonActive .gradeText {
+  color: #630ed4;
+}
+
+.gradeText {
+  font-size: 16px;
+  font-weight: 500;
+  color: #4a4455;
+  transition: color 0.2s ease;
+}
+
+.otherButton {
+  padding: 0 16px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(204, 195, 216, 0.3);
+  border-radius: 9999px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.otherButton:hover {
+  border-color: rgba(99, 14, 212, 0.5);
+  background: rgba(99, 14, 212, 0.05);
+}
+
+.otherButton:active {
+  transform: scale(0.95);
+}
+
+.otherButtonActive {
+  border-color: #630ed4;
+  background: rgba(99, 14, 212, 0.1);
+  box-shadow: 0 0 0 2px rgba(99, 14, 212, 0.2);
+}
+
+.otherButtonActive .otherText {
+  color: #630ed4;
+}
+
+.otherText {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4a4455;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: color 0.2s ease;
+}
+
+/* Other Input */
+.otherInputContainer {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.otherInput {
+  width: 100%;
+  padding: 12px 16px;
+  background: #e7eefe;
+  border: 2px solid rgba(99, 14, 212, 0.2);
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  color: #151c27;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.otherInput:focus {
+  outline: none;
+  border-color: #630ed4;
+}
+
+.otherInput::placeholder {
+  color: #7b7487;
+}
+
+/* Phone Section */
+.phoneSection {
+  padding-top: 4px;
+}
+
+.phoneShared {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(67, 160, 71, 0.1);
+  border: 1px solid rgba(67, 160, 71, 0.2);
+  border-radius: 8px;
+  color: #43a047;
+}
+
+.phoneSharedText {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.phoneButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(227, 225, 237, 0.5);
+  color: #630ed4;
+  border: 1px solid rgba(99, 14, 212, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.phoneButton:hover {
+  background: #e3e1ed;
+}
+
+.phoneButton:active {
+  transform: scale(0.98);
+}
+
+.telegramIcon {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.phoneButtonText {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+/* Action Section */
+.actionSection {
+  padding-top: 12px;
+  border-top: 1px solid rgba(204, 195, 216, 0.2);
+}
+
+.readyButton {
+  width: 100%;
+  padding: 12px 24px;
+  background: #630ed4;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 30px;
+  letter-spacing: -0.01em;
+  box-shadow: 0 4px 16px rgba(99, 14, 212, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.readyButton:hover:not(:disabled) {
+  background: rgba(99, 14, 212, 0.9);
+}
+
+.readyButton:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.readyButtonDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

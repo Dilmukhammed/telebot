@@ -1,0 +1,88 @@
+.container {
+  padding: var(--spacing-lg);
+}
+
+.filters {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.filterChip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--tg-button-color);
+  background: transparent;
+  color: var(--tg-button-color);
+  cursor: pointer;
+  font-size: var(--font-sm);
+}
+
+.filterChipActive {
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.card {
+  /* Card styles handled by Card component */
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xs);
+}
+
+.subject {
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--tg-text-color);
+}
+
+.badge {
+  font-size: var(--font-xs);
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.badgeOnline {
+  background: rgba(67, 160, 71, 0.15);
+  color: #43a047;
+}
+
+.badgeOffline {
+  background: rgba(25, 118, 210, 0.15);
+  color: #1976d2;
+}
+
+.datetime {
+  font-size: var(--font-sm);
+  color: var(--tg-hint-color);
+  margin-bottom: var(--spacing-xs);
+}
+
+.capacity {
+  font-size: var(--font-sm);
+  color: var(--tg-hint-color);
+}
+
+.capacityLabel {
+  margin-right: var(--spacing-xs);
+}
+
+.capacityValue {
+  font-weight: 600;
+  color: var(--tg-text-color);
+}
+
+.capacityFull {
+  color: var(--color-danger);
+}

@@ -1,0 +1,122 @@
+.page {
+  padding: var(--spacing-lg);
+}
+
+.heading {
+  font-size: var(--font-xl);
+  font-weight: var(--font-semibold);
+  color: var(--tg-text-color);
+  margin-bottom: var(--spacing-lg);
+}
+
+.filters {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.filterBtn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--tg-button-color);
+  background: transparent;
+  color: var(--tg-button-color);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  position: relative;
+}
+
+.filterBtnActive {
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+}
+
+.filterBadge {
+  margin-left: 4px;
+  font-size: var(--font-xs);
+  background: rgba(0, 0, 0, 0.15);
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.card {
+  /* Card styles handled by Card component */
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xs);
+}
+
+.subject {
+  font-size: var(--font-md);
+  font-weight: var(--font-semibold);
+  color: var(--tg-text-color);
+}
+
+.badge {
+  font-size: var(--font-xs);
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.badgeGreen {
+  background: rgba(67, 160, 71, 0.15);
+  color: #43a047;
+}
+
+.badgeGray {
+  background: var(--color-gray-200);
+  color: var(--color-gray-600);
+}
+
+.datetime {
+  font-size: var(--font-sm);
+  color: var(--tg-hint-color);
+  margin-bottom: var(--spacing-xs);
+}
+
+.resultBlock {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  background: var(--tg-secondary-bg-color);
+  border-radius: var(--radius-sm);
+}
+
+.resultLabel {
+  font-size: var(--font-sm);
+  color: var(--tg-hint-color);
+}
+
+.resultScore {
+  font-size: var(--font-md);
+  font-weight: var(--font-semibold);
+  color: var(--tg-text-color);
+}
+
+.actions {
+  margin-top: var(--spacing-sm);
+}
+
+.confirmText {
+  font-size: var(--font-md);
+  color: var(--tg-text-color);
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.confirmActions {
+  display: flex;
+  gap: var(--spacing-sm);
+}

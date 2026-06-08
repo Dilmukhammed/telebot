@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where gemini *)",
+      "Bash(npm list *)",
+      "Bash(npm root *)",
+      "Bash(ls \"$\\(npm root -g\\)/@google/gemini-cli/\")",
+      "Read(//c/Users/dimaa/OneDrive/Desktop/**)",
+      "Read(//c/Users/dimaa/**)",
+      "Bash(ls \"$\\(npm root -g\\)/@google/gemini-cli/bundle/\")",
+      "Bash(npm ls *)",
+      "Bash(grep -l \"ink\\\\|react\\\\|ink-text-input\\\\|ink-select-input\" \"$\\(npm root -g\\)/@google/gemini-cli/bundle/\"*.js)"
+    ]
+  }
+}

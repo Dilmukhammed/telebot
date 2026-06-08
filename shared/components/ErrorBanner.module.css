@@ -1,0 +1,49 @@
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background-color: var(--color-danger-bg);
+  border: 1px solid rgba(229, 57, 53, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+  font-size: var(--font-md);
+  line-height: var(--leading-normal);
+}
+
+.icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+
+.message {
+  flex: 1;
+  margin: 0;
+}
+
+.dismissButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: inherit;
+  transition: background-color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.dismissButton:hover {
+  background-color: rgba(229, 57, 53, 0.1);
+}
+
+.dismissButton:focus-visible {
+  outline: 2px solid var(--color-danger);
+  outline-offset: 2px;
+}

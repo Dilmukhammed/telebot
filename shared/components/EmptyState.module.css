@@ -1,0 +1,31 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-2xl) var(--spacing-md);
+  text-align: center;
+  color: var(--tg-text-color);
+}
+
+.icon {
+  font-size: var(--font-2xl);
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-lg);
+  font-weight: var(--font-semibold);
+  color: var(--tg-text-color);
+}
+
+.message {
+  margin: 0;
+  font-size: var(--font-md);
+  color: var(--tg-hint-color);
+  max-width: 320px;
+  line-height: var(--leading-relaxed);
+}

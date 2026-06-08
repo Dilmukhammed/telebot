@@ -1,0 +1,313 @@
+.page {
+  min-height: 100vh;
+  background: var(--color-surface);
+  padding-bottom: 80px;
+  font-family: 'Inter', sans-serif;
+}
+
+main {
+  padding: 12px 12px 0;
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.loadingState, .errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: var(--spacing-sm);
+  color: var(--color-on-surface-variant);
+  font-size: var(--font-sm);
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(99, 14, 212, 0.1);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Welcome Card */
+.welcomeCard {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.welcomeGradientBg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #7c3aed 0%, #630ed4 50%, #4c058f 100%);
+  opacity: 0.95;
+  z-index: 1;
+}
+
+.welcomeGradientBg::before {
+  content: '';
+  position: absolute;
+  top: -20%;
+  right: -10%;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  filter: blur(20px);
+}
+
+.welcomeCardContent {
+  position: relative;
+  z-index: 2;
+  padding: var(--spacing-lg);
+}
+
+.welcomeTitle {
+  font-size: var(--font-lg);
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--color-on-primary);
+  margin: 0;
+}
+
+.welcomeSub {
+  font-size: var(--font-xs);
+  color: rgba(255, 255, 255, 0.8);
+  margin: 4px 0 0;
+}
+
+/* Stats Grid */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.statCard {
+  background: var(--color-surface-container-lowest);
+  border-radius: var(--radius-lg);
+  padding: 10px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid rgba(99, 14, 212, 0.06);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.statCard:active {
+  transform: scale(0.96);
+}
+
+.statCard .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--color-primary);
+}
+
+.statValue {
+  font-size: var(--font-lg);
+  font-weight: 700;
+  color: var(--color-on-surface);
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 10px;
+  color: var(--color-on-surface-variant);
+  text-align: center;
+}
+
+/* Section */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.sectionTitle {
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--color-on-surface);
+  margin: 0;
+}
+
+/* Actions Grid */
+.actionsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-sm);
+}
+
+.actionCard {
+  background: var(--color-surface-container-lowest);
+  border: 1px solid rgba(99, 14, 212, 0.1);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--color-on-surface);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.actionCard:active {
+  transform: scale(0.97);
+}
+
+.actionCard .material-symbols-outlined {
+  font-size: 22px;
+  color: var(--color-primary);
+  background: rgba(99, 14, 212, 0.05);
+  padding: 6px;
+  border-radius: var(--radius-md);
+}
+
+/* Lessons List */
+.lessonsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.lessonCard {
+  background: var(--color-surface-container-lowest);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-gray-200);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.lessonTime {
+  font-size: var(--font-md);
+  font-weight: 800;
+  color: var(--color-primary);
+  min-width: 48px;
+}
+
+.lessonInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lessonSubject {
+  font-weight: 700;
+  font-size: var(--font-sm);
+  color: var(--color-on-surface);
+}
+
+.lessonMeta {
+  display: flex;
+  align-items: center;
+  font-size: var(--font-xs);
+  color: var(--color-on-surface-variant);
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px var(--spacing-md);
+  gap: var(--spacing-xs);
+  color: var(--color-on-surface-variant);
+  font-size: var(--font-sm);
+  background: var(--color-surface-container-lowest);
+  border: 1px dashed var(--color-gray-300);
+  border-radius: var(--radius-lg);
+}
+
+/* Section Header */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.seeAllButton {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--color-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+/* Notifications */
+.notificationsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notificationCard {
+  background: rgba(124, 58, 237, 0.03);
+  border: 1px solid rgba(124, 58, 237, 0.1);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.notificationContent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.notificationSender {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-xs);
+  font-weight: 500;
+  color: var(--color-primary);
+  margin-bottom: 2px;
+}
+
+.notificationTitle {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--color-on-surface);
+  margin: 0;
+}
+
+.notificationMessage {
+  font-size: var(--font-sm);
+  line-height: 1.4;
+  color: var(--color-on-surface);
+  margin: 0;
+}
+
+.notificationTime {
+  font-size: var(--font-xs);
+  font-weight: 500;
+  color: var(--color-on-surface-variant);
+  opacity: 0.8;
+  margin-top: 4px;
+}
+
+.bottomSpacer {
+  height: 20px;
+}
