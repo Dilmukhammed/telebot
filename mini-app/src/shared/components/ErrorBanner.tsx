@@ -4,12 +4,14 @@ import styles from './ErrorBanner.module.css';
 export interface ErrorBannerProps {
   message: string;
   onDismiss?: () => void;
+  onRetry?: () => void;
   'data-testid'?: string;
 }
 
 export const ErrorBanner: React.FC<ErrorBannerProps> = ({
   message,
   onDismiss,
+  onRetry,
   'data-testid': dataTestId,
 }) => {
   return (
@@ -39,6 +41,15 @@ export const ErrorBanner: React.FC<ErrorBannerProps> = ({
         <circle cx="10" cy="13" r="1" fill="currentColor" />
       </svg>
       <p className={styles.message}>{message}</p>
+      {onRetry && (
+        <button
+          className={styles.retryButton}
+          onClick={onRetry}
+          type="button"
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>refresh</span>
+        </button>
+      )}
       {onDismiss && (
         <button
           className={styles.dismissButton}

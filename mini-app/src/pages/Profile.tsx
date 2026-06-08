@@ -54,6 +54,7 @@ export default function Profile() {
   const handleSelectLang = (code: string) => {
     setSelectedLang(code)
     i18n.changeLanguage(code)
+    localStorage.setItem('lang', code)
     setShowLangModal(false)
   }
 

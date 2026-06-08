@@ -9,13 +9,18 @@
     "next": "Next",
     "ready": "Done",
     "verified": "Verified",
-    "all": "All"
+    "all": "All",
+    "retry": "Retry",
+    "dismiss": "Dismiss"
   },
   "nav": {
     "home": "Home",
     "courses": "Courses",
     "calendar": "Calendar",
-    "profile": "Profile"
+    "profile": "Profile",
+    "tests": "Tests",
+    "registrations": "My Registrations",
+    "results": "My Results"
   },
   "landing": {
     "title": "{{centerName}}",
@@ -88,7 +93,43 @@
     "alreadyRegistered": "You are already registered for this test",
     "passed": "Test has already passed",
     "full": "Test is full",
-    "register": "Register"
+    "register": "Register",
+    "title": "Available Tests",
+    "noTests": "No tests available",
+    "noTestsMessage": "No scheduled tests for the selected subject yet",
+    "online": "Online",
+    "offline": "Offline",
+    "loading": "Loading test...",
+    "notFound": "Test not found",
+    "registerError": "Registration error",
+    "myRegistrations": "My Registrations",
+    "goToRegistrations": "My Registrations"
+  },
+  "registrations": {
+    "title": "My Registrations",
+    "loading": "Loading registrations...",
+    "active": "Active",
+    "all": "All",
+    "cancelled": "Cancelled",
+    "noRegistrations": "No registrations",
+    "noRegistrationsMessage": "You have no test registrations yet",
+    "registered": "Registered",
+    "statusCancelled": "Cancelled",
+    "result": "Result:",
+    "cancel": "Cancel",
+    "confirmCancel": "Confirm Cancellation",
+    "confirmCancelText": "Are you sure you want to cancel your test registration?",
+    "noLeave": "No, keep it",
+    "yesCancel": "Yes, cancel",
+    "cancelError": "Error cancelling registration",
+    "filterLabel": "Registration filter"
+  },
+  "results": {
+    "title": "My Results",
+    "loading": "Loading results...",
+    "noResults": "No results",
+    "noResultsMessage": "You have no test results yet",
+    "comment": "Comment"
   },
   "courseDetail": {
     "lessons": "Lessons",
@@ -241,5 +282,10 @@
     "subtitle": "Share your phone number to confirm",
     "success": "Welcome!",
     "confirm": "Confirm"
+  },
+  "notFound": {
+    "title": "Page Not Found",
+    "message": "The requested page does not exist",
+    "goHome": "Go Home"
   }
 }

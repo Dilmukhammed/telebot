@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
 import { getMe } from '../api/client'
 import type { UserOut } from '../shared/types'
 
@@ -21,8 +21,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchUser = useCallback(async () => {
-    setLoading(true)
+  const fetchUser = useCallback(async (isRefresh = false) => {
+    // Only show full-page spinner on initial load, not on refreshes
+    if (!isRefresh) setLoading(true)
     setError(null)
     try {
       const u = await getMe()
@@ -30,7 +31,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load user')
     } finally {
-      setLoading(false)
+      if (!isRefresh) setLoading(false)
     }
   }, [])
 
@@ -38,8 +39,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
     fetchUser()
   }, [fetchUser])
 
+  const refresh = useCallback(() => fetchUser(true), [fetchUser])
+
+  const value = useMemo<UserContextValue>(
+    () => ({ user, loading, error, refresh }),
+    [user, loading, error, refresh]
+  )
+
   return (
-    <UserContext.Provider value={{ user, loading, error, refresh: fetchUser }}>
+    <UserContext.Provider value={value}>
       {children}
     </UserContext.Provider>
   )

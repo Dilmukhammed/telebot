@@ -37,16 +37,17 @@ const getLocalDateString = (d: Date = getTashkentDate()) => {
 
 export default function Calendar() {
   const { t, i18n } = useTranslation()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [data, setData] = useState<CalendarWeekOut | null>(null)
   const [loading, setLoading] = useState(true)
   const [weekOffset, setWeekOffset] = useState(0)
-  const [view, setView] = useState<'day' | 'week'>(searchParams.get('view') === 'week' ? 'week' : 'day')
+  const [view, setView] = useState<'day' | 'week'>(() => searchParams.get('view') === 'week' ? 'week' : 'day')
   const [selectedDay, setSelectedDay] = useState(0)
   const [now, setNow] = useState(getTashkentDate())
   const [showMonthPicker, setShowMonthPicker] = useState(false)
   const [pickerYear, setPickerYear] = useState(getTashkentDate().getFullYear())
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; startTime: string; endTime: string; dayOfWeek: number; isNew: boolean; slotId?: number } | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const { user } = useUser()
   const userRole = user?.role ?? null
 
@@ -87,9 +88,10 @@ export default function Calendar() {
 
   useEffect(() => {
     setLoading(true)
+    setError(null)
     getCalendar(weekOffset)
       .then(setData)
-      .catch(console.error)
+      .catch((e) => setError(e instanceof Error ? e.message : 'Error loading calendar'))
       .finally(() => setLoading(false))
   }, [weekOffset])
 
@@ -101,8 +103,26 @@ export default function Calendar() {
     }
   }, [data])
 
-  if (loading || !data) {
+  if (loading) {
     return <Loading fullPage message={t('common.loading')} />
+  }
+
+  if (error || !data) {
+    return (
+      <div className={styles.page}>
+        <SiteHeader title={t('calendar.title')} hideProfile />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '24px' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'var(--color-outline)' }}>error</span>
+          <p style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center' }}>{error || t('common.error')}</p>
+          <button
+            onClick={() => { setWeekOffset(0) }}
+            style={{ padding: '10px 24px', borderRadius: '12px', border: 'none', background: 'var(--color-primary)', color: 'var(--color-on-primary)', fontWeight: 600, cursor: 'pointer' }}
+          >
+            {t('common.retry')}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   const currentDay = data.days[selectedDay]
@@ -177,13 +197,13 @@ export default function Calendar() {
       <div className={styles.viewToggle}>
         <button
           className={`${styles.viewButton} ${view === 'day' ? styles.viewButtonActive : ''}`}
-          onClick={() => setView('day')}
+          onClick={() => { setView('day'); setSearchParams(prev => { prev.set('view', 'day'); return prev }, { replace: true }) }}
         >
           {t('calendar.dayView')}
         </button>
         <button
           className={`${styles.viewButton} ${view === 'week' ? styles.viewButtonActive : ''}`}
-          onClick={() => setView('week')}
+          onClick={() => { setView('week'); setSearchParams(prev => { prev.set('view', 'week'); return prev }, { replace: true }) }}
         >
           {t('calendar.weekView')}
         </button>

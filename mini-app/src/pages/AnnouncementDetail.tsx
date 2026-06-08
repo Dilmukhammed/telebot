@@ -2,33 +2,20 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getAnnouncementDetail, getTeacherAnnouncementDetail, getAnnouncementRecipients } from '../api/client'
+import { useUser } from '../context/UserContext'
 import type { AnnouncementOut, AnnouncementRecipient } from '../shared/types'
+import { formatDateTime, langToLocale } from '../shared/utils/formatDate'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './AnnouncementDetail.module.css'
 
-const formatDate = (isoString: string) => {
-  try {
-    const d = new Date(isoString)
-    if (isNaN(d.getTime())) return ''
-    return d.toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return ''
-  }
-}
-
 const PREVIEW_COUNT = 5
 
 export default function AnnouncementDetail() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useUser()
   const [announcement, setAnnouncement] = useState<AnnouncementOut | null>(null)
   const [recipients, setRecipients] = useState<AnnouncementRecipient[]>([])
   const [showAllRecipients, setShowAllRecipients] = useState(false)
@@ -36,25 +23,21 @@ export default function AnnouncementDetail() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (id) {
-      getTeacherAnnouncementDetail(Number(id))
-        .then((data) => {
-          setAnnouncement(data)
-          // If this is the teacher's own announcement, fetch recipients
-          if (data.recipient_count && data.recipient_count > 0) {
-            getAnnouncementRecipients(Number(id))
-              .then(setRecipients)
-              .catch(console.error)
-          }
-        })
-        .catch(() => getAnnouncementDetail(Number(id)).then(setAnnouncement))
-        .catch((e) => {
-          console.error(e)
-          setError(e.message || 'Error loading announcement')
-        })
-        .finally(() => setLoading(false))
-    }
-  }, [id])
+    if (!id) return
+    const numId = Number(id)
+    const isPrivileged = user && (user.role === 'teacher' || user.role === 'admin')
+    const fetcher = isPrivileged ? getTeacherAnnouncementDetail(numId) : getAnnouncementDetail(numId)
+
+    fetcher
+      .then((data) => {
+        setAnnouncement(data)
+        if (isPrivileged && data.recipient_count && data.recipient_count > 0) {
+          getAnnouncementRecipients(numId).then(setRecipients).catch(console.error)
+        }
+      })
+      .catch((e) => setError(e.message || 'Error loading announcement'))
+      .finally(() => setLoading(false))
+  }, [id, user])
 
   if (loading) {
     return <Loading fullPage message={t('common.loading')} />
@@ -95,7 +78,7 @@ export default function AnnouncementDetail() {
           {announcement.title && (
             <h2 className={styles.title}>{announcement.title}</h2>
           )}
-          <span className={styles.date}>{formatDate(announcement.sent_at)}</span>
+          <span className={styles.date}>{formatDateTime(announcement.sent_at, langToLocale(i18n.language))}</span>
           <div className={styles.divider} />
           <p className={styles.message}>{announcement.message}</p>
         </div>

@@ -29,9 +29,6 @@ function getAuthHeaders(): Record<string, string> {
     headers['X-Telegram-User'] = btoa(unescape(encodeURIComponent(userJson)))
   }
 
-  console.log('[API] initData:', initData ? `len=${initData.length}` : 'EMPTY')
-  console.log('[API] user:', user ? `id=${user.id} name=${user.first_name}` : 'NONE')
-
   return headers
 }
 
@@ -45,12 +42,17 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   })
 
   if (!response.ok) {
-    let message = `Ошибка (${response.status})`
+    let message = `Error (${response.status})`
     try {
       const body = await response.json()
       if (body.detail) message = body.detail
     } catch { /* ignore */ }
     throw new Error(message)
+  }
+
+  // Handle 204 No Content and empty responses
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return undefined as T
   }
 
   return response.json() as Promise<T>

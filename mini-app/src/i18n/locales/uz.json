@@ -9,13 +9,18 @@
     "next": "Keyingisi",
     "ready": "Tayyor",
     "verified": "Tasdiqlangan",
-    "all": "Barchasi"
+    "all": "Barchasi",
+    "retry": "Qayta urinish",
+    "dismiss": "Yopish"
   },
   "nav": {
     "home": "Bosh sahifa",
     "courses": "Kurslar",
     "calendar": "Kalendar",
-    "profile": "Profil"
+    "profile": "Profil",
+    "tests": "Testlar",
+    "registrations": "Mening yozilishlarim",
+    "results": "Mening natijalarim"
   },
   "landing": {
     "title": "{{centerName}}",
@@ -88,7 +93,43 @@
     "alreadyRegistered": "Siz allaqachon bu testga yozilgansiz",
     "passed": "Test allaqachon o'tib ketgan",
     "full": "Test to'lgan",
-    "register": "Ro'yxatdan o'tish"
+    "register": "Ro'yxatdan o'tish",
+    "title": "Mavjud testlar",
+    "noTests": "Testlar mavjud emas",
+    "noTestsMessage": "Tanlangan fan uchun hali rejalashtirilgan testlar yo'q",
+    "online": "Onlayn",
+    "offline": "Oflayn",
+    "loading": "Test yuklanmoqda...",
+    "notFound": "Test topilmadi",
+    "registerError": "Ro'yxatdan o'tishda xatolik",
+    "myRegistrations": "Mening yozilishlarim",
+    "goToRegistrations": "Mening yozilishlarim"
+  },
+  "registrations": {
+    "title": "Mening yozilishlarim",
+    "loading": "Yozilishlar yuklanmoqda...",
+    "active": "Faol",
+    "all": "Barchasi",
+    "cancelled": "Bekor qilingan",
+    "noRegistrations": "Yozilishlar yo'q",
+    "noRegistrationsMessage": "Sizda hali test yozilishlari yo'q",
+    "registered": "Yozilgan",
+    "statusCancelled": "Bekor qilingan",
+    "result": "Natija:",
+    "cancel": "Bekor qilish",
+    "confirmCancel": "Bekor qilishni tasdiqlang",
+    "confirmCancelText": "Test yozilishini bekor qilmoqchimisiz?",
+    "noLeave": "Yo'q, qoldirish",
+    "yesCancel": "Ha, bekor qilish",
+    "cancelError": "Yozilishni bekor qilishda xatolik",
+    "filterLabel": "Yozilishlar filtri"
+  },
+  "results": {
+    "title": "Mening natijalarim",
+    "loading": "Natijalar yuklanmoqda...",
+    "noResults": "Natijalar yo'q",
+    "noResultsMessage": "Sizda hali test natijalari yo'q",
+    "comment": "Izoh"
   },
   "courseDetail": {
     "lessons": "Darslar",
@@ -241,5 +282,10 @@
     "subtitle": "Tasdiqlash uchun telefon raqamingizni ulashing",
     "success": "Xush kelibsiz!",
     "confirm": "Tasdiqlash"
+  },
+  "notFound": {
+    "title": "Sahifa topilmadi",
+    "message": "So'ralgan sahifa mavjud emas",
+    "goHome": "Bosh sahifaga"
   }
 }

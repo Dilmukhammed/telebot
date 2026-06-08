@@ -29,3 +29,7 @@
   max-width: 320px;
   line-height: var(--leading-relaxed);
 }
+
+.action {
+  margin-top: var(--spacing-sm);
+}

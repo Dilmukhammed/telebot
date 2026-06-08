@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getMe, completeOnboarding } from '../api/client'
+import { useUser } from '../context/UserContext'
 import type { UserOut } from '../shared/types'
 import styles from './OnboardingModal.module.css'
 
@@ -14,12 +14,13 @@ interface OnboardingModalProps {
 
 export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
+  const { refresh } = useUser()
   const [user, setUser] = useState<UserOut | null>(null)
   const [selectedGrade, setSelectedGrade] = useState<string | null>(null)
   const [customRole, setCustomRole] = useState('')
   const [showOtherInput, setShowOtherInput] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [phoneShared, setPhoneShared] = useState(false)
   const [sharedPhone, setSharedPhone] = useState<string | null>(null)
   const [showManualPhoneInput, setShowManualPhoneInput] = useState(false)
@@ -78,13 +79,14 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
 
     const grade = selectedGrade === 'other' ? customRole || t('onboarding.other') : selectedGrade
     setLoading(true)
+    setError(null)
 
     try {
       await completeOnboarding({ grade, phone: sharedPhone || undefined })
+      await refresh()
       onClose()
-      navigate('/dashboard')
     } catch (err) {
-      console.error('Onboarding error:', err)
+      setError(err instanceof Error ? err.message : 'Error completing onboarding')
     } finally {
       setLoading(false)
     }
@@ -187,6 +189,13 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
               </button>
             )}
           </div>
+
+          {/* Error */}
+          {error && (
+            <div style={{ padding: '8px 12px', background: 'rgba(186, 26, 26, 0.08)', borderRadius: '8px', color: '#ba1a1a', fontSize: '13px', textAlign: 'center' }}>
+              {error}
+            </div>
+          )}
 
           {/* Main Action */}
           <div className={styles.actionSection}>

@@ -9,13 +9,18 @@
     "next": "Далее",
     "ready": "Готово",
     "verified": "Подтверждено",
-    "all": "Все"
+    "all": "Все",
+    "retry": "Повторить",
+    "dismiss": "Закрыть"
   },
   "nav": {
     "home": "Главная",
     "courses": "Курсы",
     "calendar": "Календарь",
-    "profile": "Профиль"
+    "profile": "Профиль",
+    "tests": "Тесты",
+    "registrations": "Мои записи",
+    "results": "Мои результаты"
   },
   "landing": {
     "title": "{{centerName}}",
@@ -88,7 +93,43 @@
     "alreadyRegistered": "Вы уже записаны на этот тест",
     "passed": "Тест уже прошёл",
     "full": "Тест заполнен",
-    "register": "Записаться"
+    "register": "Записаться",
+    "title": "Доступные тесты",
+    "noTests": "Нет доступных тестов",
+    "noTestsMessage": "Пока нет запланированных тестов по выбранному предмету",
+    "online": "Онлайн",
+    "offline": "Офлайн",
+    "loading": "Загрузка теста...",
+    "notFound": "Тест не найден",
+    "registerError": "Ошибка регистрации",
+    "myRegistrations": "Мои записи",
+    "goToRegistrations": "Мои записи"
+  },
+  "registrations": {
+    "title": "Мои записи",
+    "loading": "Загрузка записей...",
+    "active": "Активные",
+    "all": "Все",
+    "cancelled": "Отменённые",
+    "noRegistrations": "Нет записей",
+    "noRegistrationsMessage": "У вас пока нет записей на тесты",
+    "registered": "Записан",
+    "statusCancelled": "Отменён",
+    "result": "Результат:",
+    "cancel": "Отменить",
+    "confirmCancel": "Подтвердите отмену",
+    "confirmCancelText": "Вы уверены, что хотите отменить запись на тест?",
+    "noLeave": "Нет, оставить",
+    "yesCancel": "Да, отменить",
+    "cancelError": "Ошибка отмены записи",
+    "filterLabel": "Фильтр записей"
+  },
+  "results": {
+    "title": "Мои результаты",
+    "loading": "Загрузка результатов...",
+    "noResults": "Нет результатов",
+    "noResultsMessage": "У вас пока нет результатов тестов",
+    "comment": "Комментарий"
   },
   "courseDetail": {
     "lessons": "Занятия",
@@ -241,5 +282,10 @@
     "subtitle": "Поделитесь номером телефона для подтверждения",
     "success": "Добро пожаловать!",
     "confirm": "Подтвердить"
+  },
+  "notFound": {
+    "title": "Страница не найдена",
+    "message": "Запрашиваемая страница не существует",
+    "goHome": "На главную"
   }
 }

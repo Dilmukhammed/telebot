@@ -47,3 +47,28 @@
   outline: 2px solid var(--color-danger);
   outline-offset: 2px;
 }
+
+.retryButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: inherit;
+  transition: background-color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.retryButton:hover {
+  background-color: rgba(229, 57, 53, 0.1);
+}
+
+.retryButton:focus-visible {
+  outline: 2px solid var(--color-danger);
+  outline-offset: 2px;
+}

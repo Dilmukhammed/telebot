@@ -110,6 +110,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [data, setData] = useState<DashboardOut | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const touchStartY = useRef(0)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -121,8 +122,9 @@ export default function Dashboard() {
     try {
       const d = await getDashboard()
       setData(d)
+      setError(null)
     } catch (e) {
-      console.error(e)
+      setError(e instanceof Error ? e.message : 'Error loading dashboard')
     }
   }, [])
 
@@ -152,7 +154,16 @@ export default function Dashboard() {
   if (!data) {
     return (
       <div className={styles.page}>
-        <div className={styles.error}>{t('common.error')}</div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '24px' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'var(--color-outline)' }}>error</span>
+          <p style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center' }}>{error || t('common.error')}</p>
+          <button
+            onClick={() => { setLoading(true); fetchData().finally(() => setLoading(false)) }}
+            style={{ padding: '10px 24px', borderRadius: '12px', border: 'none', background: 'var(--color-primary)', color: 'var(--color-on-primary)', fontWeight: 600, cursor: 'pointer' }}
+          >
+            {t('common.retry')}
+          </button>
+        </div>
       </div>
     )
   }
