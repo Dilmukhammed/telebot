@@ -315,7 +315,7 @@ async def seed():
         print("\n── Attendance ──")
         attendance_count = 0
         for lesson_key, lesson in list(lessons.items())[:3]:
-            for student_username in ["dima_student", "alisa_student", "katya_student"]:
+            for student_username in ["tdima01", "alisa_student", "katya_student"]:
                 student = students[student_username]
                 # Check if already enrolled
                 enroll_result = await session.execute(
