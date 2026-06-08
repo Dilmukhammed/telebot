@@ -295,26 +295,54 @@ async def seed():
         # ── Lesson statuses (past lessons) ──
         print("\n── Lesson Statuses ──")
         today = dt.date.today()
-        # Create some past lesson statuses
-        for lesson_key, lesson in list(lessons.items())[:4]:
-            # Check if status already exists for today
+        # Find last week's days
+        last_monday = today - dt.timedelta(days=today.weekday() + 7)
+        last_tuesday = last_monday + dt.timedelta(days=1)
+        last_wednesday = last_monday + dt.timedelta(days=2)
+        last_thursday = last_monday + dt.timedelta(days=3)
+
+        # Map lesson keys to past dates and statuses
+        status_map = {
+            "Математика_0_16:00": (last_monday, "happened"),      # Пн → happened
+            "Математика_2_16:00": (last_wednesday, "cancelled"),   # Ср → cancelled
+            "Английский язык_1_14:00": (last_tuesday, "happened"), # Вт → happened
+            "Английский язык_3_14:00": (last_thursday, "cancelled"), # Чт → cancelled
+        }
+        for lesson_key, (lesson_date, status_val) in status_map.items():
+            if lesson_key not in lessons:
+                continue
+            lesson = lessons[lesson_key]
             result = await session.execute(
-                select(LessonStatus).where(LessonStatus.lesson_id == lesson.id)
+                select(LessonStatus).where(
+                    LessonStatus.lesson_id == lesson.id,
+                    LessonStatus.date == lesson_date,
+                )
             )
             existing = result.scalar_one_or_none()
             if not existing:
-                status = LessonStatus(
+                ls = LessonStatus(
                     lesson_id=lesson.id,
-                    date=today - dt.timedelta(days=1),
-                    status="happened",
+                    date=lesson_date,
+                    status=status_val,
+                    marked_by=admin.id,
                 )
-                session.add(status)
-                print(f"  ✓ Status: {lesson_key} → happened")
+                session.add(ls)
+                print(f"  ✓ Status: {lesson_key} → {status_val} ({lesson_date})")
+            else:
+                print(f"  → Status already exists: {lesson_key} ({lesson_date})")
+        # Остальные уроки (Физика Пт, Прог Сб) — без статуса = planned
 
         # ── Attendance ──
         print("\n── Attendance ──")
         attendance_count = 0
-        for lesson_key, lesson in list(lessons.items())[:3]:
+        happened_lessons = [
+            ("Математика_0_16:00", last_monday),
+            ("Английский язык_1_14:00", last_tuesday),
+        ]
+        for lesson_key, lesson_date in happened_lessons:
+            if lesson_key not in lessons:
+                continue
+            lesson = lessons[lesson_key]
             for student_username in ["tdima01", "alisa_student", "katya_student"]:
                 student = students[student_username]
                 # Check if already enrolled
@@ -331,6 +359,7 @@ async def seed():
                     select(Attendance).where(
                         Attendance.lesson_id == lesson.id,
                         Attendance.user_id == student.id,
+                        Attendance.date == lesson_date,
                     )
                 )
                 if att_result.scalar_one_or_none():
@@ -339,7 +368,7 @@ async def seed():
                 att = Attendance(
                     lesson_id=lesson.id,
                     user_id=student.id,
-                    date=today - dt.timedelta(days=1),
+                    date=lesson_date,
                     present=(student_username != "boris_student"),
                 )
                 session.add(att)
