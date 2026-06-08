@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getMe, updateName, getAvailability, createAvailability, deleteAvailability } from '../api/client'
-import type { UserOut, TeacherAvailabilityOut } from '../shared/types'
+import { updateName, getAvailability, createAvailability, deleteAvailability } from '../api/client'
+import { useUser } from '../context/UserContext'
+import type { TeacherAvailabilityOut } from '../shared/types'
 import { CENTER } from '../config'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
@@ -26,8 +27,7 @@ function formatPhone(phone: string): string {
 
 export default function Profile() {
   const { t, i18n } = useTranslation()
-  const [user, setUser] = useState<UserOut | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading: userLoading, refresh: refreshUser } = useUser()
   const [showLangModal, setShowLangModal] = useState(false)
   const [showHelpModal, setShowHelpModal] = useState(false)
   const [showNameModal, setShowNameModal] = useState(false)
@@ -46,16 +46,10 @@ export default function Profile() {
   const telegramAvatar = tgUser?.photo_url
 
   useEffect(() => {
-    getMe()
-      .then((u) => {
-        setUser(u)
-        if (u.role === 'teacher' || u.role === 'admin') {
-          getAvailability().then(setAvailability).catch(() => {})
-        }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [])
+    if (user && (user.role === 'teacher' || user.role === 'admin')) {
+      getAvailability().then(setAvailability).catch(() => {})
+    }
+  }, [user])
 
   const handleSelectLang = (code: string) => {
     setSelectedLang(code)
@@ -73,8 +67,8 @@ export default function Profile() {
     if (!editFirstName.trim()) return
     setSaving(true)
     try {
-      const updated = await updateName(editFirstName.trim(), editLastName.trim() || undefined)
-      setUser(updated)
+      await updateName(editFirstName.trim(), editLastName.trim() || undefined)
+      await refreshUser()
       setShowNameModal(false)
     } catch (err) {
       console.error('Error saving name:', err)
@@ -114,7 +108,7 @@ export default function Profile() {
 
   const currentLang = languages.find(l => l.code === selectedLang)
 
-  if (loading) {
+  if (userLoading) {
     return <Loading fullPage message={t('common.loading')} />
   }
 

@@ -91,10 +91,6 @@ export const MyRegistrations: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return <Loading fullPage message="Загрузка записей..." data-testid="loading" />;
-  }
-
   const activeCount = useMemo(
     () =>
       registrations.filter(
@@ -106,6 +102,10 @@ export const MyRegistrations: React.FC = () => {
     () => registrations.filter((r) => r.status === 'cancelled').length,
     [registrations]
   );
+
+  if (loading) {
+    return <Loading fullPage message="Загрузка записей..." data-testid="loading" />;
+  }
 
   return (
     <div className={styles.page}>

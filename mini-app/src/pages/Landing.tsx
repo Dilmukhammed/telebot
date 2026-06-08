@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getMe } from '../api/client'
-import type { UserOut } from '../shared/types'
+import { useUser } from '../context/UserContext'
 import { CENTER } from '../config'
 import OnboardingModal from '../components/OnboardingModal'
 import TeacherOnboardingModal from '../components/TeacherOnboardingModal'
@@ -58,13 +57,9 @@ const features = [
 
 export default function Landing() {
   const navigate = useNavigate()
-  const [user, setUser] = useState<UserOut | null>(null)
+  const { user, loading: userLoading } = useUser()
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showTeacherOnboarding, setShowTeacherOnboarding] = useState(false)
-
-  useEffect(() => {
-    getMe().then(setUser).catch(console.error)
-  }, [])
 
   // Block scroll when modal is open
   useEffect(() => {
@@ -79,16 +74,18 @@ export default function Landing() {
   }, [showOnboarding, showTeacherOnboarding])
 
   const handleCabinetClick = () => {
-    // For dev mode or when user is not loaded yet - show onboarding
+    // If user data is still loading, do nothing
+    if (userLoading) return
+
+    // User loaded but not onboarded — show appropriate onboarding
     if (!user || !user.onboarded) {
-      // Check if user is a teacher
       if (user && (user.role === 'teacher' || user.role === 'admin')) {
         setShowTeacherOnboarding(true)
       } else {
         setShowOnboarding(true)
       }
     } else {
-      // Already onboarded - go to dashboard
+      // Already onboarded — go to dashboard
       navigate('/dashboard')
     }
   }

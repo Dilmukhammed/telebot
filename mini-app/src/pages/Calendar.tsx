@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { getCalendar, createAvailability, deleteAvailability } from '../api/client'
+import { useUser } from '../context/UserContext'
 import type { CalendarWeekOut, CalendarLessonOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
@@ -46,6 +47,8 @@ export default function Calendar() {
   const [showMonthPicker, setShowMonthPicker] = useState(false)
   const [pickerYear, setPickerYear] = useState(getTashkentDate().getFullYear())
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; startTime: string; endTime: string; dayOfWeek: number; isNew: boolean; slotId?: number } | null>(null)
+  const { user } = useUser()
+  const userRole = user?.role ?? null
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -261,13 +264,16 @@ export default function Calendar() {
                     <div
                       key={hour}
                       className={styles.hourCell}
-                      onClick={() => setSelectedSlot({
-                        date: day.date,
-                        startTime: `${String(hour).padStart(2, '0')}:00`,
-                        endTime: `${String(hour + 1).padStart(2, '0')}:00`,
-                        dayOfWeek: day.day_of_week,
-                        isNew: true,
-                      })}
+                      onClick={() => {
+                        if (userRole !== 'teacher' && userRole !== 'admin') return
+                        setSelectedSlot({
+                          date: day.date,
+                          startTime: `${String(hour).padStart(2, '0')}:00`,
+                          endTime: `${String(hour + 1).padStart(2, '0')}:00`,
+                          dayOfWeek: day.day_of_week,
+                          isNew: true,
+                        })
+                      }}
                     />
                   ))}
 
@@ -286,13 +292,17 @@ export default function Calendar() {
                     <LessonBlock key={lesson.id} lesson={lesson} date={day.date} />
                   ))}
 
-                  {/* Availability Blocks */}
+                  {/* Availability Blocks — only interactive for teachers/admins */}
                   {day.available_slots?.map((slot, i) => (
                     <AvailabilityBlock
                       key={`avail-${i}`}
                       startTime={slot.start_time}
                       endTime={slot.end_time}
-                      onClick={() => setSelectedSlot({ date: day.date, startTime: slot.start_time, endTime: slot.end_time, dayOfWeek: day.day_of_week, isNew: false, slotId: slot.id })}
+                      isInteractive={userRole === 'teacher' || userRole === 'admin'}
+                      onClick={() => {
+                        if (userRole !== 'teacher' && userRole !== 'admin') return
+                        setSelectedSlot({ date: day.date, startTime: slot.start_time, endTime: slot.end_time, dayOfWeek: day.day_of_week, isNew: false, slotId: slot.id })
+                      }}
                     />
                   ))}
                 </div>
@@ -450,7 +460,7 @@ function LessonBlock({ lesson, date }: { lesson: CalendarLessonOut; date: string
   )
 }
 
-function AvailabilityBlock({ startTime, endTime, onClick }: { startTime: string; endTime: string; onClick: () => void }) {
+function AvailabilityBlock({ startTime, endTime, isInteractive, onClick }: { startTime: string; endTime: string; isInteractive: boolean; onClick: () => void }) {
   const [startH, startM] = startTime.split(':').map(Number)
   const [endH, endM] = endTime.split(':').map(Number)
   const top = (startH * 80) + (startM / 60 * 80)
@@ -459,8 +469,8 @@ function AvailabilityBlock({ startTime, endTime, onClick }: { startTime: string;
   return (
     <div
       className={styles.availabilityBlock}
-      style={{ top: `${top}px`, height: `${height}px`, cursor: 'pointer', pointerEvents: 'auto' }}
-      onClick={onClick}
+      style={{ top: `${top}px`, height: `${height}px`, cursor: isInteractive ? 'pointer' : 'default', pointerEvents: isInteractive ? 'auto' : 'none' }}
+      onClick={isInteractive ? onClick : undefined}
     />
   )
 }

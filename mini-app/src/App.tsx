@@ -26,6 +26,8 @@ import AdminAnnouncements from './pages/AdminAnnouncements'
 import AdminAnnouncementDetail from './pages/AdminAnnouncementDetail'
 import AdminCalendar from './pages/AdminCalendar'
 import AdminMore from './pages/AdminMore'
+import NotFound from './pages/NotFound'
+import ProtectedRoute from './components/ProtectedRoute'
 import BottomNavBar from './components/BottomNavBar'
 import './App.css'
 
@@ -68,31 +70,33 @@ function App() {
       <BackButtonHandler />
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/dashboard" element={<DashboardRouter />} />
-        <Route path="/calendar" element={<Calendar />} />
-        <Route path="/courses" element={<Courses />} />
-        <Route path="/course/:id" element={<CourseDetail />} />
-        <Route path="/lesson/:id" element={<LessonDetail />} />
-        <Route path="/announcements" element={<Announcements />} />
-        <Route path="/announcement/:id" element={<AnnouncementDetail />} />
-        <Route path="/announcements/create" element={<CreateAnnouncement />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/teacher/students" element={<TeacherStudents />} />
-        <Route path="/teacher/students/:id" element={<TeacherStudentDetail />} />
-        <Route path="/tests" element={<Home />} />
-        <Route path="/test/:id" element={<TestDetail />} />
-        <Route path="/registrations" element={<MyRegistrations />} />
-        <Route path="/results" element={<MyResults />} />
+        <Route path="/dashboard" element={<ProtectedRoute><DashboardRouter /></ProtectedRoute>} />
+        <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+        <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
+        <Route path="/course/:id" element={<ProtectedRoute><CourseDetail /></ProtectedRoute>} />
+        <Route path="/lesson/:id" element={<ProtectedRoute><LessonDetail /></ProtectedRoute>} />
+        <Route path="/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
+        <Route path="/announcement/:id" element={<ProtectedRoute><AnnouncementDetail /></ProtectedRoute>} />
+        <Route path="/announcements/create" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><CreateAnnouncement /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/teacher/students" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><TeacherStudents /></ProtectedRoute>} />
+        <Route path="/teacher/students/:id" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><TeacherStudentDetail /></ProtectedRoute>} />
+        <Route path="/tests" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+        <Route path="/test/:id" element={<ProtectedRoute><TestDetail /></ProtectedRoute>} />
+        <Route path="/registrations" element={<ProtectedRoute><MyRegistrations /></ProtectedRoute>} />
+        <Route path="/results" element={<ProtectedRoute><MyResults /></ProtectedRoute>} />
         {/* Admin routes */}
-        <Route path="/admin/people" element={<AdminPeople />} />
-        <Route path="/admin/people/:id" element={<AdminUserProfile />} />
-        <Route path="/admin/courses" element={<AdminCourses />} />
-        <Route path="/admin/courses/:id" element={<AdminCourseDetail />} />
-        <Route path="/admin/lessons/:id" element={<AdminLessonDetail />} />
-        <Route path="/admin/announcements" element={<AdminAnnouncements />} />
-        <Route path="/admin/announcements/:id" element={<AdminAnnouncementDetail />} />
-        <Route path="/admin/calendar" element={<AdminCalendar />} />
-        <Route path="/admin/more" element={<AdminMore />} />
+        <Route path="/admin/people" element={<ProtectedRoute allowedRoles={['admin']}><AdminPeople /></ProtectedRoute>} />
+        <Route path="/admin/people/:id" element={<ProtectedRoute allowedRoles={['admin']}><AdminUserProfile /></ProtectedRoute>} />
+        <Route path="/admin/courses" element={<ProtectedRoute allowedRoles={['admin']}><AdminCourses /></ProtectedRoute>} />
+        <Route path="/admin/courses/:id" element={<ProtectedRoute allowedRoles={['admin']}><AdminCourseDetail /></ProtectedRoute>} />
+        <Route path="/admin/lessons/:id" element={<ProtectedRoute allowedRoles={['admin']}><AdminLessonDetail /></ProtectedRoute>} />
+        <Route path="/admin/announcements" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnnouncements /></ProtectedRoute>} />
+        <Route path="/admin/announcements/:id" element={<ProtectedRoute allowedRoles={['admin']}><AdminAnnouncementDetail /></ProtectedRoute>} />
+        <Route path="/admin/calendar" element={<ProtectedRoute allowedRoles={['admin']}><AdminCalendar /></ProtectedRoute>} />
+        <Route path="/admin/more" element={<ProtectedRoute allowedRoles={['admin']}><AdminMore /></ProtectedRoute>} />
+        {/* 404 */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
       <BottomNavBar />
     </>

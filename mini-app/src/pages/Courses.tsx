@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getCourses, getMe } from '../api/client'
-import type { CourseOut, UserOut } from '../shared/types'
+import { getCourses } from '../api/client'
+import { useUser } from '../context/UserContext'
+import type { CourseOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './Courses.module.css'
@@ -22,18 +23,17 @@ const COURSE_BADGES: Record<string, string> = {
 export default function Courses() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { user } = useUser()
   const [courses, setCourses] = useState<CourseOut[]>([])
-  const [user, setUser] = useState<UserOut | null>(null)
   const [loading, setLoading] = useState(true)
 
   const isTeacher = user?.role === 'teacher' || user?.role === 'admin'
 
   useEffect(() => {
-    Promise.all([getCourses(), getMe()])
-      .then(([c, u]) => {
+    getCourses()
+      .then((c) => {
         const sorted = [...c].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
         setCourses(sorted)
-        setUser(u)
       })
       .catch(console.error)
       .finally(() => setLoading(false))

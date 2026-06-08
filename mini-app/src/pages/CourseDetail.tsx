@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getCourseDetail, getMe, getCourseStudents } from '../api/client'
-import type { CourseDetailOut, CourseLessonOut, UserOut, TeacherStudentOut } from '../shared/types'
+import { getCourseDetail, getCourseStudents } from '../api/client'
+import { useUser } from '../context/UserContext'
+import type { CourseDetailOut, CourseLessonOut, TeacherStudentOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './CourseDetail.module.css'
@@ -19,10 +20,10 @@ export default function CourseDetail() {
   const { t, i18n } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useUser()
   const [course, setCourse] = useState<CourseDetailOut | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('lessons')
-  const [user, setUser] = useState<UserOut | null>(null)
   const [students, setStudents] = useState<TeacherStudentOut[]>([])
   const [loadingStudents, setLoadingStudents] = useState(false)
 
@@ -36,12 +37,6 @@ export default function CourseDetail() {
   }
 
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin'
-
-  useEffect(() => {
-    getMe()
-      .then(setUser)
-      .catch(console.error)
-  }, [])
 
   useEffect(() => {
     if (id) {

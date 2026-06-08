@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import WebApp from '@twa-dev/sdk'
 import { ErrorBoundary } from './ErrorBoundary'
+import { UserProvider } from './context/UserContext'
 import './i18n'
 import './index.css'
 import App from './App.tsx'
@@ -28,7 +29,9 @@ if (root) {
     <StrictMode>
       <ErrorBoundary>
         <BrowserRouter>
-          <App />
+          <UserProvider>
+            <App />
+          </UserProvider>
         </BrowserRouter>
       </ErrorBoundary>
     </StrictMode>,

@@ -1,18 +1,14 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useState, useEffect } from 'react'
-import { getMe } from '../api/client'
+import { useUser } from '../context/UserContext'
 import styles from './BottomNavBar.module.css'
 
 export default function BottomNavBar() {
   const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
-  const [role, setRole] = useState<string | null>(null)
-
-  useEffect(() => {
-    getMe().then(u => setRole(u.role)).catch(() => {})
-  }, [])
+  const { user } = useUser()
+  const role = user?.role ?? null
 
   if (location.pathname === '/') return null
 

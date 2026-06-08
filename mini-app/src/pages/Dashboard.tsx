@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getDashboard } from '../api/client'
@@ -110,16 +110,40 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [data, setData] = useState<DashboardOut | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const touchStartY = useRef(0)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
   const telegramAvatar = tgUser?.photo_url
 
-  useEffect(() => {
-    getDashboard()
-      .then(setData)
-      .catch(console.error)
-      .finally(() => setLoading(false))
+  const fetchData = useCallback(async () => {
+    try {
+      const d = await getDashboard()
+      setData(d)
+    } catch (e) {
+      console.error(e)
+    }
   }, [])
+
+  useEffect(() => {
+    fetchData().finally(() => setLoading(false))
+  }, [fetchData])
+
+  // Pull-to-refresh: detect swipe down at scroll top
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY
+  }, [])
+
+  const handleTouchEnd = useCallback(async (e: React.TouchEvent) => {
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current
+    const atTop = containerRef.current && containerRef.current.scrollTop <= 0
+    if (deltaY > 80 && atTop && !refreshing) {
+      setRefreshing(true)
+      await fetchData()
+      setRefreshing(false)
+    }
+  }, [fetchData, refreshing])
 
   if (loading) {
     return <Loading fullPage message={t('common.loading')} />
@@ -137,8 +161,32 @@ export default function Dashboard() {
   const avatarUrl = telegramAvatar || profile.photo_url
 
   return (
-    <div className={styles.page}>
+    <div
+      ref={containerRef}
+      className={styles.page}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      style={{ overflow: 'auto', WebkitOverflowScrolling: 'touch' }}
+    >
       <SiteHeader avatarUrl={avatarUrl} />
+
+      {refreshing && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '8px 0',
+          color: 'var(--color-primary)',
+          fontSize: '13px',
+          fontWeight: 500,
+        }}>
+          <span className="material-symbols-outlined" style={{
+            fontSize: '18px',
+            marginRight: '6px',
+            animation: 'spin 1s linear infinite',
+          }}>refresh</span>
+          {t('common.loading')}
+        </div>
+      )}
 
       <main className={styles.main}>
         {/* Welcome Section */}
@@ -270,7 +318,7 @@ export default function Dashboard() {
                   <div className={styles.progressBar}>
                     <div
                       className={styles.progressFill}
-                      style={{ width: `${(result.score / result.max_score) * 100}%` }}
+                      style={{ width: `${result.max_score > 0 ? (result.score / result.max_score) * 100 : 0}%` }}
                     />
                   </div>
                 </div>
