@@ -340,7 +340,7 @@ async def seed():
                     lesson_id=lesson.id,
                     user_id=student.id,
                     date=today - dt.timedelta(days=1),
-                    status="present" if student_username != "boris_student" else "absent",
+                    present=(student_username != "boris_student"),
                 )
                 session.add(att)
                 attendance_count += 1
