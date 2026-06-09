@@ -210,6 +210,7 @@
 
 .lessonInfo {
   flex: 1;
+  min-width: 0;
 }
 
 .lessonSubject {
@@ -219,6 +220,9 @@
   letter-spacing: 0.03em;
   color: var(--color-on-surface);
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .lessonRoom {
