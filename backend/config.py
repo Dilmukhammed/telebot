@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     BOT_TOKEN: str
-    DATABASE_URL: str = "sqlite+aiosqlite:///./app.db"
+    DATABASE_URL: str = "postgresql+asyncpg://localhost:5432/app"
     ADMIN_JWT_SECRET: str = "change-me"
     WEBHOOK_URL: str = ""
     WEBAPP_URL: str = ""

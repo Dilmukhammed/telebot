@@ -1,6 +1,7 @@
 fastapi
 aiogram>=3.0
 sqlalchemy[asyncio]
+asyncpg
 aiosqlite
 uvicorn
 pydantic-settings
