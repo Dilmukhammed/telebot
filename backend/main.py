@@ -24,6 +24,16 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+        # Migrate telegram_id from int32 to int64 (Telegram IDs exceed int32 range)
+        if "postgresql" in str(engine.url):
+            for table_name in ("users", "registrations", "admins"):
+                try:
+                    await conn.execute(text(
+                        f'ALTER TABLE "{table_name}" ALTER COLUMN telegram_id TYPE BIGINT'
+                    ))
+                except Exception:
+                    pass  # Already BIGINT or table doesn't exist yet
+
         if reset_db:
             print("[startup] RESET_DB=true — wiping all tables...")
             for table in reversed(Base.metadata.sorted_tables):

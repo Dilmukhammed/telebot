@@ -1,6 +1,7 @@
 import datetime as dt
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Date,
@@ -181,7 +182,7 @@ class Registration(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     test_id: Mapped[int] = mapped_column(Integer, ForeignKey("tests.id"), nullable=False)
-    telegram_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     username: Mapped[str | None] = mapped_column(String, nullable=True)
     first_name: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, default="registered")
@@ -211,7 +212,7 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    telegram_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False, index=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False, index=True)
     username: Mapped[str | None] = mapped_column(String, nullable=True)  # Telegram @username
     first_name: Mapped[str | None] = mapped_column(String, nullable=True)  # Real name (from Telegram or admin)
     last_name: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -241,7 +242,7 @@ class Admin(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
-    telegram_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
 
 
