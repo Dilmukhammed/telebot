@@ -10,7 +10,7 @@ import { Loading } from '../shared/components'
 export default function DashboardRouter() {
   const { user, loading, refresh } = useUser()
   const [showTeacherOnboarding, setShowTeacherOnboarding] = useState(false)
-  // Track if we've already determined onboarding is needed (prevents race condition with refresh)
+  const [teacherOnboardingDone, setTeacherOnboardingDone] = useState(false)
   const onboardingCheckDone = useRef(false)
 
   // Check onboarding status after user data loads
@@ -30,8 +30,8 @@ export default function DashboardRouter() {
     return <div>Error loading</div>
   }
 
-  // Student onboarding gate — show only the modal, no dashboard behind it
-  if (user.role === 'student' && !user.onboarded) {
+  // Student onboarding gate — only for students, not teachers/admins
+  if (user.role === 'student' && !user.onboarded && !teacherOnboardingDone) {
     return (
       <OnboardingModal
         isOpen={true}
@@ -47,6 +47,7 @@ export default function DashboardRouter() {
         isOpen={showTeacherOnboarding}
         onClose={() => {
           setShowTeacherOnboarding(false)
+          setTeacherOnboardingDone(true)
           onboardingCheckDone.current = true
           refresh()
         }}
