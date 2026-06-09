@@ -64,8 +64,9 @@ async def main():
         print(f"✓ Created admin '{ADMIN_USERNAME}' (password: {ADMIN_PASSWORD})")
 
         # 2. Create Admin in users table (for Telegram auth + role)
+        # telegram_id will be updated when user logs in via Telegram
         admin_user = User(
-            telegram_id=0,  # Will be updated when admin logs in via Telegram
+            telegram_id=-1,  # Placeholder, updates on first Telegram login
             username=ADMIN_USERNAME,
             first_name=ADMIN_NAME,
             role="admin",
@@ -76,7 +77,7 @@ async def main():
 
         # 3. Create Teacher in users table
         teacher = User(
-            telegram_id=0,  # Will be updated when teacher logs in via Telegram
+            telegram_id=-2,  # Placeholder, updates on first Telegram login
             username=TEACHER_USERNAME,
             first_name=TEACHER_NAME,
             last_name=TEACHER_LAST_NAME,
