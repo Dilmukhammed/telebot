@@ -431,6 +431,9 @@ export default function LessonDetail() {
               onChange={(e) => setEditTitle(e.target.value)}
               autoFocus
             />
+            {editError && (
+              <p style={{ color: 'var(--color-error, #ba1a1a)', fontSize: '13px', margin: '4px 0' }}>{editError}</p>
+            )}
             <button
               className={styles.modalSaveBtn}
               onClick={handleSaveTitle}
@@ -498,6 +501,9 @@ export default function LessonDetail() {
               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
               {t('lessonDetail.addAgendaItem')}
             </button>
+            {editError && (
+              <p style={{ color: 'var(--color-error, #ba1a1a)', fontSize: '13px', margin: '4px 0' }}>{editError}</p>
+            )}
             <button
               className={styles.modalSaveBtn}
               onClick={handleSavePlan}

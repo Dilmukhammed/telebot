@@ -29,7 +29,7 @@ export default function Announcements() {
   const { user } = useUser()
   const [announcements, setAnnouncements] = useState<AnnouncementOut[]>([])
   const [loading, setLoading] = useState(true)
-  const [lastSeen, setLastSeen] = useState(getLastSeenTime)
+  const [lastSeen] = useState(getLastSeenTime)
 
   useEffect(() => {
     const isPrivileged = user && (user.role === 'teacher' || user.role === 'admin')
