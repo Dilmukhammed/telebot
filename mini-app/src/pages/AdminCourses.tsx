@@ -173,6 +173,7 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
   // Step 1: Basic info
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [isIndefinite, setIsIndefinite] = useState(true)
   const [durationWeeks, setDurationWeeks] = useState('12')
   const [durationMinutes, setDurationMinutes] = useState('90')
   const [maxCapacity, setMaxCapacity] = useState('15')
@@ -241,7 +242,7 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
       const result = await createAdminSubject({
         name: name.trim(),
         description: description.trim() || undefined,
-        duration_weeks: parseInt(durationWeeks) || 12,
+        duration_weeks: isIndefinite ? undefined : (parseInt(durationWeeks) || 12),
         duration_minutes: parseInt(durationMinutes) || 90,
         teacher_id: selectedTeacherId || undefined,
         max_capacity: parseInt(maxCapacity) || 15,
@@ -324,11 +325,23 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
                 <label>Описание</label>
                 <input type="text" placeholder="Подготовка к экзамену..." value={description} onChange={e => setDescription(e.target.value)} />
               </div>
-              <div className={styles.formRow}>
-                <div className={styles.formGroup}>
-                  <label>Недель</label>
-                  <input type="number" min="1" value={durationWeeks} onChange={e => setDurationWeeks(e.target.value)} />
+              <label className={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={isIndefinite}
+                  onChange={e => setIsIndefinite(e.target.checked)}
+                />
+                <span>Бессрочный курс</span>
+              </label>
+              {!isIndefinite && (
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label>Недель</label>
+                    <input type="number" min="1" value={durationWeeks} onChange={e => setDurationWeeks(e.target.value)} />
+                  </div>
                 </div>
+              )}
+              <div className={styles.formRow}>
                 <div className={styles.formGroup}>
                   <label>Минут/урок</label>
                   <input type="number" min="1" value={durationMinutes} onChange={e => setDurationMinutes(e.target.value)} />

@@ -465,6 +465,21 @@
   gap: 12px;
 }
 
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-sm);
+  color: var(--color-on-surface);
+  cursor: pointer;
+}
+
+.checkboxRow input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+}
+
 /* Teacher selection */
 .teacherList {
   display: flex;

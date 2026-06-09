@@ -472,7 +472,7 @@ class ScheduleSlot(BaseModel):
 class AdminSubjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     description: Optional[str] = None
-    duration_weeks: Optional[int] = Field(default=12, ge=1)
+    duration_weeks: Optional[int] = Field(default=None, ge=1)  # None = indefinite
     duration_minutes: int = Field(default=90, ge=1)
     teacher_id: Optional[int] = None
     max_capacity: int = Field(default=15, ge=1)
