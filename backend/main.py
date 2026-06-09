@@ -9,6 +9,7 @@ from database import engine, Base
 from api.router import api_router
 from bot.bot import bot_router, bot, dp
 from scheduler import start_scheduler, stop_scheduler
+from seed import seed as seed_db
 
 cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
 debug = os.environ.get("DEBUG", "false").lower() in ("true", "1", "yes")
@@ -16,9 +17,10 @@ debug = os.environ.get("DEBUG", "false").lower() in ("true", "1", "yes")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: create tables
+    # Startup: create tables + seed admin/teacher
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await seed_db()
     # Start reminder scheduler
     start_scheduler()
     # Start bot polling in background (non-blocking)

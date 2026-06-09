@@ -9,3 +9,5 @@ dist/
 *.egg-info/
 .pytest_cache/
 tunnel_url.txt
+*.db
+*.sqlite3
