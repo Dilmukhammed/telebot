@@ -558,25 +558,43 @@ async def get_announcements(
     )
     rows = result.all()
 
+    # Batch-load recipient counts for all notifications (fixes N+1)
+    notif_ids = [n.id for n, _ in rows]
+    recipient_counts: dict[int, int] = {}
+    if notif_ids:
+        counts_result = await db.execute(
+            select(NotificationRecipient.notification_id, func.count())
+            .where(NotificationRecipient.notification_id.in_(notif_ids))
+            .group_by(NotificationRecipient.notification_id)
+        )
+        recipient_counts = dict(counts_result.all())
+
+    # Batch-load referenced subjects and teachers (fixes N+1)
+    subject_ids = {n.target_id for n, _ in rows if n.target_type == "course" and n.target_id}
+    teacher_ids = {n.target_id for n, _ in rows if n.target_type == "teacher_courses" and n.target_id}
+    subjects_map: dict[int, str] = {}
+    teachers_map: dict[int, str] = {}
+    if subject_ids:
+        subj_result = await db.execute(select(Subject.id, Subject.name).where(Subject.id.in_(subject_ids)))
+        subjects_map = dict(subj_result.all())
+    if teacher_ids:
+        teacher_result = await db.execute(select(User.id, User.first_name).where(User.id.in_(teacher_ids)))
+        teachers_map = dict(teacher_result.all())
+
     out = []
     for notif, sender in rows:
-        # Count recipients
-        count_result = await db.execute(
-            select(func.count()).select_from(NotificationRecipient)
-            .where(NotificationRecipient.notification_id == notif.id)
-        )
-        recipient_count = count_result.scalar() or 0
+        recipient_count = recipient_counts.get(notif.id, 0)
 
         # Build detailed target_summary
         target_summary = TARGET_SUMMARY.get(notif.target_type, notif.target_type)
         if notif.target_type == "course" and notif.target_id:
-            subj = (await db.execute(select(Subject).where(Subject.id == notif.target_id))).scalar_one_or_none()
-            if subj:
-                target_summary = f"Курс: {subj.name}"
+            subj_name = subjects_map.get(notif.target_id)
+            if subj_name:
+                target_summary = f"Курс: {subj_name}"
         elif notif.target_type == "teacher_courses" and notif.target_id:
-            teacher = (await db.execute(select(User).where(User.id == notif.target_id))).scalar_one_or_none()
-            if teacher:
-                target_summary = f"Курсы преподавателя: {teacher.first_name}"
+            teacher_name = teachers_map.get(notif.target_id)
+            if teacher_name:
+                target_summary = f"Курсы преподавателя: {teacher_name}"
         elif notif.target_type == "specific_students":
             target_summary = f"Выбранным ученикам ({recipient_count})"
 
@@ -683,22 +701,32 @@ async def get_admin_subjects(
     )
     subjects = result.scalars().all()
 
+    # Batch-load all lessons for all subjects in one query (fixes N+1)
+    subject_ids = [s.id for s in subjects]
+    lessons_by_subject: dict[int, list] = {}
+    all_lesson_ids: list[int] = []
+    if subject_ids:
+        lessons_result = await db.execute(
+            select(Lesson).where(and_(Lesson.subject_id.in_(subject_ids), Lesson.is_active == True))
+        )
+        for lesson in lessons_result.scalars().all():
+            lessons_by_subject.setdefault(lesson.subject_id, []).append(lesson)
+            all_lesson_ids.append(lesson.id)
+
+    # Batch-count unique students per subject in one query (fixes N+1)
+    student_counts: dict[int, int] = {}
+    if all_lesson_ids:
+        counts_result = await db.execute(
+            select(Lesson.subject_id, func.count(func.distinct(LessonEnrollment.user_id)))
+            .join(LessonEnrollment, LessonEnrollment.lesson_id == Lesson.id)
+            .where(Lesson.id.in_(all_lesson_ids))
+            .group_by(Lesson.subject_id)
+        )
+        student_counts = dict(counts_result.all())
+
     out = []
     for subj in subjects:
-        lessons_result = await db.execute(
-            select(Lesson).where(and_(Lesson.subject_id == subj.id, Lesson.is_active == True))
-        )
-        lessons = lessons_result.scalars().all()
-
-        lesson_ids = [l.id for l in lessons]
-        student_count = 0
-        if lesson_ids:
-            count_result = await db.execute(
-                select(func.count(func.distinct(LessonEnrollment.user_id)))
-                .where(LessonEnrollment.lesson_id.in_(lesson_ids))
-            )
-            student_count = count_result.scalar() or 0
-
+        lessons = lessons_by_subject.get(subj.id, [])
         teacher_names = list({l.teacher_name for l in lessons if l.teacher_name})
 
         out.append(AdminSubjectOut(
@@ -707,7 +735,7 @@ async def get_admin_subjects(
             description=subj.description,
             duration_minutes=subj.duration_minutes or 90,
             lesson_count=len(lessons),
-            student_count=student_count,
+            student_count=student_counts.get(subj.id, 0),
             teacher_names=teacher_names,
             is_archived=subj.is_archived or False,
         ))

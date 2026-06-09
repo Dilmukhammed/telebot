@@ -1,8 +1,6 @@
-import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getTeacherStudentDetail } from '../api/client'
-import type { TeacherStudentDetailOut } from '../shared/types'
+import { useTeacherStudentDetail } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
 import styles from './TeacherStudentDetail.module.css'
 
@@ -10,23 +8,9 @@ export default function TeacherStudentDetail() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
-  const [student, setStudent] = useState<TeacherStudentDetailOut | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: student, isLoading, error } = useTeacherStudentDetail(parseInt(id || '0'))
 
-  useEffect(() => {
-    if (!id) {
-      setLoading(false)
-      setError(t('common.error'))
-      return
-    }
-    getTeacherStudentDetail(parseInt(id))
-      .then(setStudent)
-      .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
-      .finally(() => setLoading(false))
-  }, [id, t])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className={styles.page}>
         <div className={styles.loading}>{t('common.loading')}</div>
@@ -38,7 +22,7 @@ export default function TeacherStudentDetail() {
     return (
       <div className={styles.page}>
         <SiteHeader title={t('teacher.studentDetail')} onBack={() => navigate('/teacher/students')} hideProfile />
-        <div className={styles.error}>{error || t('common.error')}</div>
+        <div className={styles.error}>{error?.message || t('common.error')}</div>
       </div>
     )
   }

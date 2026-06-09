@@ -1,35 +1,19 @@
-import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getAdminStats, getTeacherAnnouncements } from '../api/client'
-import type { AdminStats } from '../shared/types'
+import { useAdminStats, useAnnouncements } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './AdminDashboard.module.css'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
-  const [stats, setStats] = useState<AdminStats | null>(null)
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const { data: stats, isLoading } = useAdminStats()
+  const { data: announcements = [] } = useAnnouncements('admin')
+  const unreadCount = announcements.filter(a => !a.is_read).length
 
   const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
   const telegramAvatar = tgUser?.photo_url
 
-  useEffect(() => {
-    Promise.allSettled([
-      getAdminStats(),
-      getTeacherAnnouncements().catch(() => []),
-    ])
-      .then(([statsResult, annResult]) => {
-        if (statsResult.status === 'fulfilled') setStats(statsResult.value)
-        if (annResult.status === 'fulfilled') {
-          setUnreadCount(annResult.value.filter(a => !a.is_read).length)
-        }
-      })
-      .finally(() => setLoading(false))
-  }, [])
-
-  if (loading) {
+  if (isLoading) {
     return <Loading fullPage message="Загрузка..." />
   }
 

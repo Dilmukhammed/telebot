@@ -108,15 +108,20 @@ async def get_teacher_dashboard(
     else:
         total_students = 0
 
+    # Batch-count enrollments for all lessons in one query (fixes N+1)
+    enrollment_counts: dict[int, int] = {}
+    if lesson_ids:
+        counts_result = await db.execute(
+            select(LessonEnrollment.lesson_id, func.count(LessonEnrollment.id))
+            .where(LessonEnrollment.lesson_id.in_(lesson_ids))
+            .group_by(LessonEnrollment.lesson_id)
+        )
+        enrollment_counts = dict(counts_result.all())
+
     # Build upcoming lessons list
     upcoming_lessons = []
     for lesson, subject in teacher_lessons:
-        # Count enrollments for this specific lesson
-        enrollments_count = await db.execute(
-            select(func.count(LessonEnrollment.id))
-            .where(LessonEnrollment.lesson_id == lesson.id)
-        )
-        student_count = enrollments_count.scalar() or 0
+        student_count = enrollment_counts.get(lesson.id, 0)
 
         # Calculate days until lesson
         lesson_day = lesson.day_of_week
@@ -582,25 +587,30 @@ async def get_teacher_courses(
     )
     subjects = result.scalars().all()
 
-    courses = []
-    for subject in subjects:
-        # Count unique students in this subject's lessons
-        count_result = await db.execute(
-            select(func.count(func.distinct(LessonEnrollment.user_id)))
-            .join(Lesson, Lesson.id == LessonEnrollment.lesson_id)
+    # Batch-count unique students per subject in one query (fixes N+1)
+    subject_ids = [s.id for s in subjects]
+    student_counts: dict[int, int] = {}
+    if subject_ids:
+        counts_result = await db.execute(
+            select(Lesson.subject_id, func.count(func.distinct(LessonEnrollment.user_id)))
+            .join(LessonEnrollment, LessonEnrollment.lesson_id == Lesson.id)
             .where(
                 and_(
-                    Lesson.subject_id == subject.id,
+                    Lesson.subject_id.in_(subject_ids),
                     Lesson.teacher_id == user.id,
                     Lesson.is_active == True,
                 )
             )
+            .group_by(Lesson.subject_id)
         )
-        student_count = count_result.scalar() or 0
+        student_counts = dict(counts_result.all())
+
+    courses = []
+    for subject in subjects:
         courses.append(TeacherCourseOut(
             id=subject.id,
             name=subject.name,
-            student_count=student_count,
+            student_count=student_counts.get(subject.id, 0),
         ))
 
     return courses

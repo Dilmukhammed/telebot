@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useLessonDetail, useAdminLessonAttendance } from '../api/hooks'
 import {
-  getLessonDetail,
-  adminGetLessonAttendance,
   markAdminLessonStatus,
   adminMarkAttendance,
   adminUpdateLesson,
 } from '../api/client'
-import type { LessonDetailOut, AttendanceListOut, AttendanceRecordIn } from '../shared/types'
+import type { AttendanceRecordIn } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './LessonDetail.module.css'
@@ -16,10 +15,18 @@ export default function AdminLessonDetail() {
   const { id } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [lesson, setLesson] = useState<LessonDetailOut | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [attendance, setAttendance] = useState<AttendanceListOut | null>(null)
+  const date = searchParams.get('date')
+  const numId = Number(id)
+
+  const { data: lessonRaw, isLoading, error, refetch } = useLessonDetail(numId, date || undefined)
+  // Force is_teacher=true so admin can see all teacher features
+  const lesson = lessonRaw ? { ...lessonRaw, is_teacher: true } : null
+
+  const { data: attendanceData, refetch: refetchAttendance } = useAdminLessonAttendance(
+    lesson?.id ?? 0,
+    lesson?.date ?? ''
+  )
+  const [attendance, setAttendance] = useState<typeof attendanceData>(undefined)
   const [savingStatus, setSavingStatus] = useState(false)
   const [savingAttendance, setSavingAttendance] = useState(false)
   const [attendanceError, setAttendanceError] = useState<string | null>(null)
@@ -30,33 +37,19 @@ export default function AdminLessonDetail() {
   const [editPlan, setEditPlan] = useState<{ title: string; description: string }[]>([])
   const [savingEdit, setSavingEdit] = useState(false)
 
-  const date = searchParams.get('date')
-
+  // Sync attendance data from query
   useEffect(() => {
-    const numId = Number(id)
-    if (id && !isNaN(numId)) {
-      getLessonDetail(numId, date || undefined)
-        .then((l) => {
-          // Force is_teacher=true so admin can see all teacher features
-          setLesson({ ...l, is_teacher: true })
-          if (l.lesson_status === 'happened') {
-            adminGetLessonAttendance(l.id, l.date).then(setAttendance).catch(() => {})
-          }
-        })
-        .catch((e) => setError(e.message || 'Error loading lesson'))
-        .finally(() => setLoading(false))
-    }
-  }, [id, date])
+    if (attendanceData) setAttendance(attendanceData)
+  }, [attendanceData])
 
   const handleMarkStatus = async (status: 'happened' | 'cancelled') => {
     if (!lesson) return
     setSavingStatus(true)
     try {
       await markAdminLessonStatus(lesson.id, { date: lesson.date, status })
-      setLesson({ ...lesson, lesson_status: status })
+      await refetch()
       if (status === 'happened') {
-        const att = await adminGetLessonAttendance(lesson.id, lesson.date)
-        setAttendance(att)
+        await refetchAttendance()
       }
     } catch (e: any) {
       alert(e.message || 'Error')
@@ -100,8 +93,8 @@ export default function AdminLessonDetail() {
     if (!lesson) return
     setSavingEdit(true)
     try {
-      const updated = await adminUpdateLesson(lesson.id, { custom_title: editTitle.trim() || null })
-      setLesson({ ...updated, is_teacher: true })
+      await adminUpdateLesson(lesson.id, { custom_title: editTitle.trim() || null })
+      await refetch()
       setShowTitleModal(false)
     } catch (e: any) {
       console.error(e)
@@ -115,8 +108,8 @@ export default function AdminLessonDetail() {
     setSavingEdit(true)
     try {
       const planJson = JSON.stringify(editPlan.filter(item => item.title.trim()))
-      const updated = await adminUpdateLesson(lesson.id, { lesson_plan: planJson })
-      setLesson({ ...updated, is_teacher: true })
+      await adminUpdateLesson(lesson.id, { lesson_plan: planJson })
+      await refetch()
       setShowPlanModal(false)
     } catch (e: any) {
       console.error(e)
@@ -135,7 +128,7 @@ export default function AdminLessonDetail() {
     setShowPlanModal(true)
   }
 
-  if (loading) return <Loading fullPage message="Загрузка..." />
+  if (isLoading) return <Loading fullPage message="Загрузка..." />
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr + 'T00:00:00')
@@ -157,7 +150,7 @@ export default function AdminLessonDetail() {
         <SiteHeader title="Урок" onBack={() => navigate(-1)} hideProfile />
         <div className={styles.errorState}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#ba1a1a' }}>error</span>
-          <p>{error || 'Ошибка загрузки'}</p>
+          <p>{error?.message || 'Ошибка загрузки'}</p>
           <button onClick={() => navigate(-1)} className={styles.backButton}>Назад</button>
         </div>
       </div>

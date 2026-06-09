@@ -31,7 +31,7 @@ class Subject(Base):
     duration_weeks: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)  # Course duration in weeks (None = indefinite)
     duration_minutes: Mapped[int] = mapped_column(Integer, default=90)  # Lesson duration in minutes
     start_date: Mapped[dt.datetime | None] = mapped_column(DateTime, default=utcnow, nullable=True)  # Course start date
-    is_archived: Mapped[bool] = mapped_column(Boolean, default=False)  # Archived courses hidden from students/teachers
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, index=True)  # Archived courses hidden from students/teachers
 
     tests: Mapped[list["Test"]] = relationship("Test", back_populates="subject")
     lessons: Mapped[list["Lesson"]] = relationship("Lesson", back_populates="subject")
@@ -51,7 +51,7 @@ class Lesson(Base):
     max_capacity: Mapped[int] = mapped_column(Integer, default=15)  # Max students per lesson
     lesson_plan: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON: [{"title": "...", "description": "..."}]
     custom_title: Mapped[str | None] = mapped_column(String, nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
 
     subject: Mapped["Subject"] = relationship("Subject", back_populates="lessons")
@@ -183,7 +183,7 @@ class Test(Base):
     max_capacity: Mapped[int] = mapped_column(Integer, nullable=False)
     format: Mapped[str] = mapped_column(String, nullable=False)
     duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
 
     subject: Mapped["Subject"] = relationship("Subject", back_populates="tests")

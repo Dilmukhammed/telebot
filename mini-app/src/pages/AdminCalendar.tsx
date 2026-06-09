@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { getAdminLessons, rescheduleLesson, cancelAdminLesson, markAdminLessonStatus } from '../api/client'
+import { useAdminLessons } from '../api/hooks'
+import { rescheduleLesson, cancelAdminLesson, markAdminLessonStatus } from '../api/client'
 import type { AdminLessonOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
@@ -99,12 +100,11 @@ const getLessonStatus = (lesson: AdminLessonOut, todayStr: string): string => {
 export default function AdminCalendar() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [lessons, setLessons] = useState<AdminLessonOut[]>([])
-  const [loading, setLoading] = useState(true)
   const [weekOffset, setWeekOffset] = useState(0)
+  const { data: lessons = [], isLoading, refetch } = useAdminLessons({ week_offset: weekOffset })
   const [view, setView] = useState<'day' | 'week'>(searchParams.get('view') === 'week' ? 'week' : 'day')
   const [selectedDay, setSelectedDay] = useState(0)
-  const [now, setNow] = useState(getTashkentDate())
+  const [now] = useState(getTashkentDate())
   const [showMonthPicker, setShowMonthPicker] = useState(false)
   const [pickerYear, setPickerYear] = useState(getTashkentDate().getFullYear())
   const [selectedLesson, setSelectedLesson] = useState<AdminLessonOut | null>(null)
@@ -114,19 +114,6 @@ export default function AdminCalendar() {
   const [actionLoading, setActionLoading] = useState(false)
   const [actionError, setActionError] = useState('')
   const [groupModal, setGroupModal] = useState<AdminLessonOut[] | null>(null)
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(getTashkentDate()), 60000)
-    return () => clearInterval(timer)
-  }, [])
-
-  useEffect(() => {
-    setLoading(true)
-    getAdminLessons({ week_offset: weekOffset })
-      .then(setLessons)
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [weekOffset])
 
   // Auto-select today
   useEffect(() => {
@@ -180,8 +167,7 @@ export default function AdminCalendar() {
       } else if (modalType === 'status') {
         await markAdminLessonStatus(selectedLesson.id, { date: selectedLesson.date, status: 'happened' })
       }
-      const fresh = await getAdminLessons({ week_offset: weekOffset })
-      setLessons(fresh)
+      await refetch()
       setSelectedLesson(null)
       setModalType('options')
       setNewDate('')
@@ -193,7 +179,7 @@ export default function AdminCalendar() {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return <Loading fullPage message="Загрузка..." />
   }
 

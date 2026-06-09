@@ -2,8 +2,9 @@ from contextlib import asynccontextmanager
 import asyncio
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy import text
 
 from database import engine, Base
@@ -11,6 +12,36 @@ from api.router import api_router
 from bot.bot import bot_router, bot, dp
 from scheduler import start_scheduler, stop_scheduler
 from seed import seed as seed_db
+
+
+class CacheControlMiddleware(BaseHTTPMiddleware):
+    """Add Cache-Control headers to GET responses for browser caching."""
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        if request.method == "GET" and response.status_code == 200:
+            path = request.url.path
+
+            # Rarely-changing data — cache longer
+            if path.startswith("/api/courses") or path.startswith("/api/tests"):
+                response.headers["Cache-Control"] = "private, max-age=60"
+            # Dashboard — short cache
+            elif path.startswith("/api/dashboard"):
+                response.headers["Cache-Control"] = "private, max-age=15"
+            # Admin data — no caching
+            elif path.startswith("/api/admin"):
+                response.headers["Cache-Control"] = "private, no-cache"
+            # Teacher data — moderate cache
+            elif path.startswith("/api/teacher"):
+                response.headers["Cache-Control"] = "private, max-age=30"
+            # User data — short cache
+            elif path.startswith("/api/users"):
+                response.headers["Cache-Control"] = "private, max-age=15"
+            # Everything else — moderate
+            else:
+                response.headers["Cache-Control"] = "private, max-age=30"
+
+        return response
 
 cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
 debug = os.environ.get("DEBUG", "false").lower() in ("true", "1", "yes")
@@ -41,6 +72,19 @@ async def lifespan(app: FastAPI):
                 ))
             except Exception:
                 pass  # Column already exists
+
+            # Create indexes for frequently filtered columns
+            for idx_name, table, col in [
+                ("ix_lessons_is_active", "lessons", "is_active"),
+                ("ix_tests_is_active", "tests", "is_active"),
+                ("ix_subjects_is_archived", "subjects", "is_archived"),
+            ]:
+                try:
+                    await conn.execute(text(
+                        f'CREATE INDEX IF NOT EXISTS {idx_name} ON "{table}" ("{col}")'
+                    ))
+                except Exception:
+                    pass
 
         if reset_db:
             print("[startup] RESET_DB=true — wiping all tables...")
@@ -81,6 +125,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Cache-Control middleware for browser caching
+app.add_middleware(CacheControlMiddleware)
 
 # Include API routes
 app.include_router(api_router, prefix="/api")

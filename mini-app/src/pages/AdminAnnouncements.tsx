@@ -1,15 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAdminAnnouncements, useAdminSubjects, useAdminUsers } from '../api/hooks'
 import {
-  getAdminAnnouncements,
   createAdminAnnouncement,
-  getAdminSubjects,
-  getAdminUsers,
 } from '../api/client'
 import type {
-  AdminAnnouncementOut,
-  AdminSubjectOut,
-  UserOut,
   AdminAnnouncementCreate,
 } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
@@ -32,8 +27,9 @@ const formatDate = (isoString: string) => {
 
 export default function AdminAnnouncements() {
   const navigate = useNavigate()
-  const [announcements, setAnnouncements] = useState<AdminAnnouncementOut[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: announcements = [], isLoading, refetch } = useAdminAnnouncements()
+  const { data: courses = [] } = useAdminSubjects()
+  const { data: students = [] } = useAdminUsers('student')
   const [modalOpen, setModalOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -43,29 +39,8 @@ export default function AdminAnnouncements() {
   const [targetType, setTargetType] = useState<AdminAnnouncementCreate['target_type']>('all')
   const [selectedCourseIds, setSelectedCourseIds] = useState<number[]>([])
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([])
-
-  const [courses, setCourses] = useState<AdminSubjectOut[]>([])
-  const [students, setStudents] = useState<UserOut[]>([])
-  const [teachers, setTeachers] = useState<UserOut[]>([])
+  const [teachers] = useState<any[]>([])
   const [targetId, setTargetId] = useState<number | ''>('')
-
-  const loadData = () => {
-    setLoading(true)
-    getAdminAnnouncements()
-      .then(setAnnouncements)
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { loadData() }, [])
-
-  useEffect(() => {
-    if (modalOpen) {
-      getAdminSubjects().then(setCourses).catch(console.error)
-      getAdminUsers({ role: 'student' }).then(setStudents).catch(console.error)
-      getAdminUsers({ role: 'teacher' }).then(setTeachers).catch(console.error)
-    }
-  }, [modalOpen])
 
   const handleCreateClick = () => {
     setTitle('')
@@ -109,7 +84,7 @@ export default function AdminAnnouncements() {
         target_id: targetType === 'teacher_courses' ? Number(targetId) : undefined,
       })
       setModalOpen(false)
-      loadData()
+      refetch()
     } catch (err: any) {
       setError(err.message || 'Ошибка отправки')
     } finally {
@@ -138,7 +113,7 @@ export default function AdminAnnouncements() {
           </button>
         </div>
 
-        {loading ? (
+        {isLoading ? (
           <div className={styles.loading}>Загрузка...</div>
         ) : announcements.length === 0 ? (
           <div className={styles.emptyState}>

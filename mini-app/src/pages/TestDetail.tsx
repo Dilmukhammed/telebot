@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getTest, registerForTest, getMyRegistrations } from '../api/client';
-import type { TestOut, RegistrationOut } from '../shared/types';
+import { useTest, useMyRegistrations, useRegisterForTest } from '../api/hooks';
 import { Button, Loading, ErrorBanner } from '../shared/components';
 import { formatDateTime, langToLocale } from '../shared/utils/formatDate';
 
@@ -10,47 +9,35 @@ export default function TestDetail() {
   const { t, i18n } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [test, setTest] = useState<TestOut | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const testId = Number(id);
+  const { data: test, isLoading, error } = useTest(testId);
+  const { data: registrations = [] } = useMyRegistrations();
+  const registerMutation = useRegisterForTest();
   const [registering, setRegistering] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [registerError, setRegisterError] = useState('');
 
   const locale = langToLocale(i18n.language);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [testData, regs] = await Promise.all([getTest(Number(id)), getMyRegistrations()]);
-        setTest(testData);
-        const isRegistered = regs.some((r: RegistrationOut) => r.test_id === Number(id) && r.status === 'registered');
-        setAlreadyRegistered(isRegistered);
-      } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : t('common.error'));
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, [id, t]);
+  const alreadyRegistered = useMemo(() => {
+    return registrations.some(r => r.test_id === testId && r.status === 'registered');
+  }, [registrations, testId]);
 
   const handleRegister = async () => {
     setRegistering(true);
-    setError('');
+    setRegisterError('');
     try {
-      await registerForTest(Number(id));
+      await registerMutation.mutateAsync(testId);
       setSuccess(true);
-      setAlreadyRegistered(true);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : t('test.registerError'));
+      setRegisterError(e instanceof Error ? e.message : t('test.registerError'));
     } finally {
       setRegistering(false);
     }
   };
 
-  if (loading) return <Loading fullPage message={t('test.loading')} data-testid="loading" />;
-  if (error && !test) return <ErrorBanner message={error} data-testid="error-banner" />;
+  if (isLoading) return <Loading fullPage message={t('test.loading')} data-testid="loading" />;
+  if (error && !test) return <ErrorBanner message={error.message} data-testid="error-banner" />;
   if (!test) return <ErrorBanner message={t('test.notFound')} data-testid="error-banner" />;
 
   const isPast = new Date(test.datetime) < new Date();
@@ -59,7 +46,7 @@ export default function TestDetail() {
 
   return (
     <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
+      {registerError && <ErrorBanner message={registerError} onDismiss={() => setRegisterError('')} />}
 
       <h2 style={{ color: 'var(--color-on-surface)', margin: 0 }}>{test.subject_name}</h2>
 

@@ -1,7 +1,5 @@
-import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getMyResults } from '../api/client';
-import type { ResultOut } from '../shared/types';
+import { useMyResults } from '../api/hooks';
 import { Card, Loading, EmptyState, ErrorBanner } from '../shared/components';
 import { formatDate, langToLocale } from '../shared/utils/formatDate';
 
@@ -23,28 +21,12 @@ function getScoreLabel(score: number, maxScore: number): string {
 
 export default function MyResults() {
   const { t, i18n } = useTranslation();
-  const [results, setResults] = useState<ResultOut[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data: results = [], isLoading, error } = useMyResults();
 
   const locale = langToLocale(i18n.language);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getMyResults();
-        setResults(data);
-      } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : t('common.error'));
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, [t]);
-
-  if (loading) return <Loading fullPage message={t('results.loading')} data-testid="loading" />;
-  if (error) return <ErrorBanner message={error} data-testid="error-banner" />;
+  if (isLoading) return <Loading fullPage message={t('results.loading')} data-testid="loading" />;
+  if (error) return <ErrorBanner message={error.message} data-testid="error-banner" />;
   if (results.length === 0) return <EmptyState title={t('results.noResults')} message={t('results.noResultsMessage')} data-testid="empty-state" />;
 
   return (

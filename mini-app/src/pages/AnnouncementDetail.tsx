@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getAnnouncementDetail, getTeacherAnnouncementDetail, getAnnouncementRecipients, markAnnouncementAsRead } from '../api/client'
+import { useAnnouncementDetail, useAdminAnnouncementRecipients as useAnnouncementRecipients, useMarkAnnouncementRead } from '../api/hooks'
 import { useUser } from '../context/UserContext'
-import type { AnnouncementOut, AnnouncementRecipient } from '../shared/types'
 import { formatDateTime, langToLocale } from '../shared/utils/formatDate'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
@@ -16,37 +15,21 @@ export default function AnnouncementDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useUser()
-  const [announcement, setAnnouncement] = useState<AnnouncementOut | null>(null)
-  const [recipients, setRecipients] = useState<AnnouncementRecipient[]>([])
+  const role = user?.role === 'teacher' || user?.role === 'admin' ? 'teacher' : 'student'
+  const numId = Number(id)
+  const { data: announcement, isLoading, error } = useAnnouncementDetail(numId, role)
+  const { data: recipients = [] } = useAnnouncementRecipients(numId)
+  const markReadMutation = useMarkAnnouncementRead()
   const [showAllRecipients, setShowAllRecipients] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
+  // Mark as read for students
   useEffect(() => {
-    if (!id) return
-    const numId = Number(id)
-    const isPrivileged = user && (user.role === 'teacher' || user.role === 'admin')
+    if (announcement && role === 'student' && numId) {
+      markReadMutation.mutate(numId)
+    }
+  }, [announcement, role, numId])
 
-    const fetcher = isPrivileged
-      ? getTeacherAnnouncementDetail(numId).catch(() => getAnnouncementDetail(numId))
-      : getAnnouncementDetail(numId)
-
-    fetcher
-      .then((data) => {
-        setAnnouncement(data)
-        if (isPrivileged && data.recipient_count && data.recipient_count > 0) {
-          getAnnouncementRecipients(numId).then(setRecipients).catch(console.error)
-        }
-        // Mark as read for students
-        if (!isPrivileged) {
-          markAnnouncementAsRead(numId).catch(() => {})
-        }
-      })
-      .catch((e) => setError(e.message || t('common.error')))
-      .finally(() => setLoading(false))
-  }, [id, user, t])
-
-  if (loading) {
+  if (isLoading) {
     return <Loading fullPage message={t('common.loading')} />
   }
 
@@ -56,7 +39,7 @@ export default function AnnouncementDetail() {
         <SiteHeader title={t('announcements.detailTitle')} onBack={() => navigate(-1)} hideProfile />
         <div className={styles.errorState}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#ba1a1a' }}>error</span>
-          <p>{error || t('common.error')}</p>
+          <p>{error?.message || t('common.error')}</p>
           <button onClick={() => navigate(-1)} className={styles.backButton}>
             {t('common.back')}
           </button>

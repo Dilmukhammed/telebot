@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getAnnouncements, getTeacherAnnouncements } from '../api/client'
+import { useAnnouncements } from '../api/hooks'
 import { useUser } from '../context/UserContext'
-import type { AnnouncementOut } from '../shared/types'
 import { formatDateTime, langToLocale } from '../shared/utils/formatDate'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
@@ -13,21 +11,10 @@ export default function Announcements() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { user } = useUser()
-  const [announcements, setAnnouncements] = useState<AnnouncementOut[]>([])
-  const [loading, setLoading] = useState(true)
+  const role = user?.role === 'teacher' || user?.role === 'admin' ? 'teacher' : 'student'
+  const { data: announcements = [], isLoading } = useAnnouncements(role)
 
-  useEffect(() => {
-    const isPrivileged = user && (user.role === 'teacher' || user.role === 'admin')
-    const fetcher = isPrivileged
-      ? getTeacherAnnouncements().catch(() => getAnnouncements())
-      : getAnnouncements()
-    fetcher
-      .then(setAnnouncements)
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [user])
-
-  if (loading) {
+  if (isLoading) {
     return <Loading fullPage message={t('common.loading')} />
   }
 

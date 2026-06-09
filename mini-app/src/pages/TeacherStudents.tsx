@@ -1,24 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getTeacherStudents } from '../api/client'
-import type { TeacherStudentOut } from '../shared/types'
+import { useTeacherStudents } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
 import styles from './TeacherStudents.module.css'
 
 export default function TeacherStudents() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [students, setStudents] = useState<TeacherStudentOut[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data, isLoading } = useTeacherStudents()
   const [filter, setFilter] = useState('')
 
-  useEffect(() => {
-    getTeacherStudents()
-      .then(data => setStudents(data.students))
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [])
+  const students = data?.students ?? []
 
   const filteredStudents = students.filter(s => {
     if (!filter) return true
@@ -29,7 +22,7 @@ export default function TeacherStudents() {
     return name.includes(search) || username.includes(search) || phone.includes(search)
   })
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className={styles.page}>
         <div className={styles.loading}>{t('common.loading')}</div>

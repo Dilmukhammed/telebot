@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getDashboard } from '../api/client'
-import type { DashboardOut } from '../shared/types'
+import { useDashboard } from '../api/hooks'
 import { CENTER, getLocalized } from '../config'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
@@ -96,9 +95,7 @@ export default function Dashboard() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { user } = useUser()
-  const [data, setData] = useState<DashboardOut | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, isLoading, error, refetch } = useDashboard()
   const [refreshing, setRefreshing] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const touchStartY = useRef(0)
@@ -115,20 +112,6 @@ export default function Dashboard() {
   const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
   const telegramAvatar = tgUser?.photo_url
 
-  const fetchData = useCallback(async () => {
-    try {
-      const d = await getDashboard()
-      setData(d)
-      setError(null)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error loading dashboard')
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchData().finally(() => setLoading(false))
-  }, [fetchData])
-
   // Pull-to-refresh: detect swipe down at scroll top
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY
@@ -139,12 +122,12 @@ export default function Dashboard() {
     const atTop = containerRef.current && containerRef.current.scrollTop <= 0
     if (deltaY > 80 && atTop && !refreshing) {
       setRefreshing(true)
-      await fetchData()
+      await refetch()
       setRefreshing(false)
     }
-  }, [fetchData, refreshing])
+  }, [refetch, refreshing])
 
-  if (loading) {
+  if (isLoading) {
     return <Loading fullPage message={t('common.loading')} />
   }
 
@@ -153,9 +136,9 @@ export default function Dashboard() {
       <div className={styles.page}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '24px' }}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'var(--color-outline)' }}>error</span>
-          <p style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center' }}>{error || t('common.error')}</p>
+          <p style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center' }}>{error?.message || t('common.error')}</p>
           <button
-            onClick={() => { setLoading(true); fetchData().finally(() => setLoading(false)) }}
+            onClick={() => refetch()}
             style={{ padding: '10px 24px', borderRadius: '12px', border: 'none', background: 'var(--color-primary)', color: 'var(--color-on-primary)', fontWeight: 600, cursor: 'pointer' }}
           >
             {t('common.retry')}

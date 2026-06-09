@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { getAdminUsers, createAdminUser } from '../api/client'
+import { useAdminUsers, useCreateAdminUser } from '../api/hooks'
 import type { UserOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import styles from './AdminPeople.module.css'
@@ -12,8 +12,9 @@ export default function AdminPeople() {
   const [searchParams] = useSearchParams()
   const initialTab = searchParams.get('tab') === 'teachers' ? 'teachers' : 'students'
   const [tab, setTab] = useState<Tab>(initialTab)
-  const [users, setUsers] = useState<UserOut[]>([])
-  const [loading, setLoading] = useState(true)
+  const role = tab === 'students' ? 'student' : 'teacher'
+  const { data: users = [], isLoading } = useAdminUsers(role)
+  const createMutation = useCreateAdminUser()
   const [searchQuery, setSearchQuery] = useState('')
 
   // Create teacher modal state
@@ -21,18 +22,6 @@ export default function AdminPeople() {
   const [createForm, setCreateForm] = useState({ first_name: '', last_name: '', username: '', phone: '' })
   const [createLoading, setCreateLoading] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
-
-  const fetchUsers = () => {
-    setLoading(true)
-    getAdminUsers({ role: tab === 'students' ? 'student' : 'teacher' })
-      .then(setUsers)
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => {
-    fetchUsers()
-  }, [tab])
 
   const filteredUsers = users.filter(u => {
     if (!searchQuery) return true
@@ -58,10 +47,9 @@ export default function AdminPeople() {
     setCreateLoading(true)
     setCreateError(null)
     try {
-      await createAdminUser(createForm)
+      await createMutation.mutateAsync(createForm)
       setShowCreateModal(false)
       setCreateForm({ first_name: '', last_name: '', username: '', phone: '' })
-      fetchUsers()
     } catch (err: any) {
       setCreateError(err?.message || 'Ошибка создания')
     } finally {
@@ -108,7 +96,7 @@ export default function AdminPeople() {
         </div>
 
         {/* List */}
-        {loading ? (
+        {isLoading ? (
           <div className={styles.loading}>Загрузка...</div>
         ) : filteredUsers.length === 0 ? (
           <div className={styles.emptyState}>

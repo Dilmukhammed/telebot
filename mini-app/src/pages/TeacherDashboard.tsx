@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getTeacherDashboard, getTeacherAnnouncements } from '../api/client'
-import type { TeacherDashboardOut, AnnouncementOut } from '../shared/types'
+import { useTeacherDashboard, useAnnouncements } from '../api/hooks'
 
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
@@ -103,10 +102,8 @@ export default function TeacherDashboard() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { user } = useUser()
-  const [data, setData] = useState<TeacherDashboardOut | null>(null)
-  const [announcements, setAnnouncements] = useState<AnnouncementOut[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, isLoading, error } = useTeacherDashboard()
+  const { data: announcements = [] } = useAnnouncements('teacher')
   const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
@@ -121,27 +118,7 @@ export default function TeacherDashboard() {
   const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
   const telegramAvatar = tgUser?.photo_url
 
-
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [dashboard, anns] = await Promise.all([
-        getTeacherDashboard(),
-        getTeacherAnnouncements(),
-      ])
-      setData(dashboard)
-      setAnnouncements(anns)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('common.error'))
-    } finally {
-      setLoading(false)
-    }
-  }, [t])
-
-  useEffect(() => { fetchData() }, [fetchData])
-
-  if (loading) {
+  if (isLoading) {
     return <Loading fullPage message={t('common.loading')} />
   }
 
@@ -150,9 +127,9 @@ export default function TeacherDashboard() {
       <div className={styles.page}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '24px' }}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'var(--color-outline)' }}>error</span>
-          <p style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center' }}>{error || t('common.error')}</p>
+          <p style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center' }}>{error?.message || t('common.error')}</p>
           <button
-            onClick={fetchData}
+            onClick={() => window.location.reload()}
             style={{ padding: '10px 24px', borderRadius: '12px', border: 'none', background: 'var(--color-primary)', color: 'var(--color-on-primary)', fontWeight: 600, cursor: 'pointer' }}
           >
             {t('common.retry')}

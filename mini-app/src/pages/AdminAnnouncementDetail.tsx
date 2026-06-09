@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getAdminAnnouncementDetail, getAdminAnnouncementRecipients } from '../api/client'
-import type { AdminAnnouncementOut, AnnouncementRecipient } from '../shared/types'
+import { useAdminAnnouncementDetail, useAdminAnnouncementRecipients } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './AnnouncementDetail.module.css'
@@ -27,33 +26,12 @@ const PREVIEW_COUNT = 5
 export default function AdminAnnouncementDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [announcement, setAnnouncement] = useState<AdminAnnouncementOut | null>(null)
-  const [recipients, setRecipients] = useState<AnnouncementRecipient[]>([])
+  const numId = Number(id)
+  const { data: announcement, isLoading, error } = useAdminAnnouncementDetail(numId)
+  const { data: recipients = [] } = useAdminAnnouncementRecipients(numId)
   const [showAllRecipients, setShowAllRecipients] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const numId = Number(id)
-    if (id && !isNaN(numId)) {
-      getAdminAnnouncementDetail(numId)
-        .then((data) => {
-          setAnnouncement(data)
-          if (data.recipient_count && data.recipient_count > 0) {
-            getAdminAnnouncementRecipients(numId)
-              .then(setRecipients)
-              .catch(console.error)
-          }
-        })
-        .catch((e) => {
-          console.error(e)
-          setError(e.message || 'Ошибка загрузки')
-        })
-        .finally(() => setLoading(false))
-    }
-  }, [id])
-
-  if (loading) {
+  if (isLoading) {
     return <Loading fullPage message="Загрузка..." />
   }
 
@@ -63,7 +41,7 @@ export default function AdminAnnouncementDetail() {
         <SiteHeader title="Объявление" onBack={() => navigate(-1)} hideProfile />
         <div className={styles.errorState}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#ba1a1a' }}>error</span>
-          <p>{error || 'Ошибка загрузки'}</p>
+          <p>{error?.message || 'Ошибка загрузки'}</p>
           <button onClick={() => navigate(-1)} className={styles.backButton}>Назад</button>
         </div>
       </div>

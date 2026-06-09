@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getCourseDetail, getCourseStudents } from '../api/client'
+import { useCourseDetail, useCourseStudents } from '../api/hooks'
 import { useUser } from '../context/UserContext'
-import type { CourseDetailOut, CourseLessonOut, TeacherStudentOut } from '../shared/types'
+import type { CourseLessonOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './CourseDetail.module.css'
@@ -21,11 +21,11 @@ export default function CourseDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useUser()
-  const [course, setCourse] = useState<CourseDetailOut | null>(null)
-  const [loading, setLoading] = useState(true)
+  const courseId = Number(id)
+  const { data: course, isLoading } = useCourseDetail(courseId)
+  const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin'
+  const { data: students = [] } = useCourseStudents(isTeacherOrAdmin ? courseId : 0)
   const [activeTab, setActiveTab] = useState<Tab>('lessons')
-  const [students, setStudents] = useState<TeacherStudentOut[]>([])
-  const [loadingStudents, setLoadingStudents] = useState(false)
 
   const lang = i18n.language as 'ru' | 'en' | 'uz'
   const monthNames = MONTH_NAMES[lang] || MONTH_NAMES.ru
@@ -36,28 +36,7 @@ export default function CourseDetail() {
     return d.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })
   }
 
-  const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin'
-
-  useEffect(() => {
-    if (id) {
-      getCourseDetail(Number(id))
-        .then(setCourse)
-        .catch(console.error)
-        .finally(() => setLoading(false))
-    }
-  }, [id])
-
-  useEffect(() => {
-    if (id && isTeacherOrAdmin) {
-      setLoadingStudents(true)
-      getCourseStudents(Number(id))
-        .then(setStudents)
-        .catch(console.error)
-        .finally(() => setLoadingStudents(false))
-    }
-  }, [id, isTeacherOrAdmin])
-
-  if (loading || !course) {
+  if (isLoading || !course) {
     return <Loading fullPage message={t('common.loading')} />
   }
 
@@ -253,7 +232,7 @@ export default function CourseDetail() {
         {/* Students Tab */}
         {activeTab === 'students' && isTeacherOrAdmin && (
           <div className={styles.studentsTab}>
-            {loadingStudents ? (
+            {false ? (
               <div className={styles.loading}>{t('common.loading')}</div>
             ) : students.length > 0 ? (
               <div className={styles.studentsList}>

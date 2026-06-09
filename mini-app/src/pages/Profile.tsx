@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { updateName, getAvailability, createAvailability, deleteAvailability } from '../api/client'
+import { updateName } from '../api/client'
+import { useAvailability, useCreateAvailability, useDeleteAvailability } from '../api/hooks'
 import { useUser } from '../context/UserContext'
-import type { TeacherAvailabilityOut } from '../shared/types'
 import { CENTER } from '../config'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
@@ -28,6 +28,9 @@ function formatPhone(phone: string): string {
 export default function Profile() {
   const { t, i18n } = useTranslation()
   const { user, loading: userLoading, refresh: refreshUser } = useUser()
+  const { data: availability = [] } = useAvailability()
+  const createSlotMutation = useCreateAvailability()
+  const deleteSlotMutation = useDeleteAvailability()
   const [showLangModal, setShowLangModal] = useState(false)
   const [showHelpModal, setShowHelpModal] = useState(false)
   const [showNameModal, setShowNameModal] = useState(false)
@@ -35,7 +38,6 @@ export default function Profile() {
   const [editLastName, setEditLastName] = useState('')
   const [saving, setSaving] = useState(false)
   const [selectedLang, setSelectedLang] = useState(i18n.language)
-  const [availability, setAvailability] = useState<TeacherAvailabilityOut[]>([])
   const [showSlotModal, setShowSlotModal] = useState(false)
   const [slotDays, setSlotDays] = useState<number[]>([0])
   const [slotStart, setSlotStart] = useState('10:00')
@@ -44,12 +46,6 @@ export default function Profile() {
 
   const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
   const telegramAvatar = tgUser?.photo_url
-
-  useEffect(() => {
-    if (user && user.role === 'teacher') {
-      getAvailability().then(setAvailability).catch(() => {})
-    }
-  }, [user])
 
   const handleSelectLang = (code: string) => {
     setSelectedLang(code)
@@ -81,12 +77,9 @@ export default function Profile() {
   const handleAddSlot = async () => {
     setSaving(true)
     try {
-      const created: TeacherAvailabilityOut[] = []
       for (const day of slotDays) {
-        const slot = await createAvailability(day, slotStart, slotEnd)
-        created.push(slot)
+        await createSlotMutation.mutateAsync({ day_of_week: day, start_time: slotStart, end_time: slotEnd })
       }
-      setAvailability([...availability, ...created])
       setShowSlotModal(false)
     } catch (err) {
       alert(err instanceof Error ? err.message : t('common.error'))
@@ -98,8 +91,7 @@ export default function Profile() {
   const handleDeleteSlot = async () => {
     if (slotToDelete === null) return
     try {
-      await deleteAvailability(slotToDelete)
-      setAvailability(availability.filter(s => s.id !== slotToDelete))
+      await deleteSlotMutation.mutateAsync(slotToDelete)
     } catch (err) {
       alert(err instanceof Error ? err.message : t('common.error'))
     } finally {

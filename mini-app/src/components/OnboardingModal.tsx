@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getMe, completeOnboarding } from '../api/client'
+import { completeOnboarding } from '../api/client'
 import { useUser } from '../context/UserContext'
-import type { UserOut } from '../shared/types'
 import styles from './OnboardingModal.module.css'
 
 const grades = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
@@ -14,8 +13,7 @@ interface OnboardingModalProps {
 
 export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
   const { t } = useTranslation()
-  const { refresh } = useUser()
-  const [user, setUser] = useState<UserOut | null>(null)
+  const { user: contextUser, refresh } = useUser()
   const [selectedGrade, setSelectedGrade] = useState<string | null>(null)
   const [customRole, setCustomRole] = useState('')
   const [showOtherInput, setShowOtherInput] = useState(false)
@@ -26,14 +24,14 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
   const [showManualPhoneInput, setShowManualPhoneInput] = useState(false)
   const [manualPhone, setManualPhone] = useState('')
 
+  // Use user from context instead of redundant getMe() call
+  const user = contextUser
+
   useEffect(() => {
-    if (isOpen) {
-      getMe().then(u => {
-        setUser(u)
-        if (u.phone) setPhoneShared(true)
-      }).catch(console.error)
+    if (isOpen && user?.phone) {
+      setPhoneShared(true)
     }
-  }, [isOpen])
+  }, [isOpen, user])
 
   if (!isOpen) return null
 

@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { getCalendar, createAvailability, deleteAvailability } from '../api/client'
+import { createAvailability, deleteAvailability } from '../api/client'
+import { useCalendar } from '../api/hooks'
 import { useUser } from '../context/UserContext'
-import type { CalendarWeekOut, CalendarLessonOut } from '../shared/types'
+import type { CalendarLessonOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './Calendar.module.css'
@@ -38,16 +39,14 @@ const getLocalDateString = (d: Date = getTashkentDate()) => {
 export default function Calendar() {
   const { t, i18n } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [data, setData] = useState<CalendarWeekOut | null>(null)
-  const [loading, setLoading] = useState(true)
   const [weekOffset, setWeekOffset] = useState(0)
+  const { data, isLoading, error, refetch } = useCalendar(weekOffset)
   const [view, setView] = useState<'day' | 'week'>(() => searchParams.get('view') === 'week' ? 'week' : 'day')
   const [selectedDay, setSelectedDay] = useState(0)
   const [now, setNow] = useState(getTashkentDate())
   const [showMonthPicker, setShowMonthPicker] = useState(false)
   const [pickerYear, setPickerYear] = useState(getTashkentDate().getFullYear())
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; startTime: string; endTime: string; dayOfWeek: number; isNew: boolean; slotId?: number } | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const { user } = useUser()
   const userRole = user?.role ?? null
 
@@ -86,19 +85,6 @@ export default function Calendar() {
   const dayNames = DAY_NAMES[lang] || DAY_NAMES.ru
   const monthNames = MONTH_NAMES[lang] || MONTH_NAMES.ru
 
-  const fetchCalendar = useCallback(() => {
-    setLoading(true)
-    setError(null)
-    getCalendar(weekOffset)
-      .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Error loading calendar'))
-      .finally(() => setLoading(false))
-  }, [weekOffset])
-
-  useEffect(() => {
-    fetchCalendar()
-  }, [fetchCalendar])
-
   useEffect(() => {
     if (data) {
       const today = getLocalDateString()
@@ -107,7 +93,7 @@ export default function Calendar() {
     }
   }, [data])
 
-  if (loading) {
+  if (isLoading) {
     return <Loading fullPage message={t('common.loading')} />
   }
 
@@ -117,9 +103,9 @@ export default function Calendar() {
         <SiteHeader title={t('calendar.title')} hideProfile />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '24px' }}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'var(--color-outline)' }}>error</span>
-          <p style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center' }}>{error || t('common.error')}</p>
+          <p style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center' }}>{error?.message || t('common.error')}</p>
           <button
-            onClick={fetchCalendar}
+            onClick={() => refetch()}
             style={{ padding: '10px 24px', borderRadius: '12px', border: 'none', background: 'var(--color-primary)', color: 'var(--color-on-primary)', fontWeight: 600, cursor: 'pointer' }}
           >
             {t('common.retry')}
@@ -358,8 +344,7 @@ export default function Calendar() {
                     } else if (selectedSlot.slotId) {
                       await deleteAvailability(selectedSlot.slotId)
                     }
-                    const fresh = await getCalendar(weekOffset)
-                    setData(fresh)
+                    refetch()
                   } catch (err) {
                     alert(err instanceof Error ? err.message : t('common.error'))
                   }

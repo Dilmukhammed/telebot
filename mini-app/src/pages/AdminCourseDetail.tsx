@@ -1,17 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useAdminSubjectDetail, useAdminAuditLog, useAdminUsers } from '../api/hooks'
 import {
-  getAdminSubjectDetail,
   updateSubject,
   adminCreateLesson,
   adminEnrollStudent,
   adminUnenrollStudent,
-  getAdminAuditLog,
-  getAdminUsers,
   archiveAdminSubject,
   unarchiveAdminSubject,
 } from '../api/client'
-import type { AdminSubjectDetailOut, AuditLogOut, UserOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import styles from './AdminCourseDetail.module.css'
 
@@ -20,9 +17,10 @@ const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 export default function AdminCourseDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [course, setCourse] = useState<AdminSubjectDetailOut | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const courseId = Number(id)
+  const { data: course, isLoading, error, refetch } = useAdminSubjectDetail(courseId)
+  const { data: auditLogs = [] } = useAdminAuditLog({ entity_type: 'subject', entity_id: courseId, limit: 20 })
+  const { data: allStudents = [] } = useAdminUsers('student')
 
   // Subject edit modal
   const [showSubjectEdit, setShowSubjectEdit] = useState(false)
@@ -39,11 +37,9 @@ export default function AdminCourseDetail() {
 
   // Enroll modal
   const [showEnrollModal, setShowEnrollModal] = useState(false)
-  const [allStudents, setAllStudents] = useState<UserOut[]>([])
   const [enrollFilter, setEnrollFilter] = useState('')
 
   // Audit log
-  const [auditLogs, setAuditLogs] = useState<AuditLogOut[]>([])
   const [showAudit, setShowAudit] = useState(false)
 
   // Archive
@@ -69,23 +65,11 @@ export default function AdminCourseDetail() {
     if (!course) return
     try {
       await unarchiveAdminSubject(course.id)
-      loadDetail()
+      await refetch()
     } catch (e: any) {
       alert(e.message || 'Ошибка разархивации')
     }
   }
-
-  const loadDetail = () => {
-    const numId = Number(id)
-    if (!id || isNaN(numId)) { setLoading(false); return }
-    setLoading(true)
-    getAdminSubjectDetail(numId)
-      .then(setCourse)
-      .catch(err => setError(err.message || 'Ошибка загрузки'))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { loadDetail() }, [id])
 
   // ── Subject Edit ──
   const openSubjectEdit = () => {
@@ -116,7 +100,7 @@ export default function AdminCourseDetail() {
       if (subjectForm.duration_minutes) data.duration_minutes = Number(subjectForm.duration_minutes)
       await updateSubject(course.id, data)
       setShowSubjectEdit(false)
-      loadDetail()
+      refetch()
     } catch (e: any) {
       setSubjectError(e.message || 'Ошибка сохранения')
     } finally {
@@ -145,7 +129,7 @@ export default function AdminCourseDetail() {
         max_capacity: Number(lessonForm.max_capacity) || 15,
       })
       setShowCreateLesson(false)
-      loadDetail()
+      refetch()
     } catch (e: any) {
       setLessonError(e.message || 'Ошибка создания')
     } finally {
@@ -154,13 +138,9 @@ export default function AdminCourseDetail() {
   }
 
   // ── Enroll / Unenroll ──
-  const openEnroll = async () => {
+  const openEnroll = () => {
     setShowEnrollModal(true)
     setEnrollFilter('')
-    try {
-      const users = await getAdminUsers({ role: 'student' })
-      setAllStudents(users)
-    } catch { /* ignore */ }
   }
 
   const handleEnroll = async (userId: number) => {
@@ -169,7 +149,7 @@ export default function AdminCourseDetail() {
     try {
       await Promise.all(lessons.map(l => adminEnrollStudent(l.id, userId)))
       setShowEnrollModal(false)
-      loadDetail()
+      refetch()
     } catch (e: any) {
       alert(e.message || 'Ошибка записи')
     }
@@ -181,31 +161,14 @@ export default function AdminCourseDetail() {
     if (!confirm('Отписать ученика от курса?')) return
     try {
       await Promise.all(lessons.map(l => adminUnenrollStudent(l.id, userId)))
-      loadDetail()
+      refetch()
     } catch (e: any) {
       alert(e.message || 'Ошибка отписки')
     }
   }
 
   // ── Audit Log ──
-  const loadAuditLog = async () => {
-    if (!id) return
-    try {
-      const logs = await getAdminAuditLog({ entity_type: 'subject', entity_id: Number(id), limit: 20 })
-      const lessonLogs = course?.lessons
-        ? (await Promise.all(
-            course.lessons.map(l => getAdminAuditLog({ entity_type: 'lesson', entity_id: l.id, limit: 5 }))
-          )).flat()
-        : []
-      const allLogs = [...logs, ...lessonLogs]
-        .sort((a, b) => b.performed_at.localeCompare(a.performed_at))
-        .slice(0, 50)
-      setAuditLogs(allLogs)
-    } catch { /* ignore */ }
-  }
-
-  const toggleAudit = async () => {
-    if (!showAudit) await loadAuditLog()
+  const toggleAudit = () => {
     setShowAudit(!showAudit)
   }
 
@@ -222,7 +185,7 @@ export default function AdminCourseDetail() {
     return styleMap[`gradient_${gradients[hash % gradients.length]}`] || ''
   }
 
-  if (loading) return <div className={styles.loading}>Загрузка...</div>
+  if (isLoading) return <div className={styles.loading}>Загрузка...</div>
   if (error || !course) {
     return (
       <div className={styles.page}>
@@ -230,7 +193,7 @@ export default function AdminCourseDetail() {
         <main className={styles.main}>
           <div className={styles.emptyState}>
             <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>error</span>
-            <p>{error || 'Курс не найден'}</p>
+            <p>{error?.message || 'Курс не найден'}</p>
           </div>
         </main>
       </div>

@@ -1,11 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  getMyRegistrations,
-  cancelRegistration,
-  getMyResults,
-} from '../api/client';
-import type { RegistrationOut, ResultOut } from '../shared/types';
+import { useMyRegistrations, useMyResults, useCancelRegistration } from '../api/hooks';
+import type { ResultOut } from '../shared/types';
 import {
   Card,
   Button,
@@ -32,36 +28,14 @@ function getResultForRegistration(
 
 export const MyRegistrations: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const [registrations, setRegistrations] = useState<RegistrationOut[]>([]);
-  const [results, setResults] = useState<ResultOut[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: registrations = [], isLoading, error, refetch } = useMyRegistrations();
+  const { data: results = [] } = useMyResults();
+  const cancelMutation = useCancelRegistration();
   const [filter, setFilter] = useState<FilterType>('active');
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
 
   const locale = langToLocale(i18n.language);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [regs, res] = await Promise.all([
-        getMyRegistrations(),
-        getMyResults(),
-      ]);
-      setRegistrations(regs);
-      setResults(res);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('common.error'));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   const filtered = useMemo(() => {
     if (filter === 'all') return registrations;
@@ -75,10 +49,9 @@ export const MyRegistrations: React.FC = () => {
   const handleCancel = async (id: number) => {
     setCancellingId(id);
     try {
-      await cancelRegistration(id);
-      await fetchData();
+      await cancelMutation.mutateAsync(id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('registrations.cancelError'));
+      // error handled by mutation
     } finally {
       setCancellingId(null);
       setConfirmId(null);
@@ -97,7 +70,7 @@ export const MyRegistrations: React.FC = () => {
     [registrations]
   );
 
-  if (loading) {
+  if (isLoading) {
     return <Loading fullPage message={t('registrations.loading')} data-testid="loading" />;
   }
 
@@ -107,9 +80,8 @@ export const MyRegistrations: React.FC = () => {
 
       {error && (
         <ErrorBanner
-          message={error}
-          onDismiss={() => setError(null)}
-          onRetry={fetchData}
+          message={error.message}
+          onRetry={() => refetch()}
           data-testid="error-banner"
         />
       )}

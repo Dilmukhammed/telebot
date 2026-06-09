@@ -66,14 +66,21 @@ async def list_courses(
 
     subjects = result.scalars().all()
 
-    courses = []
-    for subject in subjects:
+    # Batch-load all lessons for all subjects in one query (fixes N+1)
+    subject_ids = [s.id for s in subjects]
+    all_lessons: dict[int, list] = {}
+    if subject_ids:
         lessons_result = await db.execute(
             select(Lesson)
-            .where(Lesson.subject_id == subject.id, Lesson.is_active == True)
-            .order_by(Lesson.day_of_week, Lesson.time)
+            .where(Lesson.subject_id.in_(subject_ids), Lesson.is_active == True)
+            .order_by(Lesson.subject_id, Lesson.day_of_week, Lesson.time)
         )
-        lessons = lessons_result.scalars().all()
+        for lesson in lessons_result.scalars().all():
+            all_lessons.setdefault(lesson.subject_id, []).append(lesson)
+
+    courses = []
+    for subject in subjects:
+        lessons = all_lessons.get(subject.id, [])
         first_lesson = lessons[0] if lessons else None
 
         courses.append(CourseOut(

@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getTests } from '../api/client'
-import type { TestOut } from '../shared/types'
+import { useTests } from '../api/hooks'
 import { Card, Loading, ErrorBanner, EmptyState } from '../shared/components'
 import { formatDateTime, langToLocale } from '../shared/utils/formatDate'
 import styles from './Home.module.css'
@@ -11,24 +10,17 @@ const ALL_FILTER = '__all__'
 
 export default function Home() {
   const { t, i18n } = useTranslation()
-  const [tests, setTests] = useState<TestOut[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: allTests, isLoading, error, refetch } = useTests()
   const [activeFilter, setActiveFilter] = useState<string>(ALL_FILTER)
   const navigate = useNavigate()
 
   const locale = langToLocale(i18n.language)
 
-  useEffect(() => {
-    getTests()
-      .then((data) => {
-        const now = new Date()
-        const activeTests = data.filter((t) => new Date(t.datetime) > now)
-        setTests(activeTests)
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : t('common.error')))
-      .finally(() => setLoading(false))
-  }, [t])
+  const tests = useMemo(() => {
+    if (!allTests) return []
+    const now = new Date()
+    return allTests.filter((t) => new Date(t.datetime) > now)
+  }, [allTests])
 
   const subjects = useMemo(() => {
     const set = new Set(tests.map((t) => t.subject_name))
@@ -44,8 +36,8 @@ export default function Home() {
     return formatDateTime(datetime, locale)
   }
 
-  if (loading) return <Loading fullPage message={t('common.loading')} data-testid="loading" />
-  if (error) return <ErrorBanner message={error} onRetry={() => { setError(null); setLoading(true); getTests().then(setTests).catch((err) => setError(err.message)).finally(() => setLoading(false)) }} data-testid="error-banner" />
+  if (isLoading) return <Loading fullPage message={t('common.loading')} data-testid="loading" />
+  if (error) return <ErrorBanner message={error.message} onRetry={() => refetch()} data-testid="error-banner" />
   if (filteredTests.length === 0) {
     return (
       <div className={styles.container}>

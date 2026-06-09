@@ -1,46 +1,36 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getAdminUser, updateAdminUserRole } from '../api/client'
-import type { UserOut } from '../shared/types'
+import { useAdminUser, useUpdateAdminUserRole } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
 import styles from './AdminUserProfile.module.css'
 
 export default function AdminUserProfile() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [user, setUser] = useState<UserOut | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const numId = Number(id)
+  const { data: user, isLoading, error, refetch } = useAdminUser(numId)
+  const updateRoleMutation = useUpdateAdminUserRole()
   const [updatingRole, setUpdatingRole] = useState(false)
-
-  useEffect(() => {
-    const numId = Number(id)
-    if (!id || isNaN(numId)) { setLoading(false); return }
-    setLoading(true)
-    getAdminUser(numId)
-      .then(setUser)
-      .catch(err => setError(err.message || 'Ошибка загрузки'))
-      .finally(() => setLoading(false))
-  }, [id])
+  const [_roleError, setRoleError] = useState('')
 
   const handleRoleChange = async (newRole: string) => {
     if (!user) return
     if (newRole === user.role) return
     const labels: Record<string, string> = { student: 'Ученик', teacher: 'Преподаватель', admin: 'Администратор' }
     if (!window.confirm(`Изменить роль на "${labels[newRole]}"?`)) return
-    setError('')
+    setRoleError('')
     setUpdatingRole(true)
     try {
-      await updateAdminUserRole(user.id, newRole)
-      setUser(prev => prev ? { ...prev, role: newRole } : null)
+      await updateRoleMutation.mutateAsync({ id: user.id, role: newRole })
+      await refetch()
     } catch (e: any) {
-      setError(e.message || 'Ошибка обновления роли')
+      setRoleError(e.message || 'Ошибка обновления роли')
     } finally {
       setUpdatingRole(false)
     }
   }
 
-  if (loading) return <div className={styles.loading}>Загрузка...</div>
+  if (isLoading) return <div className={styles.loading}>Загрузка...</div>
   if (error || !user) {
     return (
       <div className={styles.page}>
@@ -48,7 +38,7 @@ export default function AdminUserProfile() {
         <main className={styles.main}>
           <div className={styles.emptyState}>
             <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>person_off</span>
-            <p>{error || 'Пользователь не найден'}</p>
+            <p>{error?.message || 'Пользователь не найден'}</p>
           </div>
         </main>
       </div>

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import WebApp from '@twa-dev/sdk'
 import { ErrorBoundary } from './ErrorBoundary'
+import { QueryProvider } from './providers/QueryProvider'
 import { UserProvider } from './context/UserContext'
 import './i18n'
 import './index.css'
@@ -28,11 +29,13 @@ if (root) {
   createRoot(root).render(
     <StrictMode>
       <ErrorBoundary>
-        <BrowserRouter>
-          <UserProvider>
-            <App />
-          </UserProvider>
-        </BrowserRouter>
+        <QueryProvider>
+          <BrowserRouter>
+            <UserProvider>
+              <App />
+            </UserProvider>
+          </BrowserRouter>
+        </QueryProvider>
       </ErrorBoundary>
     </StrictMode>,
   )

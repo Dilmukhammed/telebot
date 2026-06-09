@@ -1,16 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getTeacherCourses, getCourseStudents, createAnnouncement } from '../api/client'
+import { useTeacherCourses } from '../api/hooks'
+import { getCourseStudents, createAnnouncement } from '../api/client'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './CreateAnnouncement.module.css'
-
-interface Course {
-  id: number
-  name: string
-  student_count: number
-}
 
 interface Student {
   id: number
@@ -25,20 +20,12 @@ export default function CreateAnnouncement() {
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
   const [targetType, setTargetType] = useState<'course' | 'students'>('course')
-  const [courses, setCourses] = useState<Course[]>([])
+  const { data: courses = [], isLoading } = useTeacherCourses()
   const [selectedCourses, setSelectedCourses] = useState<number[]>([])
   const [students, setStudents] = useState<Student[]>([])
   const [selectedStudents, setSelectedStudents] = useState<number[]>([])
-  const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    getTeacherCourses()
-      .then(setCourses)
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [])
 
   useEffect(() => {
     if (targetType === 'students' && courses.length > 0) {
@@ -102,7 +89,7 @@ export default function CreateAnnouncement() {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return <Loading fullPage message={t('common.loading')} />
   }
 

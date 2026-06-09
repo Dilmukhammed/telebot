@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getLessonDetail, getLessonAttendance, markLessonStatus, markAttendance, updateLesson } from '../api/client'
-import type { LessonDetailOut, AttendanceListOut, AttendanceRecordIn } from '../shared/types'
+import { useLessonDetail, useLessonAttendance } from '../api/hooks'
+import { markLessonStatus, markAttendance, updateLesson } from '../api/client'
+import type { AttendanceRecordIn } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './LessonDetail.module.css'
@@ -12,10 +13,12 @@ export default function LessonDetail() {
   const { id } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [lesson, setLesson] = useState<LessonDetailOut | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [attendance, setAttendance] = useState<AttendanceListOut | null>(null)
+  const date = searchParams.get('date')
+  const { data: lesson, isLoading, error, refetch: refetchLesson } = useLessonDetail(Number(id || '0'), date || undefined)
+  const { data: attendance, refetch: refetchAttendance } = useLessonAttendance(
+    lesson?.is_teacher && lesson?.lesson_status === 'happened' ? lesson.id : 0,
+    lesson?.date || ''
+  )
   const [savingStatus, setSavingStatus] = useState(false)
   const [savingAttendance, setSavingAttendance] = useState(false)
   const [attendanceError, setAttendanceError] = useState<string | null>(null)
@@ -27,33 +30,14 @@ export default function LessonDetail() {
   const [savingEdit, setSavingEdit] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
-  const date = searchParams.get('date')
-
-  useEffect(() => {
-    if (id) {
-      getLessonDetail(Number(id), date || undefined)
-        .then((l) => {
-          setLesson(l)
-          if (l.is_teacher && l.lesson_status === 'happened') {
-            getLessonAttendance(l.id, l.date)
-              .then(setAttendance)
-              .catch((e) => setAttendanceError(e.message || t('common.error')))
-          }
-        })
-        .catch((e) => setError(e.message || t('common.error')))
-        .finally(() => setLoading(false))
-    }
-  }, [id, date, t])
-
   const handleMarkStatus = async (status: 'happened' | 'cancelled') => {
     if (!lesson) return
     setSavingStatus(true)
     try {
       await markLessonStatus(lesson.id, lesson.date, status)
-      setLesson({ ...lesson, lesson_status: status })
+      await refetchLesson()
       if (status === 'happened') {
-        const att = await getLessonAttendance(lesson.id, lesson.date)
-        setAttendance(att)
+        await refetchAttendance()
       }
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : t('common.error'))
@@ -62,15 +46,24 @@ export default function LessonDetail() {
     }
   }
 
-  const handleToggleAttendance = (userId: number) => {
+  const handleToggleAttendance = async (userId: number) => {
     if (!attendance) return
     setAttendanceSaved(false)
-    setAttendance({
-      ...attendance,
-      records: attendance.records.map((r) =>
-        r.user_id === userId ? { ...r, present: !r.present } : r
-      ),
-    })
+    // Toggle and save immediately
+    const records: AttendanceRecordIn[] = attendance.records.map((r) => ({
+      user_id: r.user_id,
+      present: r.user_id === userId ? !r.present : r.present,
+    }))
+    try {
+      await markAttendance(lesson!.id, lesson!.date, records)
+      await refetchAttendance()
+      setAttendanceSaved(true)
+      if ((window as any).Telegram?.WebApp) {
+        (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success')
+      }
+    } catch (e: unknown) {
+      setAttendanceError(e instanceof Error ? e.message : t('common.error'))
+    }
   }
 
   const handleSaveAttendance = async () => {
@@ -82,8 +75,8 @@ export default function LessonDetail() {
         user_id: r.user_id,
         present: r.present,
       }))
-      const result = await markAttendance(lesson.id, lesson.date, records)
-      setAttendance(result)
+      await markAttendance(lesson.id, lesson.date, records)
+      await refetchAttendance()
       setAttendanceError(null)
       setAttendanceSaved(true)
       if ((window as any).Telegram?.WebApp) {
@@ -96,7 +89,7 @@ export default function LessonDetail() {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return <Loading fullPage message={t('common.loading')} />
   }
 
@@ -105,8 +98,8 @@ export default function LessonDetail() {
     setSavingEdit(true)
     setEditError(null)
     try {
-      const updated = await updateLesson(lesson.id, { custom_title: editTitle.trim() || null })
-      setLesson(updated)
+      await updateLesson(lesson.id, { custom_title: editTitle.trim() || null })
+      await refetchLesson()
       setShowTitleModal(false)
     } catch (e: unknown) {
       setEditError(e instanceof Error ? e.message : t('common.error'))
@@ -121,8 +114,8 @@ export default function LessonDetail() {
     setEditError(null)
     try {
       const planJson = JSON.stringify(editPlan.filter(item => item.title.trim()))
-      const updated = await updateLesson(lesson.id, { lesson_plan: planJson })
-      setLesson(updated)
+      await updateLesson(lesson.id, { lesson_plan: planJson })
+      await refetchLesson()
       setShowPlanModal(false)
     } catch (e: unknown) {
       setEditError(e instanceof Error ? e.message : t('common.error'))
@@ -147,7 +140,7 @@ export default function LessonDetail() {
         <SiteHeader title={t('lessonDetail.title')} onBack={() => navigate(-1)} hideProfile />
         <div className={styles.errorState}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#ba1a1a' }}>error</span>
-          <p>{error || t('common.error')}</p>
+          <p>{error?.message || t('common.error')}</p>
           <button onClick={() => navigate(-1)} className={styles.backButton}>
             {t('common.back')}
           </button>

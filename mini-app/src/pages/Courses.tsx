@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getCourses } from '../api/client'
-import type { CourseOut } from '../shared/types'
+import { useCourses } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './Courses.module.css'
@@ -22,20 +21,14 @@ const COURSE_BADGES: Record<string, string> = {
 export default function Courses() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [courses, setCourses] = useState<CourseOut[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: rawCourses, isLoading } = useCourses()
 
-  useEffect(() => {
-    getCourses()
-      .then((c) => {
-        const sorted = [...c].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
-        setCourses(sorted)
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [])
+  const courses = useMemo(() => {
+    if (!rawCourses) return []
+    return [...rawCourses].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+  }, [rawCourses])
 
-  if (loading) {
+  if (isLoading) {
     return <Loading fullPage message={t('common.loading')} />
   }
 

@@ -118,7 +118,7 @@ async def get_my_registrations(
     telegram_id = user.telegram_id
 
     result = await db.execute(
-        select(Registration, Test)
+        select(Registration, Test, Subject.name)
         .join(Test, Registration.test_id == Test.id)
         .join(Subject, Test.subject_id == Subject.id)
         .where(Registration.telegram_id == telegram_id)
@@ -127,16 +127,11 @@ async def get_my_registrations(
     rows = result.all()
 
     registrations = []
-    for reg, test in rows:
-        subject_result = await db.execute(
-            select(Subject.name).where(Subject.id == test.subject_id)
-        )
-        subject_name = subject_result.scalar() or "Unknown"
-
+    for reg, test, subject_name in rows:
         registrations.append(RegistrationOut(
             id=reg.id,
             test_id=reg.test_id,
-            test_subject=subject_name,
+            test_subject=subject_name or "Unknown",
             test_datetime=test.datetime.isoformat(),
             status=reg.status,
             registered_at=reg.registered_at.isoformat(),
@@ -214,7 +209,7 @@ async def admin_get_registrations(
     - Returns student info: telegram_id, username, first_name, status, registered_at
     """
     query = (
-        select(Registration, Test)
+        select(Registration, Test, Subject.name)
         .join(Test, Registration.test_id == Test.id)
         .join(Subject, Test.subject_id == Subject.id)
     )
@@ -228,16 +223,11 @@ async def admin_get_registrations(
     rows = result.all()
 
     registrations = []
-    for reg, test in rows:
-        subject_result = await db.execute(
-            select(Subject.name).where(Subject.id == test.subject_id)
-        )
-        subject_name = subject_result.scalar() or "Unknown"
-
+    for reg, test, subject_name in rows:
         registrations.append({
             "id": reg.id,
             "test_id": reg.test_id,
-            "test_subject": subject_name,
+            "test_subject": subject_name or "Unknown",
             "test_datetime": test.datetime.isoformat(),
             "telegram_id": reg.telegram_id,
             "username": reg.username,

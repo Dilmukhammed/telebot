@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAdminSubjects } from '../api/hooks'
 import {
-  getAdminSubjects,
   adminSearchCourses,
   createAdminSubject,
   getTeachersForSchedule,
   getAdminUsers,
 } from '../api/client'
-import type { SearchResultOut, AdminSubjectOut, UserOut, ScheduleSlot } from '../shared/types'
+import type { SearchResultOut, UserOut, ScheduleSlot } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import styles from './AdminCourses.module.css'
 
@@ -32,25 +32,17 @@ export default function AdminCourses() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [tab, setTab] = useState<Tab>((searchParams.get('tab') as Tab) || 'all')
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [courses, setCourses] = useState<AdminSubjectOut[]>([])
+  const isArchived = tab === 'archive'
+  const { data: rawCourses = [] } = useAdminSubjects(isArchived)
+
+  const courses = useMemo(() => {
+    return [...rawCourses].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+  }, [rawCourses])
 
   const selectTab = (t: Tab) => {
     setTab(t)
     setSearchParams({ tab: t })
   }
-
-  const fetchCourses = () => {
-    getAdminSubjects()
-      .then(data => {
-        const sorted = [...data].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
-        setCourses(sorted)
-      })
-      .catch(console.error)
-  }
-
-  useEffect(() => {
-    fetchCourses()
-  }, [])
 
   return (
     <div className={styles.page}>
@@ -86,7 +78,6 @@ export default function AdminCourses() {
           onClose={() => setShowCreateModal(false)}
           onCreated={(id) => {
             setShowCreateModal(false)
-            fetchCourses()
             navigate(`/admin/courses/${id}`)
           }}
         />
@@ -95,7 +86,7 @@ export default function AdminCourses() {
   )
 }
 
-function AllCourses({ navigate, courses, loading }: { navigate: (p: string) => void; courses: AdminSubjectOut[]; loading: boolean }) {
+function AllCourses({ navigate, courses, loading }: { navigate: (p: string) => void; courses: any[]; loading: boolean }) {
   if (loading) return <div className={styles.loading}>Загрузка курсов...</div>
 
   if (courses.length === 0) {
@@ -649,15 +640,9 @@ function SearchView() {
 // ── Archive View ────────────────────────────────────────────────────
 
 function ArchiveCourses({ navigate }: { navigate: (p: string) => void }) {
-  const [courses, setCourses] = useState<AdminSubjectOut[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    getAdminSubjects(true)
-      .then(data => setCourses([...data].sort((a, b) => a.name.localeCompare(b.name, 'ru'))))
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: rawCourses = [], isLoading } = useAdminSubjects(true)
+  const courses = useMemo(() => [...rawCourses].sort((a, b) => a.name.localeCompare(b.name, 'ru')), [rawCourses])
+  const loading = isLoading
 
   if (loading) return <div className={styles.loading}>Загрузка архива...</div>
 
