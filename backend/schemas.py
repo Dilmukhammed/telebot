@@ -463,6 +463,23 @@ class AdminLessonCreate(BaseModel):
     max_capacity: int = Field(default=15, ge=1)
 
 
+class ScheduleSlot(BaseModel):
+    day_of_week: int = Field(ge=0, le=6)
+    time: str = Field(pattern=r"^\d{2}:\d{2}$")
+    room: str = Field(max_length=100)
+
+
+class AdminSubjectCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: Optional[str] = None
+    duration_weeks: Optional[int] = Field(default=12, ge=1)
+    duration_minutes: int = Field(default=90, ge=1)
+    teacher_id: Optional[int] = None
+    max_capacity: int = Field(default=15, ge=1)
+    schedule: list[ScheduleSlot] = Field(min_length=1)
+    student_ids: list[int] = []
+
+
 class EnrollStudentIn(BaseModel):
     user_id: int
 

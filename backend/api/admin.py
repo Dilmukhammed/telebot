@@ -22,6 +22,7 @@ from schemas import (
     LessonUpdateIn, LessonDetailOut, LessonStatusOut,
     AttendanceBulkIn, AttendanceListOut, AttendanceRecordOut,
     AdminLessonCreate, EnrollStudentIn, AuditLogOut, CancelLessonIn,
+    AdminSubjectCreate,
 )
 from api.deps import require_admin
 
@@ -705,6 +706,74 @@ async def get_admin_subjects(
         ))
 
     return out
+
+
+@router.post("/subjects", response_model=AdminSubjectDetailOut)
+async def create_admin_subject(
+    data: AdminSubjectCreate,
+    admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a course with lessons, teacher, and enrolled students."""
+    # Check name uniqueness
+    existing = await db.execute(select(Subject).where(Subject.name == data.name))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Course name already exists")
+
+    # Get teacher name if teacher_id provided
+    teacher_name = ""
+    if data.teacher_id:
+        teacher = await db.execute(select(User).where(User.id == data.teacher_id))
+        teacher = teacher.scalar_one_or_none()
+        if not teacher:
+            raise HTTPException(status_code=400, detail="Teacher not found")
+        teacher_name = f"{teacher.first_name or ''} {teacher.last_name or ''}".strip()
+
+    # Create subject
+    subject = Subject(
+        name=data.name,
+        description=data.description,
+        duration_weeks=data.duration_weeks,
+        duration_minutes=data.duration_minutes,
+    )
+    db.add(subject)
+    await db.flush()
+
+    # Create lessons from schedule
+    lessons = []
+    for slot in data.schedule:
+        lesson = Lesson(
+            subject_id=subject.id,
+            teacher_id=data.teacher_id,
+            teacher_name=teacher_name,
+            day_of_week=slot.day_of_week,
+            time=slot.time,
+            room=slot.room,
+            max_capacity=data.max_capacity,
+            is_active=True,
+        )
+        db.add(lesson)
+        lessons.append(lesson)
+    await db.flush()
+
+    # Enroll students in all lessons
+    if data.student_ids:
+        for lesson in lessons:
+            for user_id in data.student_ids:
+                # Verify student exists
+                student = await db.execute(select(User).where(User.id == user_id))
+                student = student.scalar_one_or_none()
+                if not student:
+                    continue
+                enrollment = LessonEnrollment(
+                    lesson_id=lesson.id,
+                    user_id=user_id,
+                )
+                db.add(enrollment)
+    await db.commit()
+
+    # Return the created subject detail
+    return await get_admin_subject_detail(subject.id, admin, db)
 
 
 @router.get("/subjects/{subject_id}", response_model=AdminSubjectDetailOut)

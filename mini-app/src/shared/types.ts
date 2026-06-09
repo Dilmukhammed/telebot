@@ -195,6 +195,24 @@ export interface CalendarWeekOut {
   days: CalendarDayOut[];
 }
 
+// Course creation types
+export interface ScheduleSlot {
+  day_of_week: number;
+  time: string;
+  room: string;
+}
+
+export interface AdminSubjectCreate {
+  name: string;
+  description?: string;
+  duration_weeks?: number;
+  duration_minutes?: number;
+  teacher_id?: number;
+  max_capacity?: number;
+  schedule: ScheduleSlot[];
+  student_ids?: number[];
+}
+
 // Course types
 export interface CourseOut {
   id: number;

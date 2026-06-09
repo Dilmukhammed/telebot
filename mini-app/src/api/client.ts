@@ -1,5 +1,5 @@
 import WebApp from '@twa-dev/sdk'
-import type { TestOut, RegistrationOut, ResultOut, UserOut, OnboardingData, DashboardOut, CalendarWeekOut, CourseOut, CourseDetailOut, LessonDetailOut, TeacherDashboardOut, TeacherStudentsOut, TeacherStudentDetailOut, AnnouncementOut, AnnouncementRecipient, TeacherStudentOut, LessonStatusOut, AttendanceRecordIn, AttendanceListOut, TeacherAvailabilityOut, AdminStats, AdminLessonOut, SearchResultOut, AdminAnnouncementCreate, AdminAnnouncementOut, AdminSubjectOut, AdminSubjectDetailOut, AuditLogOut } from '../shared/types'
+import type { TestOut, RegistrationOut, ResultOut, UserOut, OnboardingData, DashboardOut, CalendarWeekOut, CourseOut, CourseDetailOut, LessonDetailOut, TeacherDashboardOut, TeacherStudentsOut, TeacherStudentDetailOut, AnnouncementOut, AnnouncementRecipient, TeacherStudentOut, LessonStatusOut, AttendanceRecordIn, AttendanceListOut, TeacherAvailabilityOut, AdminStats, AdminLessonOut, SearchResultOut, AdminAnnouncementCreate, AdminAnnouncementOut, AdminSubjectOut, AdminSubjectDetailOut, AuditLogOut, AdminSubjectCreate } from '../shared/types'
 
 const BASE_URL = import.meta.env.VITE_API_URL || ''
 
@@ -289,6 +289,13 @@ export function getAdminSubjects(): Promise<AdminSubjectOut[]> {
 
 export function getAdminSubjectDetail(id: number): Promise<AdminSubjectDetailOut> {
   return api<AdminSubjectDetailOut>(`/api/admin/subjects/${id}`)
+}
+
+export function createAdminSubject(data: AdminSubjectCreate): Promise<AdminSubjectDetailOut> {
+  return api<AdminSubjectDetailOut>('/api/admin/subjects', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
 }
 
 export function getAdminUsers(params: { role?: string } = {}): Promise<UserOut[]> {

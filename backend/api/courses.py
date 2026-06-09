@@ -4,7 +4,7 @@ from sqlalchemy import select, and_
 from datetime import datetime, timedelta
 
 from database import get_db
-from models import Subject, Lesson, User, LessonStatus
+from models import Subject, Lesson, User, LessonStatus, LessonEnrollment
 from schemas import CourseOut, CourseDetailOut, CourseLessonOut, LessonDetailOut, LessonMaterialOut, LessonAgendaItemOut, LessonHomeworkOut
 from api.deps import get_telegram_user
 
@@ -39,15 +39,31 @@ def _get_next_date(day_of_week: int) -> datetime:
 
 
 @router.get("", response_model=list[CourseOut])
-async def list_courses(db: AsyncSession = Depends(get_db)):
-    """Get all active courses (subjects with lessons)."""
-    result = await db.execute(
-        select(Subject)
-        .join(Lesson, Lesson.subject_id == Subject.id)
-        .where(Lesson.is_active == True)
-        .distinct()
-        .order_by(Subject.name)
-    )
+async def list_courses(
+    user: User = Depends(get_telegram_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get courses. Students see only enrolled courses, teachers/admins see all."""
+    if user.role == "student":
+        # Student: only courses they are enrolled in via lesson_enrollments
+        result = await db.execute(
+            select(Subject)
+            .join(Lesson, Lesson.subject_id == Subject.id)
+            .join(LessonEnrollment, LessonEnrollment.lesson_id == Lesson.id)
+            .where(Lesson.is_active == True, LessonEnrollment.user_id == user.id)
+            .distinct()
+            .order_by(Subject.name)
+        )
+    else:
+        # Teacher/admin: see all active courses
+        result = await db.execute(
+            select(Subject)
+            .join(Lesson, Lesson.subject_id == Subject.id)
+            .where(Lesson.is_active == True)
+            .distinct()
+            .order_by(Subject.name)
+        )
+
     subjects = result.scalars().all()
 
     courses = []

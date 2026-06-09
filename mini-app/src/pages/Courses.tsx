@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getCourses } from '../api/client'
-import { useUser } from '../context/UserContext'
 import type { CourseOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
@@ -23,11 +22,8 @@ const COURSE_BADGES: Record<string, string> = {
 export default function Courses() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { user } = useUser()
   const [courses, setCourses] = useState<CourseOut[]>([])
   const [loading, setLoading] = useState(true)
-
-  const isTeacher = user?.role === 'teacher' || user?.role === 'admin'
 
   useEffect(() => {
     getCourses()
@@ -93,21 +89,6 @@ export default function Courses() {
             </div>
           )}
 
-          {/* Suggestion Section (students only) */}
-          {!isTeacher && (
-            <div className={styles.suggestionCard}>
-              <img
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuA6qpCDxHSvYm_xQwV6y8C2IoXht-5Gt2ftuDvBS3q6WVwQA3damQw4aNo8RC4O0Tdkz_HrQYek-QomZEjFETKwWvb_8Aciqtt6jaDpL0O6vpQVaP3rn3hXxuJJ9VYXaeeyH2kUCLE31om1oGGQZ0pI_SjtsbJRazqCa9UfhkP27kiCdmAvBA57LL9uwbXTDai0SXzE6U4y40wFRspk7WEce7iZZ7wTO8k7xkQfMKfelDa0ZhtzRf4ift7JH5o_TaKcVG5l_CRAL5M"
-                alt="Education"
-                className={styles.suggestionImage}
-              />
-              <h3 className={styles.suggestionTitle}>{t('courses.suggestionTitle')}</h3>
-              <p className={styles.suggestionText}>{t('courses.suggestionText')}</p>
-              <button className={styles.suggestionButton}>
-                {t('courses.exploreCatalog')}
-              </button>
-            </div>
-          )}
         </div>
 
         <div className={styles.bottomSpacer} />
