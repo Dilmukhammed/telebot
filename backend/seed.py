@@ -1,7 +1,8 @@
-"""Production seed — creates admin and teacher if they don't exist.
+"""Production seed — creates admin if they don't exist.
 
 Idempotent: safe to run on every startup.
 No demo data, no hardcoded lessons/subjects.
+Teachers and students are created through the admin panel / Telegram.
 """
 
 import asyncio
@@ -12,19 +13,16 @@ from models import User, Admin
 
 ADMIN_USERNAME = "gi_rocke"
 ADMIN_PASSWORD = "admin"
-
-TEACHER_USERNAME = "tdima01"
-TEACHER_FIRST_NAME = "Dilmukhammed"
-TEACHER_LAST_NAME = "Turdimuratov"
+ADMIN_TELEGRAM_ID = -1  # placeholder, updated on first Telegram login
 
 
 async def seed():
-    """Seed admin + teacher. Runs on every startup — skips if exists."""
+    """Seed admin. Runs on every startup — skips if exists."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     async with async_session_maker() as session:
-        # --- Admin (JWT auth table) ---
+        # --- Admin in JWT table (for /admin panel login) ---
         result = await session.execute(
             select(Admin).where(Admin.username == ADMIN_USERNAME)
         )
@@ -35,33 +33,32 @@ async def seed():
             admin = Admin(
                 username=ADMIN_USERNAME,
                 password_hash=hash_password(ADMIN_PASSWORD),
-                telegram_id=-1,
+                telegram_id=ADMIN_TELEGRAM_ID,
             )
             session.add(admin)
-            print(f"  [seed] Admin '{ADMIN_USERNAME}' created")
+            print(f"  [seed] Admin '{ADMIN_USERNAME}' created (admins table)")
         else:
-            print(f"  [seed] Admin '{ADMIN_USERNAME}' exists (id={admin.id})")
+            print(f"  [seed] Admin '{ADMIN_USERNAME}' exists (admins table, id={admin.id})")
 
-        # --- Teacher ---
+        # --- Admin in users table (for Telegram Mini App) ---
         result = await session.execute(
-            select(User).where(User.username == TEACHER_USERNAME)
+            select(User).where(User.username == ADMIN_USERNAME)
         )
-        teacher = result.scalar_one_or_none()
+        user = result.scalar_one_or_none()
 
-        if not teacher:
-            teacher = User(
-                telegram_id=-2,
-                username=TEACHER_USERNAME,
-                first_name=TEACHER_FIRST_NAME,
-                last_name=TEACHER_LAST_NAME,
-                role="teacher",
+        if not user:
+            user = User(
+                telegram_id=ADMIN_TELEGRAM_ID,
+                username=ADMIN_USERNAME,
+                first_name="Admin",
+                role="admin",
                 is_active=True,
                 onboarded=True,
             )
-            session.add(teacher)
-            print(f"  [seed] Teacher '@{TEACHER_USERNAME}' created")
+            session.add(user)
+            print(f"  [seed] Admin '{ADMIN_USERNAME}' created (users table)")
         else:
-            print(f"  [seed] Teacher '@{TEACHER_USERNAME}' exists (id={teacher.id})")
+            print(f"  [seed] Admin '{ADMIN_USERNAME}' exists (users table, id={user.id})")
 
         await session.commit()
 
