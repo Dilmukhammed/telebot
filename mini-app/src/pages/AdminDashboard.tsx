@@ -1,44 +1,23 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getAdminStats, getAdminAnnouncements } from '../api/client'
-import type { AdminStats, AdminAnnouncementOut } from '../shared/types'
+import { getAdminStats } from '../api/client'
+import type { AdminStats } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './AdminDashboard.module.css'
 
-const formatNotificationDate = (isoString: string) => {
-  try {
-    const d = new Date(isoString)
-    if (isNaN(d.getTime())) return ''
-    return d.toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return ''
-  }
-}
-
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const [stats, setStats] = useState<AdminStats | null>(null)
-  const [announcements, setAnnouncements] = useState<AdminAnnouncementOut[]>([])
   const [loading, setLoading] = useState(true)
 
   const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
   const telegramAvatar = tgUser?.photo_url
 
   useEffect(() => {
-    Promise.allSettled([
-      getAdminStats(),
-      getAdminAnnouncements(),
-    ])
-      .then(([statsResult, announcementsResult]) => {
-        if (statsResult.status === 'fulfilled') setStats(statsResult.value)
-        if (announcementsResult.status === 'fulfilled') setAnnouncements(announcementsResult.value)
-      })
+    getAdminStats()
+      .then(setStats)
+      .catch(console.error)
       .finally(() => setLoading(false))
   }, [])
 
@@ -108,55 +87,6 @@ export default function AdminDashboard() {
             </div>
           </div>
         </section>
-
-        {/* Announcements */}
-        {announcements.length > 0 && (
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)', fontSize: '20px' }}>
-                  campaign
-                </span>
-                <h2 className={styles.sectionTitle}>Объявления</h2>
-              </div>
-              <button className={styles.seeAllButton} onClick={() => navigate('/admin/announcements')}>
-                Все
-              </button>
-            </div>
-            <div className={styles.notificationsList}>
-              {announcements.slice(0, 2).map((notif) => (
-                <div
-                  key={notif.id}
-                  className={styles.notificationCard}
-                  onClick={() => navigate(`/admin/announcements/${notif.id}`)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className={styles.notificationContent}>
-                    {notif.sender_name && (
-                      <span className={styles.notificationSender}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
-                          admin_panel_settings
-                        </span>
-                        {notif.sender_name}
-                      </span>
-                    )}
-                    {notif.title && (
-                      <p className={styles.notificationTitle}>{notif.title}</p>
-                    )}
-                    <p className={styles.notificationMessage}>
-                      {notif.message.length > 80
-                        ? notif.message.slice(0, 80) + '...'
-                        : notif.message}
-                    </p>
-                    <span className={styles.notificationTime}>
-                      {formatNotificationDate(notif.sent_at)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
 
         <div className={styles.bottomSpacer} />
       </main>
