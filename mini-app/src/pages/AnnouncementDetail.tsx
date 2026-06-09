@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getAnnouncementDetail, getTeacherAnnouncementDetail, getAnnouncementRecipients } from '../api/client'
+import { getAnnouncementDetail, getTeacherAnnouncementDetail, getAnnouncementRecipients, markAnnouncementAsRead } from '../api/client'
 import { useUser } from '../context/UserContext'
 import type { AnnouncementOut, AnnouncementRecipient } from '../shared/types'
 import { formatDateTime, langToLocale } from '../shared/utils/formatDate'
@@ -36,6 +36,10 @@ export default function AnnouncementDetail() {
         setAnnouncement(data)
         if (isPrivileged && data.recipient_count && data.recipient_count > 0) {
           getAnnouncementRecipients(numId).then(setRecipients).catch(console.error)
+        }
+        // Mark as read for students
+        if (!isPrivileged) {
+          markAnnouncementAsRead(numId).catch(() => {})
         }
       })
       .catch((e) => setError(e.message || t('common.error')))

@@ -139,6 +139,7 @@ export interface DashboardNotificationOut {
   sender_name?: string;
   sender_role?: string;
   sender_id?: number;
+  is_read?: boolean;
 }
 
 export interface DashboardOut {
@@ -159,6 +160,7 @@ export interface AnnouncementOut {
   sender_role?: string;
   recipient_count?: number;
   sender_id?: number;
+  is_read?: boolean;
 }
 
 export interface AnnouncementRecipient {

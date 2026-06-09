@@ -162,6 +162,18 @@ class NotificationRecipient(Base):
     user: Mapped["User"] = relationship("User")
 
 
+class NotificationRead(Base):
+    """Track which user read which notification and when."""
+    __tablename__ = "notification_reads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    notification_id: Mapped[int] = mapped_column(Integer, ForeignKey("notifications.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    read_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
+
+    __table_args__ = (UniqueConstraint("notification_id", "user_id", name="uq_notification_read"),)
+
+
 class Test(Base):
     __tablename__ = "tests"
 

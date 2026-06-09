@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from database import get_db
-from models import User, Lesson, LessonEnrollment, Registration, Result, Subject, Test, Notification, NotificationRecipient, Attendance, LessonStatus, TeacherAvailability
+from models import User, Lesson, LessonEnrollment, Registration, Result, Subject, Test, Notification, NotificationRecipient, NotificationRead, Attendance, LessonStatus, TeacherAvailability
 from schemas import DashboardOut, DashboardProfileOut, DashboardLessonOut, DashboardResultOut, DashboardNotificationOut
 from api.deps import get_telegram_user
 
@@ -172,6 +172,16 @@ async def get_dashboard(
     notifications_res = await db.execute(notifications_query)
     raw_notifications = notifications_res.all()
 
+    # Get read status for dashboard notifications
+    notif_ids = [n.id for n, _ in raw_notifications]
+    read_set: set[int] = set()
+    if notif_ids:
+        read_res = await db.execute(
+            select(NotificationRead.notification_id)
+            .where(NotificationRead.user_id == user.id, NotificationRead.notification_id.in_(notif_ids))
+        )
+        read_set = {row[0] for row in read_res.all()}
+
     dashboard_notifications = [
         DashboardNotificationOut(
             id=n.id,
@@ -181,6 +191,7 @@ async def get_dashboard(
             sender_name=u.first_name if u else None,
             sender_role=u.role if u else None,
             sender_id=n.sender_id,
+            is_read=n.id in read_set,
         )
         for n, u in raw_notifications
     ]
@@ -203,6 +214,7 @@ class AnnouncementOut(BaseModel):
     sender_name: Optional[str] = None
     sender_role: Optional[str] = None
     sender_id: Optional[int] = None
+    is_read: bool = False
 
 
 class AnnouncementDetailOut(BaseModel):
@@ -241,6 +253,19 @@ async def get_announcements(
     )
     raw = result.all()
 
+    # Get read status for all announcements
+    notification_ids = [n.id for n, _ in raw]
+    read_set: set[int] = set()
+    if notification_ids:
+        read_result = await db.execute(
+            select(NotificationRead.notification_id)
+            .where(
+                NotificationRead.user_id == user.id,
+                NotificationRead.notification_id.in_(notification_ids),
+            )
+        )
+        read_set = {row[0] for row in read_result.all()}
+
     return [
         AnnouncementOut(
             id=n.id,
@@ -250,6 +275,7 @@ async def get_announcements(
             sender_name=u.first_name if u else None,
             sender_role=u.role if u else None,
             sender_id=n.sender_id,
+            is_read=n.id in read_set,
         )
         for n, u in raw
     ]
@@ -293,6 +319,34 @@ async def get_announcement_detail(
         sender_name=sender.first_name if sender else None,
         sender_role=sender.role if sender else None,
     )
+
+
+@router.post("/announcements/{announcement_id}/read")
+async def mark_announcement_read(
+    announcement_id: int,
+    user: User = Depends(get_telegram_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark an announcement as read for the current user."""
+    # Check announcement exists
+    notif = await db.execute(select(Notification).where(Notification.id == announcement_id))
+    if not notif.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Announcement not found")
+
+    # Upsert: skip if already read
+    existing = await db.execute(
+        select(NotificationRead).where(
+            NotificationRead.notification_id == announcement_id,
+            NotificationRead.user_id == user.id,
+        )
+    )
+    if existing.scalar_one_or_none():
+        return {"ok": True, "already_read": True}
+
+    read_entry = NotificationRead(notification_id=announcement_id, user_id=user.id)
+    db.add(read_entry)
+    await db.commit()
+    return {"ok": True}
 
 
 # Calendar schemas (inline for simplicity)

@@ -64,12 +64,14 @@ export default function BottomNavBar() {
               className={`${styles.tab} ${isActive ? styles.tabActive : ''}`}
               onClick={() => navigate(tab.path)}
             >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
-              >
-                {tab.icon}
-              </span>
+              <div className={styles.iconContainer}>
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
+                >
+                  {tab.icon}
+                </span>
+              </div>
               <span className={styles.tabLabel}>{tab.label}</span>
             </button>
           )

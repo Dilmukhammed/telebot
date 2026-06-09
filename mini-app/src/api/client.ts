@@ -146,6 +146,10 @@ export function getAnnouncementRecipients(id: number): Promise<AnnouncementRecip
   return api<AnnouncementRecipient[]>(`/api/teacher/announcements/${id}/recipients`)
 }
 
+export function markAnnouncementAsRead(id: number): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/dashboard/announcements/${id}/read`, { method: 'POST' })
+}
+
 export function createAnnouncement(data: {
   title?: string
   message: string

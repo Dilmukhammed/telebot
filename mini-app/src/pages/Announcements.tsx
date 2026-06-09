@@ -9,27 +9,12 @@ import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './Announcements.module.css'
 
-const LAST_SEEN_KEY = 'lastSeenAnnouncement'
-
-function getLastSeenTime(): number {
-  try {
-    return Number(localStorage.getItem(LAST_SEEN_KEY)) || 0
-  } catch {
-    return 0
-  }
-}
-
-function isNewAnnouncement(sentAt: string, lastSeen: number): boolean {
-  return new Date(sentAt).getTime() > lastSeen
-}
-
 export default function Announcements() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { user } = useUser()
   const [announcements, setAnnouncements] = useState<AnnouncementOut[]>([])
   const [loading, setLoading] = useState(true)
-  const [lastSeen] = useState(getLastSeenTime)
 
   useEffect(() => {
     const isPrivileged = user && (user.role === 'teacher' || user.role === 'admin')
@@ -41,16 +26,6 @@ export default function Announcements() {
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [user])
-
-  // Mark announcements as seen when leaving the page
-  useEffect(() => {
-    return () => {
-      const now = Date.now()
-      try {
-        localStorage.setItem(LAST_SEEN_KEY, String(now))
-      } catch {}
-    }
-  }, [])
 
   if (loading) {
     return <Loading fullPage message={t('common.loading')} />
@@ -82,7 +57,7 @@ export default function Announcements() {
                     {item.title && (
                       <h3 className={styles.cardTitle}>{item.title}</h3>
                     )}
-                    {isNewAnnouncement(item.sent_at, lastSeen) && item.sender_id !== user?.id && (
+                    {!item.is_read && item.sender_id !== user?.id && (
                       <span style={{
                         width: '8px',
                         height: '8px',

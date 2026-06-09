@@ -106,9 +106,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!data?.notifications) return
-    const lastSeen = Number(localStorage.getItem('lastSeenAnnouncement')) || 0
     const count = data.notifications.filter(
-      n => new Date(n.sent_at).getTime() > lastSeen && n.sender_id !== user?.id
+      n => !n.is_read && n.sender_id !== user?.id
     ).length
     setUnreadCount(count)
   }, [data, user])
