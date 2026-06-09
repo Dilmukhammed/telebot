@@ -101,6 +101,10 @@
   font-size: var(--font-lg);
   font-weight: 700;
   color: var(--color-on-surface);
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+.sectionHeader .sectionTitle {
   margin: 0;
 }
 
@@ -109,7 +113,7 @@
   font-weight: 700;
   color: var(--color-on-surface-variant);
   opacity: 0.8;
-  margin: 0;
+  margin: 0 0 var(--spacing-md) 0;
 }
 
 .liveDot {
