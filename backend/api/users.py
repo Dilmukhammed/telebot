@@ -7,7 +7,7 @@ from typing import Optional
 
 from database import get_db
 from models import User
-from schemas import UserOut, UserRoleUpdate, OnboardingData
+from schemas import UserOut, UserRoleUpdate, OnboardingData, TeacherCreateIn
 from api.deps import require_admin, get_telegram_user
 
 router = APIRouter(prefix="/admin/users", tags=["users"])
@@ -30,6 +30,7 @@ def user_to_dict(user: User) -> dict:
         "role": user.role,
         "is_active": user.is_active,
         "onboarded": user.onboarded,
+        "phone_verified": user.phone_verified,
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
 
@@ -46,6 +47,36 @@ async def list_users(
     result = await db.execute(query)
     users = result.scalars().all()
     return [user_to_dict(u) for u in users]
+
+
+@router.post("/", response_model=UserOut)
+async def create_teacher(
+    data: TeacherCreateIn,
+    db: AsyncSession = Depends(get_db),
+    admin=Depends(require_admin),
+):
+    # Check username uniqueness
+    existing = await db.execute(
+        select(User).where(User.username == data.username)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Username already taken")
+
+    teacher = User(
+        telegram_id=0,  # placeholder, updated on first login
+        username=data.username,
+        first_name=data.first_name,
+        last_name=data.last_name,
+        phone=data.phone,
+        role="teacher",
+        is_active=True,
+        onboarded=False,
+        phone_verified=False,
+    )
+    db.add(teacher)
+    await db.commit()
+    await db.refresh(teacher)
+    return user_to_dict(teacher)
 
 
 @router.get("/{user_id}", response_model=UserOut)
@@ -94,8 +125,12 @@ async def complete_onboarding(
     db: AsyncSession = Depends(get_db),
 ):
     user.grade = data.grade
-    user.phone = data.phone
+    if data.phone:
+        user.phone = data.phone
     user.onboarded = True
+    # Teachers: mark phone as verified after sharing via requestContact
+    if user.role == "teacher":
+        user.phone_verified = True
     await db.commit()
     await db.refresh(user)
     return user_to_dict(user)

@@ -91,6 +91,7 @@ export interface UserOut {
   role: string;
   is_active: boolean;
   onboarded: boolean;
+  phone_verified: boolean;
   created_at: string;
 }
 

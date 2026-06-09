@@ -309,6 +309,18 @@ export function updateAdminUserRole(id: number, role: string): Promise<UserOut> 
   })
 }
 
+export function createAdminUser(data: {
+  first_name: string
+  last_name: string
+  username: string
+  phone: string
+}): Promise<UserOut> {
+  return api<UserOut>('/api/admin/users', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
 export function toggleAdminLessonActive(lessonId: number): Promise<{ ok: boolean; is_active: boolean }> {
   return api<{ ok: boolean; is_active: boolean }>(`/api/admin/lessons/${lessonId}/toggle-active`, { method: 'PATCH' })
 }

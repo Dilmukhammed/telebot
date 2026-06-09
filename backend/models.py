@@ -223,6 +223,7 @@ class User(Base):
     role: Mapped[str] = mapped_column(String, default="student")  # admin, teacher, student
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     onboarded: Mapped[bool] = mapped_column(Boolean, default=False)
+    phone_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

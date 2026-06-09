@@ -60,30 +60,16 @@ export default function TeacherOnboardingModal({ isOpen, onClose }: TeacherOnboa
   const verifyPhone = async (phone: string) => {
     if (!user) return
 
-    // Normalize phones for comparison
-    const normalize = (p: string) => p.replace(/\D/g, '')
-    const adminPhone = normalize(user.phone || '')
-    const sharedPhoneNorm = normalize(phone)
-
-    // Check if phones match (allowing for different formats)
-    const isMatch = adminPhone === sharedPhoneNorm || 
-                    adminPhone.endsWith(sharedPhoneNorm) ||
-                    sharedPhoneNorm.endsWith(adminPhone)
-
-    if (isMatch) {
-      // Phone matches - complete onboarding
-      setLoading(true)
-      try {
-        await completeOnboarding({ grade: '', phone })
-        setSuccess(true)
-        setTimeout(() => onClose(), 1500)
-      } catch (err) {
-        setError('Ошибка сохранения')
-      } finally {
-        setLoading(false)
-      }
-    } else {
-      setError('Номер не совпадает. Обратитесь к администратору.')
+    // Phone is verified by sharing via Telegram requestContact
+    setLoading(true)
+    try {
+      await completeOnboarding({ grade: '', phone })
+      setSuccess(true)
+      setTimeout(() => onClose(), 1500)
+    } catch (err) {
+      setError('Ошибка сохранения')
+    } finally {
+      setLoading(false)
     }
   }
 

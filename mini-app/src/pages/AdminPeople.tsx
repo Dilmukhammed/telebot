@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { getAdminUsers } from '../api/client'
+import { getAdminUsers, createAdminUser } from '../api/client'
 import type { UserOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import styles from './AdminPeople.module.css'
@@ -16,12 +16,22 @@ export default function AdminPeople() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
-  useEffect(() => {
+  // Create teacher modal state
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [createForm, setCreateForm] = useState({ first_name: '', last_name: '', username: '', phone: '' })
+  const [createLoading, setCreateLoading] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+
+  const fetchUsers = () => {
     setLoading(true)
     getAdminUsers({ role: tab === 'students' ? 'student' : 'teacher' })
       .then(setUsers)
       .catch(console.error)
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    fetchUsers()
   }, [tab])
 
   const filteredUsers = users.filter(u => {
@@ -37,6 +47,26 @@ export default function AdminPeople() {
     if (u.first_name) return u.first_name[0].toUpperCase()
     if (u.username) return u.username[0].toUpperCase()
     return '?'
+  }
+
+  const handleCreateTeacher = async () => {
+    if (!createForm.first_name || !createForm.last_name || !createForm.username || !createForm.phone) {
+      setCreateError('Заполните все поля')
+      return
+    }
+
+    setCreateLoading(true)
+    setCreateError(null)
+    try {
+      await createAdminUser(createForm)
+      setShowCreateModal(false)
+      setCreateForm({ first_name: '', last_name: '', username: '', phone: '' })
+      fetchUsers()
+    } catch (err: any) {
+      setCreateError(err?.message || 'Ошибка создания')
+    } finally {
+      setCreateLoading(false)
+    }
   }
 
   return (
@@ -136,6 +166,95 @@ export default function AdminPeople() {
           </>
         )}
       </main>
+
+      {/* FAB - Add Teacher */}
+      {tab === 'teachers' && (
+        <button
+          className={styles.fab}
+          onClick={() => setShowCreateModal(true)}
+        >
+          <span className="material-symbols-outlined">add</span>
+        </button>
+      )}
+
+      {/* Create Teacher Modal */}
+      {showCreateModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowCreateModal(false)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>Новый преподаватель</h3>
+              <button className={styles.modalClose} onClick={() => setShowCreateModal(false)}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className={styles.modalBody}>
+              {createError && (
+                <div className={styles.modalError}>{createError}</div>
+              )}
+
+              <div className={styles.formGroup}>
+                <label>Имя *</label>
+                <input
+                  type="text"
+                  placeholder="Имя"
+                  value={createForm.first_name}
+                  onChange={e => setCreateForm({ ...createForm, first_name: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Фамилия *</label>
+                <input
+                  type="text"
+                  placeholder="Фамилия"
+                  value={createForm.last_name}
+                  onChange={e => setCreateForm({ ...createForm, last_name: e.target.value })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Username *</label>
+                <div className={styles.usernameInput}>
+                  <span className={styles.atSign}>@</span>
+                  <input
+                    type="text"
+                    placeholder="username"
+                    value={createForm.username}
+                    onChange={e => setCreateForm({ ...createForm, username: e.target.value.replace(/[^a-zA-Z0-9_]/g, '') })}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Телефон *</label>
+                <input
+                  type="tel"
+                  placeholder="+998 XX XXX XX XX"
+                  value={createForm.phone}
+                  onChange={e => setCreateForm({ ...createForm, phone: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button
+                className={styles.cancelBtn}
+                onClick={() => setShowCreateModal(false)}
+              >
+                Отмена
+              </button>
+              <button
+                className={styles.createBtn}
+                onClick={handleCreateTeacher}
+                disabled={createLoading}
+              >
+                {createLoading ? 'Создание...' : 'Создать'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

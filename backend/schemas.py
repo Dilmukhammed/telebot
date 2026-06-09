@@ -88,6 +88,7 @@ class UserOut(BaseModel):
     role: str
     is_active: bool
     onboarded: bool
+    phone_verified: bool = False
     created_at: str
 
 
@@ -98,6 +99,13 @@ class UserRoleUpdate(BaseModel):
 class OnboardingData(BaseModel):
     grade: Optional[str] = Field(default=None, max_length=50)
     phone: Optional[str] = Field(default=None, max_length=20)
+
+
+class TeacherCreateIn(BaseModel):
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+    username: str = Field(min_length=1, max_length=100)
+    phone: str = Field(min_length=1, max_length=20)
 
 
 class AdminLogin(BaseModel):
