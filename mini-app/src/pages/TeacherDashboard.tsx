@@ -7,6 +7,7 @@ import type { TeacherDashboardOut, AnnouncementOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './Dashboard.module.css'
+import { useUser } from '../context/UserContext'
 
 /** Safe countdown — never produces NaN, works on iOS/Safari */
 function LessonCountdown({ date, time, inline }: { date?: string; time?: string; inline?: boolean }) {
@@ -101,10 +102,21 @@ const isLessonOngoing = (dateStr?: string, timeStr?: string): boolean => {
 export default function TeacherDashboard() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { user } = useUser()
   const [data, setData] = useState<TeacherDashboardOut | null>(null)
   const [announcements, setAnnouncements] = useState<AnnouncementOut[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    if (!announcements) return
+    const lastSeen = Number(localStorage.getItem('lastSeenAnnouncement')) || 0
+    const count = announcements.filter(
+      n => new Date(n.sent_at).getTime() > lastSeen && n.sender_id !== user?.id
+    ).length
+    setUnreadCount(count)
+  }, [announcements, user])
 
   const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
   const telegramAvatar = tgUser?.photo_url
@@ -155,7 +167,7 @@ export default function TeacherDashboard() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader avatarUrl={avatarUrl} announcementCount={announcements.length} />
+      <SiteHeader avatarUrl={avatarUrl} announcementCount={unreadCount} />
 
       <main className={styles.main}>
         {/* Welcome Section */}

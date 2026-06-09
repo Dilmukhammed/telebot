@@ -7,6 +7,7 @@ import { CENTER, getLocalized } from '../config'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './Dashboard.module.css'
+import { useUser } from '../context/UserContext'
 
 /** Safe countdown — never produces NaN, works on iOS/Safari */
 function LessonCountdown({ date, time }: { date?: string; time?: string }) {
@@ -94,12 +95,23 @@ const isLessonOngoing = (dateStr?: string, timeStr?: string): boolean => {
 export default function Dashboard() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
+  const { user } = useUser()
   const [data, setData] = useState<DashboardOut | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const touchStartY = useRef(0)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!data?.notifications) return
+    const lastSeen = Number(localStorage.getItem('lastSeenAnnouncement')) || 0
+    const count = data.notifications.filter(
+      n => new Date(n.sent_at).getTime() > lastSeen && n.sender_id !== user?.id
+    ).length
+    setUnreadCount(count)
+  }, [data, user])
 
   const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
   const telegramAvatar = tgUser?.photo_url
@@ -165,7 +177,7 @@ export default function Dashboard() {
       onTouchEnd={handleTouchEnd}
       style={{ overflow: 'auto', WebkitOverflowScrolling: 'touch' }}
     >
-      <SiteHeader avatarUrl={avatarUrl} announcementCount={data.notifications?.length || 0} />
+      <SiteHeader avatarUrl={avatarUrl} announcementCount={unreadCount} />
 
       {refreshing && (
         <div style={{

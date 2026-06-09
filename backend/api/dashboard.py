@@ -201,6 +201,7 @@ class AnnouncementOut(BaseModel):
     sent_at: str
     sender_name: Optional[str] = None
     sender_role: Optional[str] = None
+    sender_id: Optional[int] = None
 
 
 class AnnouncementDetailOut(BaseModel):
@@ -247,6 +248,7 @@ async def get_announcements(
             sent_at=_to_tashkent_iso(n.sent_at),
             sender_name=u.first_name if u else None,
             sender_role=u.role if u else None,
+            sender_id=n.sender_id,
         )
         for n, u in raw
     ]

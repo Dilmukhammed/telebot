@@ -394,6 +394,7 @@ class TeacherAnnouncementOut(BaseModel):
     sender_name: Optional[str] = None
     sender_role: Optional[str] = None
     recipient_count: int = 0
+    sender_id: Optional[int] = None
 
 
 @router.get("/announcements", response_model=list[TeacherAnnouncementOut])
@@ -444,6 +445,7 @@ async def get_teacher_announcements(
             sender_name=u.first_name if u else None,
             sender_role=u.role if u else None,
             recipient_count=counts.get(n.id, 0),
+            sender_id=n.sender_id,
         )
         for n, u in raw
     ]
@@ -499,6 +501,7 @@ async def get_teacher_announcement_detail(
         sender_name=u.first_name if u else None,
         sender_role=u.role if u else None,
         recipient_count=recipient_count,
+        sender_id=n.sender_id,
     )
 
 
@@ -837,6 +840,7 @@ async def create_announcement(
         sent_at=_to_tashkent_iso(notification.sent_at) if notification.sent_at else "",
         sender_name=user.first_name,
         sender_role=user.role,
+        sender_id=notification.sender_id,
     )
 
 

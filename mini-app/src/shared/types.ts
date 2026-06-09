@@ -138,6 +138,7 @@ export interface DashboardNotificationOut {
   sent_at: string;
   sender_name?: string;
   sender_role?: string;
+  sender_id?: number;
 }
 
 export interface DashboardOut {
@@ -157,6 +158,7 @@ export interface AnnouncementOut {
   sender_name?: string;
   sender_role?: string;
   recipient_count?: number;
+  sender_id?: number;
 }
 
 export interface AnnouncementRecipient {

@@ -82,7 +82,7 @@ export default function Announcements() {
                     {item.title && (
                       <h3 className={styles.cardTitle}>{item.title}</h3>
                     )}
-                    {isNewAnnouncement(item.sent_at, lastSeen) && (
+                    {isNewAnnouncement(item.sent_at, lastSeen) && item.sender_id !== user?.id && (
                       <span style={{
                         width: '8px',
                         height: '8px',
