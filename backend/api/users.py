@@ -35,7 +35,7 @@ def user_to_dict(user: User) -> dict:
     }
 
 
-@router.get("/", response_model=list[UserOut])
+@router.get("", response_model=list[UserOut])
 async def list_users(
     role: str = Query(None),
     db: AsyncSession = Depends(get_db),
@@ -49,7 +49,7 @@ async def list_users(
     return [user_to_dict(u) for u in users]
 
 
-@router.post("/", response_model=UserOut)
+@router.post("", response_model=UserOut)
 async def create_teacher(
     data: TeacherCreateIn,
     db: AsyncSession = Depends(get_db),
