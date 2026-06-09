@@ -113,6 +113,19 @@ export default function Announcements() {
 
         <div className={styles.bottomSpacer} />
       </main>
+
+      {/* FAB to create announcement (only for teacher/admin) */}
+      {(user?.role === 'teacher' || user?.role === 'admin') && (
+        <button
+          className={styles.fab}
+          onClick={() => navigate('/announcements/create')}
+          aria-label={t('announcements.create', { defaultValue: 'Создать объявление' })}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
+            add
+          </span>
+        </button>
+      )}
     </div>
   )
 }

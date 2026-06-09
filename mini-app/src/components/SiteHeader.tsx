@@ -8,9 +8,10 @@ interface SiteHeaderProps {
   title?: string
   onBack?: () => void
   hideProfile?: boolean
+  announcementCount?: number
 }
 
-export default function SiteHeader({ title, onBack, hideProfile: _hideProfile, avatarUrl: _avatarUrl }: SiteHeaderProps) {
+export default function SiteHeader({ title, onBack, hideProfile: _hideProfile, avatarUrl: _avatarUrl, announcementCount }: SiteHeaderProps) {
   const navigate = useNavigate()
   const { t } = useTranslation()
 
@@ -39,6 +40,19 @@ export default function SiteHeader({ title, onBack, hideProfile: _hideProfile, a
             </div>
             <span className={styles.headerTitle}>{CENTER.name}</span>
           </div>
+        )}
+
+        {announcementCount !== undefined && (
+          <button className={styles.bellButton} onClick={() => navigate('/announcements')} aria-label={t('dashboard.announcements')}>
+            <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
+              notifications
+            </span>
+            {announcementCount > 0 && (
+              <span className={styles.bellBadge}>
+                {announcementCount > 9 ? '9+' : announcementCount}
+              </span>
+            )}
+          </button>
         )}
       </div>
     </header>

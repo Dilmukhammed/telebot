@@ -120,3 +120,42 @@
   border: 1.5px solid rgba(124, 58, 237, 0.3);
   box-shadow: 0 1px 4px rgba(124, 58, 237, 0.15);
 }
+
+.bellButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 50%;
+  color: var(--color-on-surface-variant);
+  transition: all 0.2s ease;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.bellButton:hover {
+  background: rgba(99, 14, 212, 0.08);
+  color: var(--color-primary);
+}
+
+.bellBadge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 700;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid rgba(249, 249, 255, 0.95);
+  line-height: 1;
+}

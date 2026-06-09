@@ -155,7 +155,7 @@ export default function TeacherDashboard() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader avatarUrl={avatarUrl} />
+      <SiteHeader avatarUrl={avatarUrl} announcementCount={announcements.length} />
 
       <main className={styles.main}>
         {/* Welcome Section */}
@@ -267,68 +267,6 @@ export default function TeacherDashboard() {
           </div>
         </section>
 
-        {/* Announcements Section */}
-        {announcements.length > 0 && (
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)', fontSize: '20px' }}>
-                  campaign
-                </span>
-                <h2 className={styles.sectionTitle}>{t('dashboard.announcements')}</h2>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {announcements.length > 2 && (
-                  <button className={styles.seeAllButton} onClick={() => navigate('/announcements')}>
-                    {t('common.all')}
-                  </button>
-                )}
-                <button
-                  className={styles.seeAllButton}
-                  onClick={() => navigate('/announcements/create')}
-                  style={{ display: 'flex', alignItems: 'center', gap: '2px' }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
-                </button>
-              </div>
-            </div>
-            <div className={styles.notificationsList}>
-              {announcements
-                .slice(0, 2)
-                .map((notif) => (
-                  <div
-                    key={notif.id}
-                    className={styles.notificationCard}
-                    onClick={() => navigate(`/announcement/${notif.id}`)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div className={styles.notificationContent}>
-                      {notif.sender_name && (
-                        <span className={styles.notificationSender}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
-                            {notif.sender_role === 'teacher' ? 'school' : 'admin_panel_settings'}
-                          </span>
-                          {notif.sender_name} · {notif.sender_role === 'teacher' ? t('profile.teacher') : t('profile.admin')}
-                        </span>
-                      )}
-                      {notif.title && (
-                        <p className={styles.notificationTitle}>{notif.title}</p>
-                      )}
-                      <p className={styles.notificationMessage}>
-                        {notif.message.length > 80
-                          ? notif.message.slice(0, 80) + '...'
-                          : notif.message}
-                      </p>
-                      <span className={styles.notificationTime}>
-                        {formatDateTime(notif.sent_at, locale)}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              }
-            </div>
-          </section>
-        )}
 
         <div className={styles.bottomSpacer} />
       </main>
