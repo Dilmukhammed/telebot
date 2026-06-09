@@ -9,9 +9,10 @@ interface SiteHeaderProps {
   onBack?: () => void
   hideProfile?: boolean
   announcementCount?: number
+  announcementPath?: string
 }
 
-export default function SiteHeader({ title, onBack, hideProfile: _hideProfile, avatarUrl: _avatarUrl, announcementCount }: SiteHeaderProps) {
+export default function SiteHeader({ title, onBack, hideProfile: _hideProfile, avatarUrl: _avatarUrl, announcementCount, announcementPath }: SiteHeaderProps) {
   const navigate = useNavigate()
   const { t } = useTranslation()
 
@@ -43,7 +44,7 @@ export default function SiteHeader({ title, onBack, hideProfile: _hideProfile, a
         )}
 
         {announcementCount !== undefined && (
-          <button className={styles.bellButton} onClick={() => navigate('/announcements')} aria-label={t('dashboard.announcements')}>
+          <button className={styles.bellButton} onClick={() => navigate(announcementPath || '/announcements')} aria-label={t('dashboard.announcements')}>
             <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
               notifications
             </span>

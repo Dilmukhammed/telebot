@@ -35,7 +35,7 @@ export default function BottomNavBar() {
     { path: '/admin/people', icon: 'group', label: t('nav.people') },
     { path: '/admin/courses', icon: 'menu_book', label: t('nav.courses') },
     { path: '/admin/calendar', icon: 'calendar_today', label: t('nav.calendar') },
-    { path: '/admin/more', icon: 'more_horiz', label: t('common.all') },
+    { path: '/profile', icon: 'person', label: t('nav.profile') },
   ]
 
   // Admin on admin routes or dashboard -> admin tabs
@@ -56,8 +56,7 @@ export default function BottomNavBar() {
             (tab.path === '/courses' && location.pathname.startsWith('/course')) ||
             (tab.path === '/admin/courses' && location.pathname.startsWith('/admin/courses')) ||
             (tab.path === '/admin/people' && location.pathname.startsWith('/admin/people')) ||
-            (tab.path === '/admin/calendar' && location.pathname.startsWith('/admin/calendar')) ||
-            (tab.path === '/admin/more' && (location.pathname === '/admin/more' || location.pathname.startsWith('/admin/announcements')))
+            (tab.path === '/admin/calendar' && location.pathname.startsWith('/admin/calendar'))
           return (
             <button
               key={tab.path}
