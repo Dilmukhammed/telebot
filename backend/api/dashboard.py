@@ -394,12 +394,13 @@ async def get_calendar(
     attended_set: set[tuple[int, str]] = set()
     lesson_statuses: dict[tuple[int, str], str] = {}
     if lesson_ids:
+        # Use date objects for PostgreSQL DATE columns
         attendance_result = await db.execute(
             select(Attendance.lesson_id, Attendance.date)
             .where(
                 and_(
                     Attendance.lesson_id.in_(lesson_ids),
-                    Attendance.date.in_(date_strings),
+                    Attendance.date.in_(week_dates),
                 )
             )
             .distinct()
@@ -413,7 +414,7 @@ async def get_calendar(
             .where(
                 and_(
                     LessonStatus.lesson_id.in_(lesson_ids),
-                    LessonStatus.date.in_(date_strings),
+                    LessonStatus.date.in_(week_dates),
                 )
             )
         )
