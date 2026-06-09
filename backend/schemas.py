@@ -254,6 +254,7 @@ class DashboardNotificationOut(BaseModel):
     sent_at: str  # Format: "2024-10-23T16:00:00"
     sender_name: Optional[str] = None  # "Admin" or teacher name
     sender_role: Optional[str] = None  # "admin" or "teacher"
+    sender_id: Optional[int] = None
 
 
 class DashboardOut(BaseModel):

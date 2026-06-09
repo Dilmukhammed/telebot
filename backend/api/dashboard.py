@@ -19,8 +19,8 @@ TASHKENT_OFFSET = timedelta(hours=5)
 
 
 def _to_tashkent_iso(utc_dt: datetime) -> str:
-    """Convert naive UTC datetime to Tashkent time ISO string."""
-    return (utc_dt + TASHKENT_OFFSET).isoformat()
+    """Convert naive UTC datetime to Tashkent time ISO string with timezone."""
+    return (utc_dt + TASHKENT_OFFSET).isoformat() + "+05:00"
 
 
 def _get_day_label(lesson_day: int, today: int) -> str:
@@ -180,6 +180,7 @@ async def get_dashboard(
             sent_at=_to_tashkent_iso(n.sent_at),
             sender_name=u.first_name if u else None,
             sender_role=u.role if u else None,
+            sender_id=n.sender_id,
         )
         for n, u in raw_notifications
     ]
