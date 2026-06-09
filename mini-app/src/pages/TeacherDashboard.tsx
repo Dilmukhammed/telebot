@@ -9,7 +9,7 @@ import { Loading } from '../shared/components'
 import styles from './Dashboard.module.css'
 
 /** Safe countdown — never produces NaN, works on iOS/Safari */
-function LessonCountdown({ date, time }: { date?: string; time?: string }) {
+function LessonCountdown({ date, time, inline }: { date?: string; time?: string; inline?: boolean }) {
   const { t } = useTranslation()
   const [label, setLabel] = useState('')
   const [active, setActive] = useState(false)
@@ -54,6 +54,15 @@ function LessonCountdown({ date, time }: { date?: string; time?: string }) {
   }, [date, time, t])
 
   if (!label) return null
+
+  if (inline) {
+    return (
+      <span className={`${styles.countdownInline} ${active ? styles.countdownActiveInline : ''}`}>
+        {active && <span className={styles.pulseDot} />}
+        {label}
+      </span>
+    )
+  }
 
   return (
     <span className={`${styles.countdownBadge} ${active ? styles.countdownActive : ''}`}>
@@ -238,9 +247,9 @@ export default function TeacherDashboard() {
                           </span>
                           <span>{lesson.student_count} {t('teacher.students')}</span>
                         </span>
+                        <LessonCountdown date={lesson.date} time={lesson.time} inline />
                       </div>
                     </div>
-                    <LessonCountdown date={lesson.date} time={lesson.time} />
                     <span className="material-symbols-outlined" style={{ color: 'var(--color-on-surface-variant)' }}>
                       chevron_right
                     </span>
