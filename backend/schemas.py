@@ -281,7 +281,7 @@ class LessonUpdateIn(BaseModel):
 class LessonStatusIn(BaseModel):
     lesson_id: int
     date: str  # "YYYY-MM-DD"
-    status: str = Field(pattern="^(happened|cancelled)$")
+    status: str = Field(pattern="^(happened|cancelled|rescheduled)$")
 
 
 class LessonStatusOut(BaseModel):
@@ -440,7 +440,7 @@ class AdminSubjectDetailOut(BaseModel):
 
 class LessonStatusMarkIn(BaseModel):
     date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-    status: str = Field(pattern="^(happened|cancelled)$")
+    status: str = Field(pattern="^(happened|cancelled|rescheduled)$")
 
 
 # --- Admin Lesson Create ---

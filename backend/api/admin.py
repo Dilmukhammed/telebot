@@ -92,32 +92,27 @@ async def get_stats(
         select(func.count()).select_from(Test).where(Test.is_active == True)
     )).scalar() or 0
 
-    # Today's lessons
+    # Today's lessons with status in a single query
     lessons_result = await db.execute(
-        select(Lesson, Subject)
+        select(Lesson, Subject, LessonStatus)
         .join(Subject, Lesson.subject_id == Subject.id)
+        .outerjoin(LessonStatus, and_(
+            LessonStatus.lesson_id == Lesson.id,
+            LessonStatus.date == today
+        ))
         .where(and_(Lesson.is_active == True, Lesson.day_of_week == today_weekday))
         .order_by(Lesson.time)
     )
     lessons = lessons_result.all()
 
     today_lessons = []
-    for lesson, subject in lessons:
-        # Get status for today
-        ls_result = await db.execute(
-            select(LessonStatus).where(
-                and_(LessonStatus.lesson_id == lesson.id, LessonStatus.date == today)
-            )
-        )
-        ls = ls_result.scalar_one_or_none()
-
-        day_label = "Сегодня"
+    for lesson, subject, ls in lessons:
         today_lessons.append(DashboardLessonOut(
             id=lesson.id,
             subject_id=subject.id,
             subject_name=subject.name,
             teacher_name=lesson.teacher_name,
-            day_label=day_label,
+            day_label="Сегодня",
             time=lesson.time,
             room=lesson.room,
             date=today.strftime("%Y-%m-%d"),
@@ -159,29 +154,29 @@ async def get_admin_lessons(
         query = query.where(Lesson.subject_id == subject_id)
     query = query.order_by(Lesson.day_of_week, Lesson.time)
 
+    # Subquery for enrollment count
+    enrollment_count_sq = (
+        select(func.count())
+        .select_from(LessonEnrollment)
+        .where(LessonEnrollment.lesson_id == Lesson.id)
+        .correlate(Lesson)
+        .scalar_subquery()
+    )
+
+    # Join with LessonStatus and enrollment count in single query
+    query = query.add_columns(LessonStatus, enrollment_count_sq.label("student_count"))
+    query = query.outerjoin(LessonStatus, and_(
+        LessonStatus.lesson_id == Lesson.id,
+        LessonStatus.date == start_monday + timedelta(days=Lesson.day_of_week)
+    ))
+
     result = await db.execute(query)
-    lessons = result.all()
+    rows = result.all()
 
     out = []
-    for lesson, subject in lessons:
+    for lesson, subject, ls, student_count in rows:
         instance_date = start_monday + timedelta(days=lesson.day_of_week)
-
-        # Get status for this date
-        ls_result = await db.execute(
-            select(LessonStatus).where(
-                and_(LessonStatus.lesson_id == lesson.id, LessonStatus.date == instance_date)
-            )
-        )
-        ls = ls_result.scalar_one_or_none()
         status = ls.status if ls else None
-
-        # Student count
-        count_result = await db.execute(
-            select(func.count()).select_from(LessonEnrollment)
-            .where(LessonEnrollment.lesson_id == lesson.id)
-        )
-        student_count = count_result.scalar() or 0
-
         end_time = _calculate_end_time(lesson.time, subject.duration_minutes or 90)
 
         out.append(AdminLessonOut(
@@ -195,7 +190,7 @@ async def get_admin_lessons(
             time=lesson.time,
             end_time=end_time,
             room=lesson.room,
-            student_count=student_count,
+            student_count=student_count or 0,
             lesson_status=status,
             date=instance_date.strftime("%Y-%m-%d"),
         ))
@@ -343,6 +338,7 @@ async def reschedule_lesson(
         existing.override_time = data.new_time
         existing.note = f"Перенесено на {data.new_date}"
         existing.marked_by = admin.id if hasattr(admin, 'id') else None
+        existing.marked_at = _get_tashkent_now()
     else:
         ls = LessonStatus(
             lesson_id=lesson_id,
@@ -390,6 +386,7 @@ async def cancel_lesson(
     if existing:
         existing.status = "cancelled"
         existing.marked_by = admin.id if hasattr(admin, 'id') else None
+        existing.marked_at = _get_tashkent_now()
     else:
         ls = LessonStatus(
             lesson_id=lesson_id,
@@ -497,19 +494,19 @@ async def create_announcement(
         target_id=data.target_id or (data.course_ids[0] if data.course_ids else None),
     )
     db.add(notification)
-    await db.commit()
-    await db.refresh(notification)
+    await db.flush()  # Get notification.id without committing
 
     # Store recipients
     for uid in recipient_ids:
         db.add(NotificationRecipient(notification_id=notification.id, user_id=uid))
-    if recipient_ids:
-        await db.commit()
 
     # Audit log
     admin_id = admin.id if hasattr(admin, 'id') else None
     await _log_audit(db, "announcement", notification.id, "create", None, None, f"{data.target_type}: {len(recipient_ids)} recipients", admin_id)
+
+    # Single commit for all changes
     await db.commit()
+    await db.refresh(notification)
 
     # Send Telegram messages
     if recipient_ids:
@@ -839,6 +836,7 @@ async def mark_lesson_status(
     if existing:
         existing.status = data.status
         existing.marked_by = admin.id if hasattr(admin, 'id') else None
+        existing.marked_at = _get_tashkent_now()
     else:
         ls = LessonStatus(
             lesson_id=lesson_id,
@@ -956,8 +954,16 @@ async def admin_mark_attendance(
 
     admin_id = admin.id if hasattr(admin, 'id') else None
 
-    # Upsert attendance records
+    # Get enrolled user IDs for validation
+    enrolled_result = await db.execute(
+        select(LessonEnrollment.user_id).where(LessonEnrollment.lesson_id == lesson_id)
+    )
+    enrolled_ids = {row[0] for row in enrolled_result.all()}
+
+    # Upsert attendance records (only for enrolled students)
     for record in data.records:
+        if record.user_id not in enrolled_ids:
+            raise HTTPException(status_code=400, detail=f"User {record.user_id} is not enrolled in this lesson")
         att_result = await db.execute(
             select(Attendance).where(
                 and_(

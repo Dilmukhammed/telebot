@@ -31,15 +31,14 @@ export default function AdminDashboard() {
   const telegramAvatar = tgUser?.photo_url
 
   useEffect(() => {
-    Promise.all([
+    Promise.allSettled([
       getAdminStats(),
       getAdminAnnouncements(),
     ])
-      .then(([statsData, announcementsData]) => {
-        setStats(statsData)
-        setAnnouncements(announcementsData)
+      .then(([statsResult, announcementsResult]) => {
+        if (statsResult.status === 'fulfilled') setStats(statsResult.value)
+        if (announcementsResult.status === 'fulfilled') setAnnouncements(announcementsResult.value)
       })
-      .catch(console.error)
       .finally(() => setLoading(false))
   }, [])
 
@@ -129,7 +128,7 @@ export default function AdminDashboard() {
                 <div
                   key={notif.id}
                   className={styles.notificationCard}
-                  onClick={() => navigate('/admin/announcements')}
+                  onClick={() => navigate(`/admin/announcements/${notif.id}`)}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className={styles.notificationContent}>

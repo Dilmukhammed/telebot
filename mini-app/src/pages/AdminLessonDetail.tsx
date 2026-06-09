@@ -33,8 +33,9 @@ export default function AdminLessonDetail() {
   const date = searchParams.get('date')
 
   useEffect(() => {
-    if (id) {
-      getLessonDetail(Number(id), date || undefined)
+    const numId = Number(id)
+    if (id && !isNaN(numId)) {
+      getLessonDetail(numId, date || undefined)
         .then((l) => {
           // Force is_teacher=true so admin can see all teacher features
           setLesson({ ...l, is_teacher: true })

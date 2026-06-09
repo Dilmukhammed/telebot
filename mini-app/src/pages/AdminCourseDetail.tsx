@@ -44,9 +44,10 @@ export default function AdminCourseDetail() {
   const [showAudit, setShowAudit] = useState(false)
 
   const loadDetail = () => {
-    if (!id) return
+    const numId = Number(id)
+    if (!id || isNaN(numId)) { setLoading(false); return }
     setLoading(true)
-    getAdminSubjectDetail(Number(id))
+    getAdminSubjectDetail(numId)
       .then(setCourse)
       .catch(err => setError(err.message || 'Ошибка загрузки'))
       .finally(() => setLoading(false))
@@ -129,10 +130,10 @@ export default function AdminCourseDetail() {
   }
 
   const handleEnroll = async (userId: number) => {
-    const lesson = course?.lessons?.[0]
-    if (!lesson) { alert('Нет уроков для записи'); return }
+    const lessons = course?.lessons
+    if (!lessons || lessons.length === 0) { alert('Нет уроков для записи'); return }
     try {
-      await adminEnrollStudent(lesson.id, userId)
+      await Promise.all(lessons.map(l => adminEnrollStudent(l.id, userId)))
       setShowEnrollModal(false)
       loadDetail()
     } catch (e: any) {
@@ -141,11 +142,11 @@ export default function AdminCourseDetail() {
   }
 
   const handleUnenroll = async (userId: number) => {
-    const lesson = course?.lessons?.[0]
-    if (!lesson) return
+    const lessons = course?.lessons
+    if (!lessons || lessons.length === 0) return
     if (!confirm('Отписать ученика от курса?')) return
     try {
-      await adminUnenrollStudent(lesson.id, userId)
+      await Promise.all(lessons.map(l => adminUnenrollStudent(l.id, userId)))
       loadDetail()
     } catch (e: any) {
       alert(e.message || 'Ошибка отписки')

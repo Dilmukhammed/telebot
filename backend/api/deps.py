@@ -82,7 +82,8 @@ async def get_telegram_user(
             logger.warning(f"HMAC failed: {e}")
 
     # Step 2: Try X-Telegram-User header (Base64-encoded JSON from our frontend)
-    if not telegram_data and x_telegram_user:
+    # Only trusted in DEV_MODE to prevent header forgery in production
+    if not telegram_data and x_telegram_user and settings.DEV_MODE:
         try:
             decoded = b64decode(x_telegram_user).decode('utf-8')
             user_data = loads(decoded)
@@ -188,7 +189,9 @@ async def require_teacher(
 async def require_admin(
     user: User = Depends(get_telegram_user),
 ) -> User:
-    """Ensure the authenticated user has admin role."""
+    """Ensure the authenticated user has admin role and is active."""
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is deactivated")
     return user

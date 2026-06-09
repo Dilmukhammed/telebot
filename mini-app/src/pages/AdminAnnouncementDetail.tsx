@@ -34,12 +34,13 @@ export default function AdminAnnouncementDetail() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (id) {
-      getAdminAnnouncementDetail(Number(id))
+    const numId = Number(id)
+    if (id && !isNaN(numId)) {
+      getAdminAnnouncementDetail(numId)
         .then((data) => {
           setAnnouncement(data)
           if (data.recipient_count && data.recipient_count > 0) {
-            getAdminAnnouncementRecipients(Number(id))
+            getAdminAnnouncementRecipients(numId)
               .then(setRecipients)
               .catch(console.error)
           }

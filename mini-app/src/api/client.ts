@@ -310,47 +310,47 @@ export function updateAdminUserRole(id: number, role: string): Promise<UserOut> 
 }
 
 export function toggleAdminLessonActive(lessonId: number): Promise<{ ok: boolean; is_active: boolean }> {
-  return api(`/api/admin/lessons/${lessonId}/toggle-active`, { method: 'PATCH' })
+  return api<{ ok: boolean; is_active: boolean }>(`/api/admin/lessons/${lessonId}/toggle-active`, { method: 'PATCH' })
 }
 
 export function adminEnrollStudent(lessonId: number, userId: number): Promise<{ ok: boolean }> {
-  return api(`/api/admin/lessons/${lessonId}/enroll`, {
+  return api<{ ok: boolean }>(`/api/admin/lessons/${lessonId}/enroll`, {
     method: 'POST',
     body: JSON.stringify({ user_id: userId }),
   })
 }
 
 export function adminUnenrollStudent(lessonId: number, userId: number): Promise<{ ok: boolean }> {
-  return api(`/api/admin/lessons/${lessonId}/enroll/${userId}`, { method: 'DELETE' })
+  return api<{ ok: boolean }>(`/api/admin/lessons/${lessonId}/enroll/${userId}`, { method: 'DELETE' })
 }
 
 export function adminGetLessonAttendance(lessonId: number, date: string): Promise<AttendanceListOut> {
-  return api(`/api/admin/lessons/${lessonId}/attendance?date=${date}`)
+  return api<AttendanceListOut>(`/api/admin/lessons/${lessonId}/attendance?date=${date}`)
 }
 
 export function adminMarkAttendance(lessonId: number, date: string, records: AttendanceRecordIn[]): Promise<AttendanceListOut> {
-  return api(`/api/admin/lessons/${lessonId}/attendance`, {
+  return api<AttendanceListOut>(`/api/admin/lessons/${lessonId}/attendance`, {
     method: 'POST',
     body: JSON.stringify({ lesson_id: lessonId, date, records }),
   })
 }
 
 export function adminUpdateLesson(lessonId: number, data: { custom_title?: string | null; lesson_plan?: string | null }): Promise<LessonDetailOut> {
-  return api(`/api/admin/lessons/${lessonId}`, {
+  return api<LessonDetailOut>(`/api/admin/lessons/${lessonId}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   })
 }
 
-export function updateSubject(id: number, data: { name?: string; description?: string; start_date?: string; duration_weeks?: number; duration_minutes?: number }): Promise<any> {
-  return api(`/api/admin/subjects/${id}`, {
+export function updateSubject(id: number, data: { name?: string; description?: string; start_date?: string; duration_weeks?: number; duration_minutes?: number }): Promise<AdminSubjectDetailOut> {
+  return api<AdminSubjectDetailOut>(`/api/admin/subjects/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   })
 }
 
 export function adminCreateLesson(subjectId: number, data: { teacher_name: string; teacher_id?: number; day_of_week: number; time: string; room: string; location?: string; max_capacity?: number }): Promise<AdminLessonOut> {
-  return api(`/api/admin/subjects/${subjectId}/lessons`, {
+  return api<AdminLessonOut>(`/api/admin/subjects/${subjectId}/lessons`, {
     method: 'POST',
     body: JSON.stringify(data),
   })
@@ -362,5 +362,5 @@ export function getAdminAuditLog(params?: { entity_type?: string; entity_id?: nu
   if (params?.entity_id) searchParams.append('entity_id', String(params.entity_id))
   if (params?.limit) searchParams.append('limit', String(params.limit))
   const query = searchParams.toString()
-  return api(`/api/admin/audit-log${query ? '?' + query : ''}`)
+  return api<AuditLogOut[]>(`/api/admin/audit-log${query ? '?' + query : ''}`)
 }

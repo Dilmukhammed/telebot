@@ -14,9 +14,10 @@ export default function AdminUserProfile() {
   const [updatingRole, setUpdatingRole] = useState(false)
 
   useEffect(() => {
-    if (!id) return
+    const numId = Number(id)
+    if (!id || isNaN(numId)) { setLoading(false); return }
     setLoading(true)
-    getAdminUser(Number(id))
+    getAdminUser(numId)
       .then(setUser)
       .catch(err => setError(err.message || 'Ошибка загрузки'))
       .finally(() => setLoading(false))

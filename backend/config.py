@@ -1,5 +1,8 @@
 from pydantic_settings import BaseSettings
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -18,3 +21,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if settings.ADMIN_JWT_SECRET == "change-me":
+    logger.warning("ADMIN_JWT_SECRET is using default value! Set a strong secret in .env")

@@ -400,7 +400,7 @@ export default function AdminCalendar() {
                   </button>
                 </div>
                 <div className={styles.slotModalActions} style={{ marginTop: 8 }}>
-                  <button className={styles.slotModalCancel} onClick={() => navigate(`/lesson/${selectedLesson.id}?date=${selectedLesson.date}`)}>
+                  <button className={styles.slotModalCancel} onClick={() => navigate(`/admin/lessons/${selectedLesson.id}?date=${selectedLesson.date}`)}>
                     <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>open_in_new</span>
                     Открыть занятие
                   </button>
@@ -524,7 +524,7 @@ export default function AdminCalendar() {
                       onClick={e => {
                         e.stopPropagation()
                         setGroupModal(null)
-                        navigate(`/lesson/${lesson.id}?date=${lesson.date}`)
+                        navigate(`/admin/lessons/${lesson.id}?date=${lesson.date}`)
                       }}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>open_in_new</span>

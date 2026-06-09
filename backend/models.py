@@ -140,9 +140,9 @@ class Notification(Base):
     sender_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)  # Admin/teacher who sent
     title: Mapped[str] = mapped_column(String, nullable=True)  # Short title
     message: Mapped[str] = mapped_column(String, nullable=False)  # Full message text
-    target_type: Mapped[str] = mapped_column(String, nullable=False)  # all, teachers, students, course, teacher_students
+    target_type: Mapped[str] = mapped_column(String, nullable=False, index=True)  # all, teachers, students, course, teacher_students
     target_id: Mapped[int | None] = mapped_column(Integer, nullable=True)  # teacher_id or subject_id
-    sent_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
+    sent_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
     sender: Mapped["User | None"] = relationship("User", foreign_keys=[sender_id])
 
@@ -248,7 +248,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    entity_type: Mapped[str] = mapped_column(String, nullable=False)  # "subject", "lesson", "attendance", etc.
+    entity_type: Mapped[str] = mapped_column(String, nullable=False, index=True)  # "subject", "lesson", "attendance", etc.
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
     action: Mapped[str] = mapped_column(String, nullable=False)  # "update", "create", "delete", "enroll", etc.
     field_name: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -256,4 +256,8 @@ class AuditLog(Base):
     new_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     performed_by: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     performed_by_type: Mapped[str | None] = mapped_column(String, nullable=True)  # "admin" or "teacher"
-    performed_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
+    performed_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+    __table_args__ = (
+        Index("ix_audit_entity", "entity_type", "entity_id"),
+    )
