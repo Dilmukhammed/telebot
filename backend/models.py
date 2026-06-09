@@ -28,7 +28,7 @@ class Subject(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(String, nullable=True)
-    duration_weeks: Mapped[int | None] = mapped_column(Integer, default=12, nullable=True)  # Course duration in weeks (None = indefinite)
+    duration_weeks: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)  # Course duration in weeks (None = indefinite)
     duration_minutes: Mapped[int] = mapped_column(Integer, default=90)  # Lesson duration in minutes
     start_date: Mapped[dt.datetime | None] = mapped_column(DateTime, default=utcnow, nullable=True)  # Course start date
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False)  # Archived courses hidden from students/teachers

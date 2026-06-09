@@ -8,6 +8,87 @@ import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './Dashboard.module.css'
 
+/** Safe countdown — never produces NaN, works on iOS/Safari */
+function LessonCountdown({ date, time }: { date?: string; time?: string }) {
+  const { t } = useTranslation()
+  const [label, setLabel] = useState('')
+  const [active, setActive] = useState(false)
+
+  useEffect(() => {
+    if (!date || !time) return
+
+    function calc() {
+      const diff = getTashkentDiffMs(date, time)
+      if (isNaN(diff)) return
+
+      if (diff <= 0) {
+        if (diff > -90 * 60 * 1000) {
+          setLabel(t('dashboard.countdown.happeningNow'))
+          setActive(true)
+        } else {
+          setLabel('')
+          setActive(false)
+        }
+        return
+      }
+
+      setActive(false)
+      const totalMin = Math.floor(diff / 60000)
+      const h = Math.floor(totalMin / 60)
+      const d = Math.floor(h / 24)
+
+      if (d > 0) {
+        const word = d === 1 ? t('dashboard.countdown.day') : d < 5 ? t('dashboard.countdown.daysFew') : t('dashboard.countdown.days')
+        setLabel(t('dashboard.countdown.inDays', { count: d, word }))
+      } else if (h > 0) {
+        const remMin = totalMin % 60
+        setLabel(remMin > 0 ? t('dashboard.countdown.inHoursMinutes', { h, m: remMin }) : t('dashboard.countdown.inHours', { h }))
+      } else {
+        setLabel(t('dashboard.countdown.inMinutes', { m: totalMin }))
+      }
+    }
+
+    calc()
+    const id = setInterval(calc, 30_000)
+    return () => clearInterval(id)
+  }, [date, time, t])
+
+  if (!label) return null
+
+  return (
+    <span className={`${styles.countdownBadge} ${active ? styles.countdownActive : ''}`}>
+      {active && <span className={styles.pulseDot} />}
+      {label}
+    </span>
+  )
+}
+
+const getTashkentDiffMs = (dateStr?: string, timeStr?: string): number => {
+  if (!dateStr || !timeStr) return NaN
+  try {
+    const dp = dateStr.split('-').map(Number)   // [YYYY, MM, DD]
+    const tp = timeStr.split(':').map(Number)   // [HH, MM]
+    if (dp.length < 3 || tp.length < 2) return NaN
+    if (dp.some(isNaN) || tp.some(isNaN)) return NaN
+
+    const utcMs = Date.UTC(dp[0], dp[1] - 1, dp[2], tp[0], tp[1], 0)
+    const tashkentOffsetMs = 5 * 60 * 60 * 1000
+    return utcMs - tashkentOffsetMs - Date.now()
+  } catch {
+    return NaN
+  }
+}
+
+const isLessThanAnHourAway = (dateStr?: string, timeStr?: string): boolean => {
+  const diff = getTashkentDiffMs(dateStr, timeStr)
+  return !isNaN(diff) && diff > 0 && diff < 60 * 60 * 1000
+}
+
+const isLessonOngoing = (dateStr?: string, timeStr?: string): boolean => {
+  const diff = getTashkentDiffMs(dateStr, timeStr)
+  return !isNaN(diff) && diff <= 0 && diff > -90 * 60 * 1000
+}
+
 export default function TeacherDashboard() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
@@ -95,7 +176,7 @@ export default function TeacherDashboard() {
               onClick={() => navigate('/calendar?view=week')}
               style={{ cursor: 'pointer' }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: '28px', color: 'var(--color-primary)' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '22px', color: 'var(--color-primary)' }}>
                 calendar_month
               </span>
               <span className={styles.statValue}>{stats.lessons_this_week}</span>
@@ -106,7 +187,7 @@ export default function TeacherDashboard() {
               onClick={() => navigate('/teacher/students')}
               style={{ cursor: 'pointer' }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: '28px', color: 'var(--color-primary)' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '22px', color: 'var(--color-primary)' }}>
                 groups
               </span>
               <span className={styles.statValue}>{stats.total_students}</span>
@@ -125,39 +206,47 @@ export default function TeacherDashboard() {
           </div>
           <div className={styles.lessonsList}>
             {lessons.length > 0 ? (
-              lessons.map((lesson) => (
-                <div
-                  key={lesson.id}
-                  className={styles.lessonCard}
-                  onClick={() => navigate(`/course/${lesson.subject_id}`)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className={styles.lessonTime}>
-                    <span className={styles.lessonDay}>{lesson.day_label}</span>
-                    <span className={styles.lessonHour}>{lesson.time}</span>
-                  </div>
-                  <div className={styles.lessonInfo}>
-                    <h3 className={styles.lessonSubject}>{lesson.subject_name}</h3>
-                    <div className={styles.lessonMeta}>
-                      <span className={styles.lessonMetaItem}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                          meeting_room
-                        </span>
-                        <span>{lesson.room}</span>
-                      </span>
-                      <span className={styles.lessonMetaItem}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                          groups
-                        </span>
-                        <span>{lesson.student_count} {t('teacher.students')}</span>
-                      </span>
+              lessons.map((lesson) => {
+                const urgent = isLessThanAnHourAway(lesson.date, lesson.time)
+                const ongoing = isLessonOngoing(lesson.date, lesson.time)
+                const cardClass = `${styles.lessonCard} ${
+                  ongoing ? styles.lessonCardOngoing : urgent ? styles.lessonCardUrgent : ''
+                }`
+                return (
+                  <div
+                    key={lesson.id}
+                    className={cardClass}
+                    onClick={() => navigate(`/course/${lesson.subject_id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className={styles.lessonTime}>
+                      <span className={styles.lessonDay}>{lesson.day_label}</span>
+                      <span className={styles.lessonHour}>{lesson.time}</span>
                     </div>
+                    <div className={styles.lessonInfo}>
+                      <h3 className={styles.lessonSubject}>{lesson.subject_name}</h3>
+                      <div className={styles.lessonMeta}>
+                        <span className={styles.lessonMetaItem}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                            meeting_room
+                          </span>
+                          <span>{lesson.room}</span>
+                        </span>
+                        <span className={styles.lessonMetaItem}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                            groups
+                          </span>
+                          <span>{lesson.student_count} {t('teacher.students')}</span>
+                        </span>
+                      </div>
+                    </div>
+                    <LessonCountdown date={lesson.date} time={lesson.time} />
+                    <span className="material-symbols-outlined" style={{ color: 'var(--color-on-surface-variant)' }}>
+                      chevron_right
+                    </span>
                   </div>
-                  <span className="material-symbols-outlined" style={{ color: 'var(--color-on-surface-variant)' }}>
-                    chevron_right
-                  </span>
-                </div>
-              ))
+                )
+              })
             ) : (
               <div className={styles.emptyState}>
                 <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'var(--color-outline)' }}>

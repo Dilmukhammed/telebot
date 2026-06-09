@@ -53,6 +53,7 @@ class TeacherDashboardLessonOut(BaseModel):
     time: str
     room: str
     student_count: int
+    date: str
 
 
 class TeacherDashboardOut(BaseModel):
@@ -150,6 +151,8 @@ async def get_teacher_dashboard(
         else:
             day_label = DAY_NAMES_RU[lesson.day_of_week]
 
+        instance_date = now.date() + _dt.timedelta(days=days_until)
+
         lessons_with_students.append(TeacherDashboardLessonOut(
             id=lesson.id,
             subject_id=subject.id,
@@ -158,6 +161,7 @@ async def get_teacher_dashboard(
             time=lesson.time,
             room=lesson.room,
             student_count=student_count,
+            date=instance_date.strftime("%Y-%m-%d"),
         ))
 
     # Count total lessons (not unique days)

@@ -305,6 +305,7 @@ export interface TeacherDashboardLessonOut {
   time: string;       // "16:00"
   room: string;       // "Каб. 3"
   student_count: number;
+  date: string;
 }
 
 export interface TeacherDashboardStatsOut {
