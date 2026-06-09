@@ -32,7 +32,7 @@ export default function BottomNavBar() {
 
   const adminTabs = [
     { path: '/dashboard', icon: 'dashboard', label: t('nav.home') },
-    { path: '/admin/people', icon: 'group', label: t('nav.courses') },
+    { path: '/admin/people', icon: 'group', label: t('nav.people') },
     { path: '/admin/courses', icon: 'menu_book', label: t('nav.courses') },
     { path: '/admin/calendar', icon: 'calendar_today', label: t('nav.calendar') },
     { path: '/admin/more', icon: 'more_horiz', label: t('common.all') },
