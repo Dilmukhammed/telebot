@@ -64,20 +64,6 @@ function LessonCountdown({ date, time }: { date?: string; time?: string }) {
 }
 
 
-const formatNotificationDate = (isoString: string) => {
-  try {
-    const d = new Date(isoString)
-    if (isNaN(d.getTime())) return ''
-    return d.toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return ''
-  }
-}
 
 const getTashkentDiffMs = (dateStr?: string, timeStr?: string): number => {
   if (!dateStr || !timeStr) return NaN

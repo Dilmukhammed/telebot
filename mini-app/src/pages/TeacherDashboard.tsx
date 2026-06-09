@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getTeacherDashboard, getTeacherAnnouncements } from '../api/client'
 import type { TeacherDashboardOut, AnnouncementOut } from '../shared/types'
-import { formatDateTime, langToLocale } from '../shared/utils/formatDate'
+
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './Dashboard.module.css'
@@ -99,7 +99,7 @@ const isLessonOngoing = (dateStr?: string, timeStr?: string): boolean => {
 }
 
 export default function TeacherDashboard() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [data, setData] = useState<TeacherDashboardOut | null>(null)
   const [announcements, setAnnouncements] = useState<AnnouncementOut[]>([])
@@ -108,7 +108,7 @@ export default function TeacherDashboard() {
 
   const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
   const telegramAvatar = tgUser?.photo_url
-  const locale = langToLocale(i18n.language)
+
 
   const fetchData = useCallback(async () => {
     setLoading(true)
