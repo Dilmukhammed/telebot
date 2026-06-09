@@ -22,14 +22,13 @@ async def lifespan(app: FastAPI):
     reset_db = os.environ.get("RESET_DB", "false").lower() in ("true", "1", "yes")
 
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
         if reset_db:
             print("[startup] RESET_DB=true — wiping all tables...")
-            # Get all table names, drop them
             for table in reversed(Base.metadata.sorted_tables):
                 await conn.execute(text(f'DELETE FROM "{table.name}"'))
             print("[startup] All tables cleared.")
-
-        await conn.run_sync(Base.metadata.create_all)
 
     await seed_db()
     # Start reminder scheduler
