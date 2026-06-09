@@ -180,10 +180,10 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
   const [durationMinutes, setDurationMinutes] = useState('90')
   const [maxCapacity, setMaxCapacity] = useState('15')
 
-  // Step 2: Schedule (multi-slot)
-  const [scheduleSlots, setScheduleSlots] = useState<ScheduleSlot[]>([
-    { day_of_week: 0, time: '16:00', room: '' }
-  ])
+  // Step 2: Schedule (multi-day picker + single time + room)
+  const [selectedDays, setSelectedDays] = useState<number[]>([0])
+  const [scheduleTime, setScheduleTime] = useState('16:00')
+  const [scheduleRoom, setScheduleRoom] = useState('')
 
   // Step 3: Teacher (filtered by availability)
   const [teachers, setTeachers] = useState<UserOut[]>([])
@@ -201,9 +201,9 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
     if (step === 'teacher' && teachers.length === 0) {
       setTeachersLoading(true)
       const duration = parseInt(durationMinutes) || 90
-      getTeachersForSchedule(scheduleSlots.map(s => ({
-        day_of_week: s.day_of_week,
-        time: s.time,
+      getTeachersForSchedule(selectedDays.map(day => ({
+        day_of_week: day,
+        time: scheduleTime,
         duration_minutes: duration,
       })))
         .then(allTeachers => {
@@ -233,7 +233,7 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
 
   const canNext = () => {
     if (step === 'info') return name.trim().length > 0
-    if (step === 'schedule') return scheduleSlots.length > 0 && scheduleSlots.every(s => s.time && s.room.trim())
+    if (step === 'schedule') return selectedDays.length > 0 && scheduleTime && scheduleRoom.trim().length > 0
     if (step === 'teacher') return true
     if (step === 'students') return true
     return false
@@ -255,6 +255,13 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
     setLoading(true)
     setError(null)
     try {
+      // Build schedule from selected days
+      const schedule: ScheduleSlot[] = selectedDays.map(day => ({
+        day_of_week: day,
+        time: scheduleTime,
+        room: scheduleRoom.trim(),
+      }))
+
       const result = await createAdminSubject({
         name: name.trim(),
         description: description.trim() || undefined,
@@ -262,7 +269,7 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
         duration_minutes: parseInt(durationMinutes) || 90,
         teacher_id: selectedTeacherId || undefined,
         max_capacity: parseInt(maxCapacity) || 15,
-        schedule: scheduleSlots,
+        schedule,
         student_ids: selectedStudentIds,
       })
       onCreated(result.id)
@@ -271,21 +278,6 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
     } finally {
       setLoading(false)
     }
-  }
-
-  // Schedule slot management
-  const addScheduleSlot = () => {
-    setScheduleSlots([...scheduleSlots, { day_of_week: 0, time: '16:00', room: '' }])
-  }
-
-  const removeScheduleSlot = (idx: number) => {
-    setScheduleSlots(scheduleSlots.filter((_, i) => i !== idx))
-  }
-
-  const updateScheduleSlot = (idx: number, field: keyof ScheduleSlot, value: string | number) => {
-    const updated = [...scheduleSlots]
-    updated[idx] = { ...updated[idx], [field]: value }
-    setScheduleSlots(updated)
   }
 
   const toggleStudent = (id: number) => {
@@ -369,56 +361,56 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
             </>
           )}
 
-          {/* Step 2: Schedule (multi-slot) */}
+          {/* Step 2: Schedule */}
           {step === 'schedule' && (
             <>
-              <p className={styles.stepHint}>Добавьте расписание занятий</p>
-              {scheduleSlots.map((slot, idx) => (
-                <div key={idx} className={styles.scheduleSlot}>
-                  <div className={styles.scheduleSlotHeader}>
-                    <span className={styles.scheduleSlotNum}>#{idx + 1}</span>
-                    {scheduleSlots.length > 1 && (
-                      <button className={styles.removeSlotBtn} onClick={() => removeScheduleSlot(idx)}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-                      </button>
-                    )}
-                  </div>
-                  <div className={styles.scheduleSlotFields}>
-                    <div className={styles.formGroup}>
-                      <label>День</label>
-                      <select
-                        value={slot.day_of_week}
-                        onChange={e => updateScheduleSlot(idx, 'day_of_week', parseInt(e.target.value))}
-                      >
-                        {DAY_NAMES.map((name, i) => (
-                          <option key={i} value={i}>{name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className={styles.formGroup}>
-                      <label>Время</label>
-                      <input
-                        type="time"
-                        value={slot.time}
-                        onChange={e => updateScheduleSlot(idx, 'time', e.target.value)}
-                      />
-                    </div>
-                    <div className={styles.formGroup}>
-                      <label>Кабинет</label>
-                      <input
-                        type="text"
-                        placeholder="Каб. 1"
-                        value={slot.room}
-                        onChange={e => updateScheduleSlot(idx, 'room', e.target.value)}
-                      />
-                    </div>
-                  </div>
+              <p className={styles.stepHint}>Выберите дни и время занятий</p>
+              <div className={styles.formGroup}>
+                <label>Дни недели</label>
+                <div className={styles.dayPicker}>
+                  {DAY_NAMES.map((dayName, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      className={`${styles.dayBtn} ${selectedDays.includes(idx) ? styles.dayBtnActive : ''}`}
+                      onClick={() => {
+                        setSelectedDays(prev =>
+                          prev.includes(idx) ? prev.filter(d => d !== idx) : [...prev, idx].sort()
+                        )
+                      }}
+                    >
+                      {dayName}
+                    </button>
+                  ))}
                 </div>
-              ))}
-              <button className={styles.addSlotBtn} onClick={addScheduleSlot}>
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
-                Добавить слот
-              </button>
+              </div>
+              <div className={styles.formRow2}>
+                <div className={styles.formGroup}>
+                  <label>Время</label>
+                  <input
+                    type="time"
+                    value={scheduleTime}
+                    onChange={e => setScheduleTime(e.target.value)}
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Кабинет *</label>
+                  <input
+                    type="text"
+                    placeholder="Каб. 1"
+                    value={scheduleRoom}
+                    onChange={e => setScheduleRoom(e.target.value)}
+                  />
+                </div>
+              </div>
+              {selectedDays.length > 0 && (
+                <div className={styles.schedulePreview}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--color-primary)' }}>event</span>
+                  <span>
+                    {selectedDays.map(d => DAY_NAMES[d]).join(', ')} в {scheduleTime}, {scheduleRoom || '...'}
+                  </span>
+                </div>
+              )}
             </>
           )}
 
