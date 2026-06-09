@@ -25,7 +25,7 @@ export default function BottomNavBar() {
 
   const teacherTabs = [
     { path: '/dashboard', icon: 'dashboard', label: t('nav.home') },
-    { path: '/teacher/students', icon: 'group', label: t('teacher.studentsTitle') },
+    { path: '/courses', icon: 'menu_book', label: t('nav.courses') },
     { path: '/calendar', icon: 'calendar_today', label: t('nav.calendar') },
     { path: '/profile', icon: 'person', label: t('nav.profile') },
   ]
@@ -53,11 +53,11 @@ export default function BottomNavBar() {
       <div className={styles.inner}>
         {tabs.map((tab) => {
           const isActive = location.pathname === tab.path ||
+            (tab.path === '/courses' && location.pathname.startsWith('/course')) ||
             (tab.path === '/admin/courses' && location.pathname.startsWith('/admin/courses')) ||
             (tab.path === '/admin/people' && location.pathname.startsWith('/admin/people')) ||
             (tab.path === '/admin/calendar' && location.pathname.startsWith('/admin/calendar')) ||
-            (tab.path === '/admin/more' && (location.pathname === '/admin/more' || location.pathname.startsWith('/admin/announcements'))) ||
-            (tab.path === '/teacher/students' && location.pathname.startsWith('/teacher/students'))
+            (tab.path === '/admin/more' && (location.pathname === '/admin/more' || location.pathname.startsWith('/admin/announcements')))
           return (
             <button
               key={tab.path}
