@@ -255,6 +255,7 @@ class DashboardNotificationOut(BaseModel):
     sender_name: Optional[str] = None  # "Admin" or teacher name
     sender_role: Optional[str] = None  # "admin" or "teacher"
     sender_id: Optional[int] = None
+    is_read: bool = False
 
 
 class DashboardOut(BaseModel):
@@ -487,6 +488,14 @@ class AdminSubjectCreate(BaseModel):
     max_capacity: int = Field(default=15, ge=1)
     schedule: list[ScheduleSlot] = Field(min_length=1)
     student_ids: list[int] = []
+
+
+class AdminSubjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    duration_weeks: Optional[int] = None  # None = keep current, 0 or null = indefinite
+    duration_minutes: Optional[int] = None
+    start_date: Optional[str] = None
 
 
 class EnrollStudentIn(BaseModel):

@@ -23,7 +23,7 @@ from schemas import (
     LessonUpdateIn, LessonDetailOut, LessonStatusOut,
     AttendanceBulkIn, AttendanceListOut, AttendanceRecordOut,
     AdminLessonCreate, EnrollStudentIn, AuditLogOut, CancelLessonIn,
-    AdminSubjectCreate, ScheduleTimeSlot,
+    AdminSubjectCreate, AdminSubjectUpdate, ScheduleTimeSlot,
 )
 from api.deps import require_admin
 
@@ -949,7 +949,7 @@ async def get_admin_subject_detail(
 @router.patch("/subjects/{subject_id}", response_model=AdminSubjectDetailOut)
 async def update_admin_subject(
     subject_id: int,
-    data: dict,
+    data: AdminSubjectUpdate,
     admin=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
@@ -959,18 +959,13 @@ async def update_admin_subject(
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
 
-    allowed_fields = {"name", "description", "duration_weeks", "duration_minutes", "start_date"}
-    for field, value in data.items():
-        if field in allowed_fields:
-            if field == "duration_weeks" and value is not None:
-                value = int(value)
-            elif field == "duration_minutes" and value is not None:
-                value = int(value)
-            setattr(subject, field, value)
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(subject, field, value)
 
     admin_id = admin.id if hasattr(admin, "id") else None
     await _log_audit(db, "subject", subject_id, "update",
-                     None, None, str(data), admin_id)
+                     None, None, str(update_data), admin_id)
     await db.commit()
     await db.refresh(subject)
 
