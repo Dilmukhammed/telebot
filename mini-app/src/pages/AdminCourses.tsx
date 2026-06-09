@@ -6,7 +6,6 @@ import {
   createAdminSubject,
   getTeachersForSchedule,
   getAdminUsers,
-  unarchiveAdminSubject,
 } from '../api/client'
 import type { SearchResultOut, AdminSubjectOut, UserOut, ScheduleSlot } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
