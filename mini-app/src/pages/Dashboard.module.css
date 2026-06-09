@@ -247,12 +247,12 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 18px 12px;
+  padding: 12px 8px;
   background: var(--color-surface-container-lowest);
   border-radius: var(--radius-lg);
   box-shadow: 0 4px 16px rgba(124, 58, 237, 0.04);
   border: 1px solid rgba(124, 58, 237, 0.06);
-  gap: 6px;
+  gap: 4px;
   transition: all 0.2s ease;
 }
 
@@ -262,17 +262,18 @@
 }
 
 .statValue {
-  font-size: var(--font-2xl);
+  font-size: var(--font-lg);
   font-weight: 700;
   color: var(--color-on-surface);
   line-height: 1;
 }
 
 .statLabel {
-  font-size: var(--font-xs);
+  font-size: 11px;
   font-weight: 500;
   color: var(--color-on-surface-variant);
   text-align: center;
+  line-height: 1.2;
 }
 
 /* Lesson Meta */

@@ -230,7 +230,7 @@ export default function Dashboard() {
                 onClick={() => navigate('/calendar')}
                 style={{ cursor: 'pointer' }}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '28px', color: 'var(--color-primary)' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '22px', color: 'var(--color-primary)' }}>
                   calendar_month
                 </span>
                 <span className={styles.statValue}>{data.stats.lessons_this_week}</span>
@@ -241,7 +241,7 @@ export default function Dashboard() {
                 onClick={() => navigate('/courses')}
                 style={{ cursor: 'pointer' }}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '28px', color: 'var(--color-primary)' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '22px', color: 'var(--color-primary)' }}>
                   menu_book
                 </span>
                 <span className={styles.statValue}>{data.stats.total_courses}</span>
