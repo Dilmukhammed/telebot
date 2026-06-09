@@ -29,6 +29,8 @@ from api.deps import require_admin
 
 router = APIRouter(prefix="/admin", tags=["admin-panel"])
 
+_DAY_NAMES = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+
 DAY_NAMES_RU = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
 DAY_NAMES_SHORT_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 
@@ -939,6 +941,80 @@ async def get_admin_subject_detail(
                 created_at=s.created_at.strftime("%Y-%m-%d %H:%M:%S") if s.created_at else "",
             ) for s in students
         ],
+    )
+
+
+# ── Update Subject ────────────────────────────────────────────────────
+
+@router.patch("/subjects/{subject_id}", response_model=AdminSubjectDetailOut)
+async def update_admin_subject(
+    subject_id: int,
+    data: dict,
+    admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update subject details (name, description, duration_weeks, etc.)."""
+    result = await db.execute(select(Subject).where(Subject.id == subject_id))
+    subject = result.scalar_one_or_none()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    allowed_fields = {"name", "description", "duration_weeks", "duration_minutes", "start_date"}
+    for field, value in data.items():
+        if field in allowed_fields:
+            if field == "duration_weeks" and value is not None:
+                value = int(value)
+            elif field == "duration_minutes" and value is not None:
+                value = int(value)
+            setattr(subject, field, value)
+
+    admin_id = admin.id if hasattr(admin, "id") else None
+    await _log_audit(db, "subject", subject_id, "update",
+                     None, None, str(data), admin_id)
+    await db.commit()
+    await db.refresh(subject)
+
+    # Return full subject detail (reuse get logic)
+    lessons_result = await db.execute(
+        select(Lesson, Subject)
+        .join(Subject, Lesson.subject_id == Subject.id)
+        .where(and_(Lesson.subject_id == subject_id, Lesson.is_active == True))
+        .order_by(Lesson.day_of_week, Lesson.time)
+    )
+    lessons = lessons_result.all()
+    now = _get_tashkent_now()
+    today = now.date()
+    start_monday = today - timedelta(days=today.weekday())
+    admin_lessons = []
+    for lesson, subj in lessons:
+        end_time = _calculate_end_time(lesson.time, subj.duration_minutes or 90)
+        admin_lessons.append(AdminLessonOut(
+            id=lesson.id,
+            subject_id=subj.id,
+            subject_name=subj.name,
+            day_of_week=lesson.day_of_week,
+            day_name=_DAY_NAMES[lesson.day_of_week],
+            time=lesson.time,
+            end_time=end_time,
+            room=lesson.room,
+            location=lesson.location,
+            teacher_name=lesson.teacher_name,
+            teacher_id=lesson.teacher_id,
+            max_capacity=lesson.max_capacity,
+            is_active=lesson.is_active,
+            student_count=0,
+            status=None,
+        ))
+
+    return AdminSubjectDetailOut(
+        id=subject.id,
+        name=subject.name,
+        description=subject.description,
+        duration_weeks=subject.duration_weeks,
+        duration_minutes=subject.duration_minutes,
+        start_date=subject.start_date.isoformat() if subject.start_date else None,
+        is_archived=subject.is_archived,
+        lessons=admin_lessons,
     )
 
 
