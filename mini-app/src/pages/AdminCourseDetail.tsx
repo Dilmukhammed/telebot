@@ -27,6 +27,7 @@ export default function AdminCourseDetail() {
   // Subject edit modal
   const [showSubjectEdit, setShowSubjectEdit] = useState(false)
   const [subjectForm, setSubjectForm] = useState({ name: '', description: '', start_date: '', duration_weeks: '', duration_minutes: '' })
+  const [isIndefinite, setIsIndefinite] = useState(false)
   const [subjectSubmitting, setSubjectSubmitting] = useState(false)
   const [subjectError, setSubjectError] = useState('')
 
@@ -89,11 +90,13 @@ export default function AdminCourseDetail() {
   // ── Subject Edit ──
   const openSubjectEdit = () => {
     if (!course) return
+    const indefinite = !course.duration_weeks
+    setIsIndefinite(indefinite)
     setSubjectForm({
       name: course.name,
       description: course.description || '',
       start_date: course.start_date || '',
-      duration_weeks: course.duration_weeks?.toString() || '',
+      duration_weeks: indefinite ? '' : (course.duration_weeks?.toString() || ''),
       duration_minutes: course.duration_minutes?.toString() || '90',
     })
     setSubjectError('')
@@ -109,7 +112,7 @@ export default function AdminCourseDetail() {
       if (subjectForm.name) data.name = subjectForm.name
       data.description = subjectForm.description || null
       if (subjectForm.start_date) data.start_date = subjectForm.start_date
-      if (subjectForm.duration_weeks) data.duration_weeks = Number(subjectForm.duration_weeks)
+      data.duration_weeks = isIndefinite ? null : (subjectForm.duration_weeks ? Number(subjectForm.duration_weeks) : null)
       if (subjectForm.duration_minutes) data.duration_minutes = Number(subjectForm.duration_minutes)
       await updateSubject(course.id, data)
       setShowSubjectEdit(false)
@@ -458,13 +461,17 @@ export default function AdminCourseDetail() {
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <div className={styles.field} style={{ flex: 1 }}>
                     <label className={styles.fieldLabel}>Недель</label>
-                    <input type="number" min="1" className={styles.timeInput} value={subjectForm.duration_weeks} onChange={e => setSubjectForm(p => ({ ...p, duration_weeks: e.target.value }))} />
+                    <input type="number" min="1" className={styles.timeInput} value={subjectForm.duration_weeks} onChange={e => setSubjectForm(p => ({ ...p, duration_weeks: e.target.value }))} disabled={isIndefinite} style={{ opacity: isIndefinite ? 0.5 : 1 }} />
                   </div>
                   <div className={styles.field} style={{ flex: 1 }}>
                     <label className={styles.fieldLabel}>Минут/занятие</label>
                     <input type="number" min="1" className={styles.timeInput} value={subjectForm.duration_minutes} onChange={e => setSubjectForm(p => ({ ...p, duration_minutes: e.target.value }))} />
                   </div>
                 </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={isIndefinite} onChange={e => setIsIndefinite(e.target.checked)} />
+                  <span style={{ fontSize: '14px' }}>Бессрочный курс</span>
+                </label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button className={styles.modalBtnSecondary} onClick={() => setShowSubjectEdit(false)} style={{ flex: 1 }}>Отмена</button>
                   <button className={styles.modalBtn} onClick={handleSubjectSave} style={{ flex: 1 }} disabled={subjectSubmitting}>
