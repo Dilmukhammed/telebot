@@ -528,6 +528,54 @@ export default function AdminCourseDetail() {
             </div>
           </div>
         )}
+
+        {/* ── Archive Confirmation Modal ── */}
+        {showArchiveModal && course && (
+          <div className={styles.modalOverlay} onClick={() => setShowArchiveModal(false)}>
+            <div className={styles.modal} onClick={e => e.stopPropagation()}>
+              <div className={styles.modalHandle} />
+              <div className={styles.modalHeader}>
+                <h3 className={styles.modalTitle}>Архивировать курс</h3>
+                <button className={styles.modalClose} onClick={() => setShowArchiveModal(false)}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                </button>
+              </div>
+              <div className={styles.modalActions}>
+                <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-on-surface-variant)', marginBottom: '12px' }}>
+                  Курс будет скрыт от учеников и преподавателей, но останется в архиве для просмотра.
+                </p>
+                <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-on-surface-variant)', marginBottom: '8px' }}>
+                  Введите название курса для подтверждения:
+                </p>
+                <p style={{ fontSize: 'var(--font-sm)', fontWeight: 600, marginBottom: '12px', color: 'var(--color-on-surface)' }}>
+                  {course.name}
+                </p>
+                <div className={styles.field}>
+                  <input
+                    className={styles.timeInput}
+                    value={archiveConfirmName}
+                    onChange={e => setArchiveConfirmName(e.target.value)}
+                    placeholder="Введите название..."
+                    autoFocus
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                  <button className={styles.modalBtnSecondary} onClick={() => setShowArchiveModal(false)} style={{ flex: 1 }}>
+                    Отмена
+                  </button>
+                  <button
+                    className={styles.modalBtnPrimary}
+                    onClick={handleArchive}
+                    disabled={archiveConfirmName.trim() !== course.name || archiveSubmitting}
+                    style={{ flex: 1, opacity: archiveConfirmName.trim() !== course.name ? 0.5 : 1, background: '#d32f2f' }}
+                  >
+                    {archiveSubmitting ? 'Архивация...' : 'Архивировать'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )

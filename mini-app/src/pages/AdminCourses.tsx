@@ -199,13 +199,14 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
   useEffect(() => {
     if (step === 'teacher' && teachers.length === 0) {
       setTeachersLoading(true)
-      getTeachersForSchedule(scheduleSlots.map(s => ({ day_of_week: s.day_of_week, time: s.time })))
+      const duration = parseInt(durationMinutes) || 90
+      getTeachersForSchedule(scheduleSlots.map(s => ({
+        day_of_week: s.day_of_week,
+        time: s.time,
+        duration_minutes: duration,
+      })))
         .then(allTeachers => {
           setTeachers(allTeachers)
-          // First N teachers are matching (API returns matching first)
-          // We need to identify which ones match
-          // Actually, let's just check availability ourselves
-          // For now, all returned teachers are available
           setMatchingTeacherIds(new Set(allTeachers.map(t => t.id)))
         })
         .catch(console.error)

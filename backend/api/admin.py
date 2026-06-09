@@ -808,12 +808,19 @@ async def get_teachers_for_schedule(
         avail_slots = avail_result.scalars().all()
 
         # Check if teacher has availability for ALL schedule slots
+        # Lesson must fit entirely: avail.start <= lesson.start AND avail.end >= lesson.end
         covers_all = True
         for slot in schedule:
+            # Calculate lesson end time
+            h, m = map(int, slot.time.split(":"))
+            end_minutes = h * 60 + m + slot.duration_minutes
+            end_h, end_m = divmod(end_minutes, 60)
+            lesson_end = f"{end_h:02d}:{end_m:02d}"
+
             has_slot = any(
                 a.day_of_week == slot.day_of_week
                 and a.start_time <= slot.time
-                and a.end_time > slot.time
+                and a.end_time >= lesson_end
                 for a in avail_slots
             )
             if not has_slot:

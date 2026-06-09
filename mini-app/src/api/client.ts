@@ -306,7 +306,7 @@ export function createAdminSubject(data: AdminSubjectCreate): Promise<AdminSubje
   })
 }
 
-export function getTeachersForSchedule(schedule: { day_of_week: number; time: string }[]): Promise<UserOut[]> {
+export function getTeachersForSchedule(schedule: { day_of_week: number; time: string; duration_minutes?: number }[]): Promise<UserOut[]> {
   return api<UserOut[]>('/api/admin/teachers-for-schedule', {
     method: 'POST',
     body: JSON.stringify(schedule),

@@ -474,6 +474,7 @@ class ScheduleSlot(BaseModel):
 class ScheduleTimeSlot(BaseModel):
     day_of_week: int = Field(ge=0, le=6)
     time: str = Field(pattern=r"^\d{2}:\d{2}$")
+    duration_minutes: int = Field(default=90, ge=1)
 
 
 class AdminSubjectCreate(BaseModel):
