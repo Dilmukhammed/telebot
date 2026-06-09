@@ -45,21 +45,21 @@ async def list_courses(
 ):
     """Get courses. Students see only enrolled courses, teachers/admins see all."""
     if user.role == "student":
-        # Student: only courses they are enrolled in via lesson_enrollments
+        # Student: only enrolled, non-archived courses
         result = await db.execute(
             select(Subject)
             .join(Lesson, Lesson.subject_id == Subject.id)
             .join(LessonEnrollment, LessonEnrollment.lesson_id == Lesson.id)
-            .where(Lesson.is_active == True, LessonEnrollment.user_id == user.id)
+            .where(Lesson.is_active == True, LessonEnrollment.user_id == user.id, Subject.is_archived == False)
             .distinct()
             .order_by(Subject.name)
         )
     else:
-        # Teacher/admin: see all active courses
+        # Teacher/admin: see all active, non-archived courses
         result = await db.execute(
             select(Subject)
             .join(Lesson, Lesson.subject_id == Subject.id)
-            .where(Lesson.is_active == True)
+            .where(Lesson.is_active == True, Subject.is_archived == False)
             .distinct()
             .order_by(Subject.name)
         )

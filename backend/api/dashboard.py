@@ -59,6 +59,7 @@ async def get_dashboard(
             and_(
                 LessonEnrollment.user_id == user.id,
                 Lesson.is_active == True,
+                Subject.is_archived == False,
             )
         )
         .order_by(Lesson.day_of_week, Lesson.time)
@@ -355,6 +356,7 @@ async def get_calendar(
                 and_(
                     Lesson.is_active == True,
                     Lesson.teacher_id == user.id,
+                    Subject.is_archived == False,
                 )
             )
             .order_by(Lesson.day_of_week, Lesson.time)
@@ -376,6 +378,7 @@ async def get_calendar(
                 and_(
                     Lesson.is_active == True,
                     LessonEnrollment.user_id == user.id,
+                    Subject.is_archived == False,
                 )
             )
             .order_by(Lesson.day_of_week, Lesson.time)

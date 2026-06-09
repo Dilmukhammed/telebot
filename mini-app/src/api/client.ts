@@ -283,18 +283,33 @@ export function createAdminAnnouncement(data: AdminAnnouncementCreate): Promise<
   })
 }
 
-export function getAdminSubjects(): Promise<AdminSubjectOut[]> {
-  return api<AdminSubjectOut[]>('/api/admin/subjects')
+export function getAdminSubjects(archived: boolean = false): Promise<AdminSubjectOut[]> {
+  return api<AdminSubjectOut[]>(`/api/admin/subjects?archived=${archived}`)
 }
 
 export function getAdminSubjectDetail(id: number): Promise<AdminSubjectDetailOut> {
   return api<AdminSubjectDetailOut>(`/api/admin/subjects/${id}`)
 }
 
+export function archiveAdminSubject(id: number): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/admin/subjects/${id}/archive`, { method: 'PATCH' })
+}
+
+export function unarchiveAdminSubject(id: number): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/admin/subjects/${id}/unarchive`, { method: 'PATCH' })
+}
+
 export function createAdminSubject(data: AdminSubjectCreate): Promise<AdminSubjectDetailOut> {
   return api<AdminSubjectDetailOut>('/api/admin/subjects', {
     method: 'POST',
     body: JSON.stringify(data),
+  })
+}
+
+export function getTeachersForSchedule(schedule: { day_of_week: number; time: string }[]): Promise<UserOut[]> {
+  return api<UserOut[]>('/api/admin/teachers-for-schedule', {
+    method: 'POST',
+    body: JSON.stringify(schedule),
   })
 }
 

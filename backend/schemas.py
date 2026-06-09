@@ -433,6 +433,7 @@ class AdminSubjectOut(BaseModel):
     lesson_count: int = 0
     student_count: int = 0
     teacher_names: list[str] = []
+    is_archived: bool = False
 
 
 class AdminSubjectDetailOut(BaseModel):
@@ -442,6 +443,7 @@ class AdminSubjectDetailOut(BaseModel):
     duration_minutes: int = 90
     duration_weeks: Optional[int] = None
     start_date: Optional[str] = None
+    is_archived: bool = False
     lessons: list[AdminLessonOut] = []
     students: list[UserOut] = []
 
@@ -467,6 +469,11 @@ class ScheduleSlot(BaseModel):
     day_of_week: int = Field(ge=0, le=6)
     time: str = Field(pattern=r"^\d{2}:\d{2}$")
     room: str = Field(max_length=100)
+
+
+class ScheduleTimeSlot(BaseModel):
+    day_of_week: int = Field(ge=0, le=6)
+    time: str = Field(pattern=r"^\d{2}:\d{2}$")
 
 
 class AdminSubjectCreate(BaseModel):

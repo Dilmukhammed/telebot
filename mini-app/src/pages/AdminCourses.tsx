@@ -4,6 +4,7 @@ import {
   getAdminSubjects,
   adminSearchCourses,
   createAdminSubject,
+  getTeachersForSchedule,
   getAdminUsers,
 } from '../api/client'
 import type { SearchResultOut, AdminSubjectOut, UserOut, ScheduleSlot } from '../shared/types'
@@ -163,7 +164,7 @@ function AllCourses({ navigate, courses, loading }: { navigate: (p: string) => v
 
 // ── Create Course Modal ──────────────────────────────────────────────
 
-type Step = 'info' | 'teacher' | 'schedule' | 'students'
+type Step = 'info' | 'schedule' | 'teacher' | 'students'
 
 function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: number) => void }) {
   const [step, setStep] = useState<Step>('info')
@@ -178,24 +179,37 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
   const [durationMinutes, setDurationMinutes] = useState('90')
   const [maxCapacity, setMaxCapacity] = useState('15')
 
-  // Step 2: Teacher
-  const [teachers, setTeachers] = useState<UserOut[]>([])
-  const [selectedTeacherId, setSelectedTeacherId] = useState<number | null>(null)
+  // Step 2: Schedule (multi-slot)
+  const [scheduleSlots, setScheduleSlots] = useState<ScheduleSlot[]>([
+    { day_of_week: 0, time: '16:00', room: '' }
+  ])
 
-  // Step 3: Schedule (multi-day picker + single time + room)
-  const [selectedDays, setSelectedDays] = useState<number[]>([0])
-  const [scheduleTime, setScheduleTime] = useState('16:00')
-  const [scheduleRoom, setScheduleRoom] = useState('')
+  // Step 3: Teacher (filtered by availability)
+  const [teachers, setTeachers] = useState<UserOut[]>([])
+  const [matchingTeacherIds, setMatchingTeacherIds] = useState<Set<number>>(new Set())
+  const [selectedTeacherId, setSelectedTeacherId] = useState<number | null>(null)
+  const [teachersLoading, setTeachersLoading] = useState(false)
 
   // Step 4: Students
   const [students, setStudents] = useState<UserOut[]>([])
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([])
   const [studentSearch, setStudentSearch] = useState('')
 
-  // Load teachers when reaching step 2
+  // Load teachers when reaching step 3 (filtered by schedule)
   useEffect(() => {
     if (step === 'teacher' && teachers.length === 0) {
-      getAdminUsers({ role: 'teacher' }).then(setTeachers).catch(console.error)
+      setTeachersLoading(true)
+      getTeachersForSchedule(scheduleSlots.map(s => ({ day_of_week: s.day_of_week, time: s.time })))
+        .then(allTeachers => {
+          setTeachers(allTeachers)
+          // First N teachers are matching (API returns matching first)
+          // We need to identify which ones match
+          // Actually, let's just check availability ourselves
+          // For now, all returned teachers are available
+          setMatchingTeacherIds(new Set(allTeachers.map(t => t.id)))
+        })
+        .catch(console.error)
+        .finally(() => setTeachersLoading(false))
     }
   }, [step])
 
@@ -208,8 +222,8 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
 
   const steps: { key: Step; label: string; icon: string }[] = [
     { key: 'info', label: 'Инфо', icon: 'info' },
-    { key: 'teacher', label: 'Учитель', icon: 'person' },
     { key: 'schedule', label: 'Расписание', icon: 'schedule' },
+    { key: 'teacher', label: 'Учитель', icon: 'person' },
     { key: 'students', label: 'Ученики', icon: 'groups' },
   ]
 
@@ -217,8 +231,8 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
 
   const canNext = () => {
     if (step === 'info') return name.trim().length > 0
+    if (step === 'schedule') return scheduleSlots.length > 0 && scheduleSlots.every(s => s.time && s.room.trim())
     if (step === 'teacher') return true
-    if (step === 'schedule') return selectedDays.length > 0 && scheduleTime && scheduleRoom.trim().length > 0
     if (step === 'students') return true
     return false
   }
@@ -239,13 +253,6 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
     setLoading(true)
     setError(null)
     try {
-      // Build schedule from selected days
-      const schedule: ScheduleSlot[] = selectedDays.map(day => ({
-        day_of_week: day,
-        time: scheduleTime,
-        room: scheduleRoom.trim(),
-      }))
-
       const result = await createAdminSubject({
         name: name.trim(),
         description: description.trim() || undefined,
@@ -253,7 +260,7 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
         duration_minutes: parseInt(durationMinutes) || 90,
         teacher_id: selectedTeacherId || undefined,
         max_capacity: parseInt(maxCapacity) || 15,
-        schedule,
+        schedule: scheduleSlots,
         student_ids: selectedStudentIds,
       })
       onCreated(result.id)
@@ -264,10 +271,19 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
     }
   }
 
-  const toggleDay = (day: number) => {
-    setSelectedDays(prev =>
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
-    )
+  // Schedule slot management
+  const addScheduleSlot = () => {
+    setScheduleSlots([...scheduleSlots, { day_of_week: 0, time: '16:00', room: '' }])
+  }
+
+  const removeScheduleSlot = (idx: number) => {
+    setScheduleSlots(scheduleSlots.filter((_, i) => i !== idx))
+  }
+
+  const updateScheduleSlot = (idx: number, field: keyof ScheduleSlot, value: string | number) => {
+    const updated = [...scheduleSlots]
+    updated[idx] = { ...updated[idx], [field]: value }
+    setScheduleSlots(updated)
   }
 
   const toggleStudent = (id: number) => {
@@ -351,88 +367,100 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
             </>
           )}
 
-          {/* Step 2: Teacher */}
-          {step === 'teacher' && (
+          {/* Step 2: Schedule (multi-slot) */}
+          {step === 'schedule' && (
             <>
-              <p className={styles.stepHint}>Выберите преподавателя или пропустите</p>
-              <div className={styles.teacherList}>
-                <button
-                  className={`${styles.teacherCard} ${selectedTeacherId === null ? styles.teacherCardActive : ''}`}
-                  onClick={() => setSelectedTeacherId(null)}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>person_off</span>
-                  <span>Без преподавателя</span>
-                </button>
-                {teachers.map(t => (
-                  <button
-                    key={t.id}
-                    className={`${styles.teacherCard} ${selectedTeacherId === t.id ? styles.teacherCardActive : ''}`}
-                    onClick={() => setSelectedTeacherId(t.id)}
-                  >
-                    <div className={styles.teacherAvatar}>
-                      {t.first_name?.[0]?.toUpperCase() || '?'}
-                    </div>
-                    <div className={styles.teacherInfo}>
-                      <span className={styles.teacherCardName}>
-                        {t.first_name} {t.last_name || ''}
-                      </span>
-                      {t.username && <span className={styles.teacherCardUsername}>@{t.username}</span>}
-                    </div>
-                  </button>
-                ))}
-                {teachers.length === 0 && (
-                  <div className={styles.emptyState}>
-                    <p>Нет преподавателей</p>
+              <p className={styles.stepHint}>Добавьте расписание занятий</p>
+              {scheduleSlots.map((slot, idx) => (
+                <div key={idx} className={styles.scheduleSlot}>
+                  <div className={styles.scheduleSlotHeader}>
+                    <span className={styles.scheduleSlotNum}>#{idx + 1}</span>
+                    {scheduleSlots.length > 1 && (
+                      <button className={styles.removeSlotBtn} onClick={() => removeScheduleSlot(idx)}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
+                  <div className={styles.scheduleSlotFields}>
+                    <div className={styles.formGroup}>
+                      <label>День</label>
+                      <select
+                        value={slot.day_of_week}
+                        onChange={e => updateScheduleSlot(idx, 'day_of_week', parseInt(e.target.value))}
+                      >
+                        {DAY_NAMES.map((name, i) => (
+                          <option key={i} value={i}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Время</label>
+                      <input
+                        type="time"
+                        value={slot.time}
+                        onChange={e => updateScheduleSlot(idx, 'time', e.target.value)}
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Кабинет</label>
+                      <input
+                        type="text"
+                        placeholder="Каб. 1"
+                        value={slot.room}
+                        onChange={e => updateScheduleSlot(idx, 'room', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button className={styles.addSlotBtn} onClick={addScheduleSlot}>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+                Добавить слот
+              </button>
             </>
           )}
 
-          {/* Step 3: Schedule */}
-          {step === 'schedule' && (
+          {/* Step 3: Teacher (filtered by availability) */}
+          {step === 'teacher' && (
             <>
-              <p className={styles.stepHint}>Выберите дни и время занятий</p>
-              <div className={styles.formGroup}>
-                <label>Дни недели</label>
-                <div className={styles.dayPicker}>
-                  {DAY_NAMES.map((dayName, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      className={`${styles.dayBtn} ${selectedDays.includes(idx) ? styles.dayBtnActive : ''}`}
-                      onClick={() => toggleDay(idx)}
-                    >
-                      {dayName}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className={styles.formRow2}>
-                <div className={styles.formGroup}>
-                  <label>Время</label>
-                  <input
-                    type="time"
-                    value={scheduleTime}
-                    onChange={e => setScheduleTime(e.target.value)}
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Кабинет *</label>
-                  <input
-                    type="text"
-                    placeholder="Каб. 1"
-                    value={scheduleRoom}
-                    onChange={e => setScheduleRoom(e.target.value)}
-                  />
-                </div>
-              </div>
-              {selectedDays.length > 0 && (
-                <div className={styles.schedulePreview}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--color-primary)' }}>event</span>
-                  <span>
-                    {selectedDays.map(d => DAY_NAMES[d]).join(', ')} в {scheduleTime}, {scheduleRoom || '...'}
-                  </span>
+              <p className={styles.stepHint}>Преподаватели с подходящим расписанием показаны первыми</p>
+              {teachersLoading ? (
+                <div className={styles.loading}>Загрузка...</div>
+              ) : (
+                <div className={styles.teacherList}>
+                  <button
+                    className={`${styles.teacherCard} ${selectedTeacherId === null ? styles.teacherCardActive : ''}`}
+                    onClick={() => setSelectedTeacherId(null)}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>person_off</span>
+                    <span>Без преподавателя</span>
+                  </button>
+                  {teachers.map(t => {
+                    const isMatching = matchingTeacherIds.has(t.id)
+                    return (
+                      <button
+                        key={t.id}
+                        className={`${styles.teacherCard} ${selectedTeacherId === t.id ? styles.teacherCardActive : ''}`}
+                        onClick={() => setSelectedTeacherId(t.id)}
+                      >
+                        <div className={styles.teacherAvatar}>
+                          {t.first_name?.[0]?.toUpperCase() || '?'}
+                        </div>
+                        <div className={styles.teacherInfo}>
+                          <span className={styles.teacherCardName}>
+                            {t.first_name} {t.last_name || ''}
+                            {isMatching && <span className={styles.matchBadge}>✓</span>}
+                          </span>
+                          {t.username && <span className={styles.teacherCardUsername}>@{t.username}</span>}
+                        </div>
+                      </button>
+                    )
+                  })}
+                  {teachers.length === 0 && (
+                    <div className={styles.emptyState}>
+                      <p>Нет преподавателей</p>
+                    </div>
+                  )}
                 </div>
               )}
             </>

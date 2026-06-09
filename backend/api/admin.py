@@ -22,7 +22,7 @@ from schemas import (
     LessonUpdateIn, LessonDetailOut, LessonStatusOut,
     AttendanceBulkIn, AttendanceListOut, AttendanceRecordOut,
     AdminLessonCreate, EnrollStudentIn, AuditLogOut, CancelLessonIn,
-    AdminSubjectCreate,
+    AdminSubjectCreate, ScheduleTimeSlot,
 )
 from api.deps import require_admin
 
@@ -671,10 +671,13 @@ async def get_announcement_recipients(
 
 @router.get("/subjects", response_model=list[AdminSubjectOut])
 async def get_admin_subjects(
+    archived: bool = False,
     admin=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Subject).order_by(Subject.name))
+    result = await db.execute(
+        select(Subject).where(Subject.is_archived == archived).order_by(Subject.name)
+    )
     subjects = result.scalars().all()
 
     out = []
@@ -703,6 +706,7 @@ async def get_admin_subjects(
             lesson_count=len(lessons),
             student_count=student_count,
             teacher_names=teacher_names,
+            is_archived=subj.is_archived or False,
         ))
 
     return out
@@ -774,6 +778,59 @@ async def create_admin_subject(
 
     # Return the created subject detail
     return await get_admin_subject_detail(subject.id, admin, db)
+
+
+@router.post("/teachers-for-schedule", response_model=list[UserOut])
+async def get_teachers_for_schedule(
+    schedule: list[ScheduleTimeSlot],
+    admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Find teachers whose availability covers ALL schedule slots."""
+    if not schedule:
+        return []
+
+    # Get all active teachers
+    teachers_result = await db.execute(
+        select(User).where(User.role == "teacher", User.is_active == True)
+    )
+    all_teachers = teachers_result.scalars().all()
+
+    matching = []
+    for teacher in all_teachers:
+        # Get teacher's availability slots
+        avail_result = await db.execute(
+            select(TeacherAvailability).where(
+                TeacherAvailability.teacher_id == teacher.id,
+                TeacherAvailability.is_active == True,
+            )
+        )
+        avail_slots = avail_result.scalars().all()
+
+        # Check if teacher has availability for ALL schedule slots
+        covers_all = True
+        for slot in schedule:
+            has_slot = any(
+                a.day_of_week == slot.day_of_week
+                and a.start_time <= slot.time
+                and a.end_time > slot.time
+                for a in avail_slots
+            )
+            if not has_slot:
+                covers_all = False
+                break
+
+        if covers_all:
+            matching.append(teacher)
+
+    # Return matching teachers first, then others
+    matching_ids = {t.id for t in matching}
+    others = [t for t in all_teachers if t.id not in matching_ids]
+
+    return [
+        *[user_to_dict(t) for t in matching],
+        *[user_to_dict(t) for t in others],
+    ]
 
 
 @router.get("/subjects/{subject_id}", response_model=AdminSubjectDetailOut)
@@ -854,6 +911,7 @@ async def get_admin_subject_detail(
         duration_minutes=subject.duration_minutes or 90,
         duration_weeks=subject.duration_weeks,
         start_date=subject.start_date.strftime("%Y-%m-%d") if subject.start_date else None,
+        is_archived=subject.is_archived or False,
         lessons=admin_lessons,
         students=[
             UserOut(
@@ -874,6 +932,68 @@ async def get_admin_subject_detail(
             ) for s in students
         ],
     )
+
+
+# ── Archive / Unarchive Subject ──────────────────────────────────────
+
+@router.patch("/subjects/{subject_id}/archive")
+async def archive_subject(
+    subject_id: int,
+    admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Archive a course: hide from students/teachers, keep data for admin."""
+    result = await db.execute(select(Subject).where(Subject.id == subject_id))
+    subject = result.scalar_one_or_none()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    if subject.is_archived:
+        raise HTTPException(status_code=400, detail="Already archived")
+
+    subject.is_archived = True
+
+    # Deactivate all lessons in this subject
+    lessons_result = await db.execute(
+        select(Lesson).where(Lesson.subject_id == subject_id)
+    )
+    for lesson in lessons_result.scalars().all():
+        lesson.is_active = False
+
+    admin_id = admin.id if hasattr(admin, "id") else None
+    await _log_audit(db, "subject", subject_id, "archive",
+                     "is_archived", "false", "true", admin_id)
+    await db.commit()
+    return {"ok": True, "archived": True}
+
+
+@router.patch("/subjects/{subject_id}/unarchive")
+async def unarchive_subject(
+    subject_id: int,
+    admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Unarchive a course: restore visibility for students/teachers."""
+    result = await db.execute(select(Subject).where(Subject.id == subject_id))
+    subject = result.scalar_one_or_none()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    if not subject.is_archived:
+        raise HTTPException(status_code=400, detail="Not archived")
+
+    subject.is_archived = False
+
+    # Reactivate all lessons in this subject
+    lessons_result = await db.execute(
+        select(Lesson).where(Lesson.subject_id == subject_id)
+    )
+    for lesson in lessons_result.scalars().all():
+        lesson.is_active = True
+
+    admin_id = admin.id if hasattr(admin, "id") else None
+    await _log_audit(db, "subject", subject_id, "unarchive",
+                     "is_archived", "true", "false", admin_id)
+    await db.commit()
+    return {"ok": True, "archived": False}
 
 
 # ── Mark Lesson Status ───────────────────────────────────────────────

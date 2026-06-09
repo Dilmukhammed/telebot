@@ -34,6 +34,14 @@ async def lifespan(app: FastAPI):
                 except Exception:
                     pass  # Already BIGINT or table doesn't exist yet
 
+            # Add is_archived column to subjects if missing
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE subjects ADD COLUMN is_archived BOOLEAN DEFAULT FALSE"
+                ))
+            except Exception:
+                pass  # Column already exists
+
         if reset_db:
             print("[startup] RESET_DB=true — wiping all tables...")
             for table in reversed(Base.metadata.sorted_tables):

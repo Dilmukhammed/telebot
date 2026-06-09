@@ -31,6 +31,7 @@ class Subject(Base):
     duration_weeks: Mapped[int | None] = mapped_column(Integer, default=12, nullable=True)  # Course duration in weeks (None = indefinite)
     duration_minutes: Mapped[int] = mapped_column(Integer, default=90)  # Lesson duration in minutes
     start_date: Mapped[dt.datetime | None] = mapped_column(DateTime, default=utcnow, nullable=True)  # Course start date
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False)  # Archived courses hidden from students/teachers
 
     tests: Mapped[list["Test"]] = relationship("Test", back_populates="subject")
     lessons: Mapped[list["Lesson"]] = relationship("Lesson", back_populates="subject")

@@ -481,6 +481,7 @@ export interface AdminSubjectOut {
   lesson_count: number;
   student_count: number;
   teacher_names: string[];
+  is_archived: boolean;
 }
 
 export interface AdminSubjectDetailOut {
@@ -490,6 +491,7 @@ export interface AdminSubjectDetailOut {
   duration_minutes: number;
   duration_weeks?: number;
   start_date?: string;
+  is_archived: boolean;
   lessons: AdminLessonOut[];
   students: UserOut[];
 }
