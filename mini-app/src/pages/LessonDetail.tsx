@@ -25,6 +25,7 @@ export default function LessonDetail() {
   const [showPlanModal, setShowPlanModal] = useState(false)
   const [editPlan, setEditPlan] = useState<{ title: string; description: string }[]>([])
   const [savingEdit, setSavingEdit] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
 
   const date = searchParams.get('date')
 
@@ -33,35 +34,29 @@ export default function LessonDetail() {
       getLessonDetail(Number(id), date || undefined)
         .then((l) => {
           setLesson(l)
-          // Load attendance if teacher and lesson has status
           if (l.is_teacher && l.lesson_status === 'happened') {
-            getLessonAttendance(l.id, l.date).then(setAttendance).catch(() => {})
+            getLessonAttendance(l.id, l.date)
+              .then(setAttendance)
+              .catch((e) => setAttendanceError(e.message || t('common.error')))
           }
         })
-        .catch((e) => {
-          console.error(e)
-          setError(e.message || 'Error loading lesson')
-        })
+        .catch((e) => setError(e.message || t('common.error')))
         .finally(() => setLoading(false))
     }
-  }, [id, date])
+  }, [id, date, t])
 
   const handleMarkStatus = async (status: 'happened' | 'cancelled') => {
     if (!lesson) return
-    console.log('[LessonDetail] handleMarkStatus:', status, 'lesson.id:', lesson.id, 'lesson.date:', lesson.date)
     setSavingStatus(true)
     try {
-      const result = await markLessonStatus(lesson.id, lesson.date, status)
-      console.log('[LessonDetail] markLessonStatus result:', result)
+      await markLessonStatus(lesson.id, lesson.date, status)
       setLesson({ ...lesson, lesson_status: status })
       if (status === 'happened') {
         const att = await getLessonAttendance(lesson.id, lesson.date)
-        console.log('[LessonDetail] attendance loaded:', att)
         setAttendance(att)
       }
-    } catch (e: any) {
-      console.error('[LessonDetail] markLessonStatus error:', e)
-      alert(e.message || 'Error')
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : t('common.error'))
     } finally {
       setSavingStatus(false)
     }
@@ -69,7 +64,6 @@ export default function LessonDetail() {
 
   const handleToggleAttendance = (userId: number) => {
     if (!attendance) return
-    console.log('[LessonDetail] toggle attendance for user:', userId)
     setAttendanceSaved(false)
     setAttendance({
       ...attendance,
@@ -95,8 +89,8 @@ export default function LessonDetail() {
       if ((window as any).Telegram?.WebApp) {
         (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success')
       }
-    } catch (e: any) {
-      setAttendanceError(e.message || 'Error saving attendance')
+    } catch (e: unknown) {
+      setAttendanceError(e instanceof Error ? e.message : t('common.error'))
     } finally {
       setSavingAttendance(false)
     }
@@ -109,12 +103,13 @@ export default function LessonDetail() {
   const handleSaveTitle = async () => {
     if (!lesson) return
     setSavingEdit(true)
+    setEditError(null)
     try {
       const updated = await updateLesson(lesson.id, { custom_title: editTitle.trim() || null })
       setLesson(updated)
       setShowTitleModal(false)
-    } catch (e: any) {
-      console.error(e)
+    } catch (e: unknown) {
+      setEditError(e instanceof Error ? e.message : t('common.error'))
     } finally {
       setSavingEdit(false)
     }
@@ -123,13 +118,14 @@ export default function LessonDetail() {
   const handleSavePlan = async () => {
     if (!lesson) return
     setSavingEdit(true)
+    setEditError(null)
     try {
       const planJson = JSON.stringify(editPlan.filter(item => item.title.trim()))
       const updated = await updateLesson(lesson.id, { lesson_plan: planJson })
       setLesson(updated)
       setShowPlanModal(false)
-    } catch (e: any) {
-      console.error(e)
+    } catch (e: unknown) {
+      setEditError(e instanceof Error ? e.message : t('common.error'))
     } finally {
       setSavingEdit(false)
     }

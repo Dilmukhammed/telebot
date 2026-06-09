@@ -1,58 +1,61 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getTeacherDashboard, getTeacherAnnouncements } from '../api/client'
 import type { TeacherDashboardOut, AnnouncementOut } from '../shared/types'
+import { formatDateTime, langToLocale } from '../shared/utils/formatDate'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './Dashboard.module.css'
 
-const formatNotificationDate = (isoString: string) => {
-  try {
-    const d = new Date(isoString)
-    if (isNaN(d.getTime())) return ''
-    return d.toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return ''
-  }
-}
-
 export default function TeacherDashboard() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [data, setData] = useState<TeacherDashboardOut | null>(null)
   const [announcements, setAnnouncements] = useState<AnnouncementOut[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
   const telegramAvatar = tgUser?.photo_url
+  const locale = langToLocale(i18n.language)
 
-  useEffect(() => {
-    Promise.all([
-      getTeacherDashboard(),
-      getTeacherAnnouncements(),
-    ])
-      .then(([dashboard, announcements]) => {
-        setData(dashboard)
-        setAnnouncements(announcements)
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [])
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [dashboard, anns] = await Promise.all([
+        getTeacherDashboard(),
+        getTeacherAnnouncements(),
+      ])
+      setData(dashboard)
+      setAnnouncements(anns)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('common.error'))
+    } finally {
+      setLoading(false)
+    }
+  }, [t])
+
+  useEffect(() => { fetchData() }, [fetchData])
 
   if (loading) {
     return <Loading fullPage message={t('common.loading')} />
   }
 
-  if (!data) {
+  if (error || !data) {
     return (
       <div className={styles.page}>
-        <div className={styles.error}>{t('common.error')}</div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '24px' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'var(--color-outline)' }}>error</span>
+          <p style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center' }}>{error || t('common.error')}</p>
+          <button
+            onClick={fetchData}
+            style={{ padding: '10px 24px', borderRadius: '12px', border: 'none', background: 'var(--color-primary)', color: 'var(--color-on-primary)', fontWeight: 600, cursor: 'pointer' }}
+          >
+            {t('common.retry')}
+          </button>
+        </div>
       </div>
     )
   }
@@ -219,7 +222,7 @@ export default function TeacherDashboard() {
                           : notif.message}
                       </p>
                       <span className={styles.notificationTime}>
-                        {formatNotificationDate(notif.sent_at)}
+                        {formatDateTime(notif.sent_at, locale)}
                       </span>
                     </div>
                   </div>

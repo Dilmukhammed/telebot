@@ -83,7 +83,7 @@ export default function TeacherStudents() {
                   )}
                 </div>
                 <div className={styles.studentInfo}>
-                  <h3 className={styles.studentName}>{student.first_name || `@${student.username}`}</h3>
+                  <h3 className={styles.studentName}>{student.first_name || (student.username ? `@${student.username}` : `#${student.id}`)}</h3>
                   <div className={styles.studentMeta}>
                     {student.username && (
                       <span className={styles.metaItem}>@{student.username}</span>

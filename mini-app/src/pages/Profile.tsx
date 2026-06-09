@@ -72,7 +72,7 @@ export default function Profile() {
       await refreshUser()
       setShowNameModal(false)
     } catch (err) {
-      console.error('Error saving name:', err)
+      alert(err instanceof Error ? err.message : t('common.error'))
     } finally {
       setSaving(false)
     }
@@ -89,7 +89,7 @@ export default function Profile() {
       setAvailability([...availability, ...created])
       setShowSlotModal(false)
     } catch (err) {
-      console.error('Error adding slot:', err)
+      alert(err instanceof Error ? err.message : t('common.error'))
     } finally {
       setSaving(false)
     }
@@ -101,7 +101,7 @@ export default function Profile() {
       await deleteAvailability(slotToDelete)
       setAvailability(availability.filter(s => s.id !== slotToDelete))
     } catch (err) {
-      console.error('Error deleting slot:', err)
+      alert(err instanceof Error ? err.message : t('common.error'))
     } finally {
       setSlotToDelete(null)
     }

@@ -226,11 +226,19 @@ async def reset_lesson_reminders():
 # In-memory set to avoid re-sending prompts within same server run
 _sent_prompts: set[tuple[int, str]] = set()
 
+def _cleanup_sent_prompts():
+    """Remove entries older than 2 days to prevent memory leak."""
+    now = get_now()
+    cutoff = (now - dt.timedelta(days=2)).strftime("%Y-%m-%d")
+    stale = {k for k in _sent_prompts if k[1] < cutoff}
+    _sent_prompts.difference_update(stale)
+
 
 async def send_lesson_status_prompt():
     """After a lesson ends, prompt the teacher to mark status (happened/cancelled)."""
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
+    _cleanup_sent_prompts()
     now = get_now()
     current_weekday = now.weekday()
     today_str = now.strftime("%Y-%m-%d")
@@ -268,9 +276,10 @@ async def send_lesson_status_prompt():
                 continue
 
             # Check if status already marked
+            today_date = now.date()
             status_result = await session.execute(
                 select(LessonStatus).where(
-                    and_(LessonStatus.lesson_id == lesson.id, LessonStatus.date == today_str)
+                    and_(LessonStatus.lesson_id == lesson.id, LessonStatus.date == today_date)
                 )
             )
             if status_result.scalar_one_or_none():

@@ -12,15 +12,19 @@ export default function TeacherStudentDetail() {
   const { id } = useParams<{ id: string }>()
   const [student, setStudent] = useState<TeacherStudentDetailOut | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (id) {
-      getTeacherStudentDetail(parseInt(id))
-        .then(setStudent)
-        .catch(console.error)
-        .finally(() => setLoading(false))
+    if (!id) {
+      setLoading(false)
+      setError(t('common.error'))
+      return
     }
-  }, [id])
+    getTeacherStudentDetail(parseInt(id))
+      .then(setStudent)
+      .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
+      .finally(() => setLoading(false))
+  }, [id, t])
 
   if (loading) {
     return (
@@ -30,19 +34,22 @@ export default function TeacherStudentDetail() {
     )
   }
 
-  if (!student) {
+  if (error || !student) {
     return (
       <div className={styles.page}>
-        <div className={styles.error}>{t('common.error')}</div>
+        <SiteHeader title={t('teacher.studentDetail')} onBack={() => navigate('/teacher/students')} hideProfile />
+        <div className={styles.error}>{error || t('common.error')}</div>
       </div>
     )
   }
+
+  const displayName = student.first_name || (student.username ? `@${student.username}` : `#${student.id}`)
 
   return (
     <div className={styles.page}>
       <SiteHeader
         title={t('teacher.studentDetail')}
-        onBack={() => navigate(-1)}
+        onBack={() => navigate('/teacher/students')}
         hideProfile
       />
 
@@ -52,14 +59,14 @@ export default function TeacherStudentDetail() {
         <div className={styles.profileCard}>
           <div className={styles.avatar}>
             {student.photo_url ? (
-              <img src={student.photo_url} alt="" className={styles.avatarImg} />
+              <img src={student.photo_url} alt={displayName} className={styles.avatarImg} />
             ) : (
               <span className="material-symbols-outlined">person</span>
             )}
           </div>
           <div className={styles.profileInfo}>
             <h2 className={styles.studentName}>
-              {student.first_name || `@${student.username}`}
+              {displayName}
               {student.last_name && ` ${student.last_name}`}
             </h2>
             {student.grade && (
@@ -97,7 +104,7 @@ export default function TeacherStudentDetail() {
         {/* Courses & Attendance */}
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>{t('teacher.coursesAttendance')}</h3>
-          {student.courses.length > 0 ? (
+          {student.courses && student.courses.length > 0 ? (
             <div className={styles.coursesList}>
               {student.courses.map((course) => (
                 <div key={course.subject_id} className={styles.courseCard}>
@@ -108,8 +115,8 @@ export default function TeacherStudentDetail() {
                     </span>
                   </div>
                   <div className={styles.progressBar}>
-                    <div 
-                      className={styles.progressFill} 
+                    <div
+                      className={styles.progressFill}
                       style={{ width: `${course.attendance_percent}%` }}
                     />
                   </div>
@@ -121,7 +128,7 @@ export default function TeacherStudentDetail() {
             </div>
           ) : (
             <div className={styles.emptyState}>
-              <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#7b7487' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '32px', color: 'var(--color-outline)' }}>
                 school
               </span>
               <p>{t('teacher.noCourses')}</p>

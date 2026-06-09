@@ -20,9 +20,9 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     return <Navigate to="/" replace />
   }
 
-  // Block non-onboarded students from accessing protected routes
-  // (teachers/admins are handled by DashboardRouter)
-  if (!user.onboarded && user.role === 'student' && location.pathname !== '/dashboard') {
+  // Block non-onboarded users from accessing protected routes
+  // DashboardRouter handles showing the onboarding modal on /dashboard
+  if (!user.onboarded && location.pathname !== '/dashboard') {
     return <Navigate to="/" replace />
   }
 

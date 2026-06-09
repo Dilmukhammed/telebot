@@ -293,7 +293,7 @@ export default function Calendar() {
                         setSelectedSlot({
                           date: day.date,
                           startTime: `${String(hour).padStart(2, '0')}:00`,
-                          endTime: `${String(hour + 1).padStart(2, '0')}:00`,
+                          endTime: hour < 23 ? `${String(hour + 1).padStart(2, '0')}:00` : '23:59',
                           dayOfWeek: day.day_of_week,
                           isNew: true,
                         })
@@ -361,7 +361,7 @@ export default function Calendar() {
                     const fresh = await getCalendar(weekOffset)
                     setData(fresh)
                   } catch (err) {
-                    console.error('Error with slot:', err)
+                    alert(err instanceof Error ? err.message : t('common.error'))
                   }
                   setSelectedSlot(null)
                 }}

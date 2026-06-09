@@ -15,7 +15,6 @@ export default function BottomNavBar() {
   const isAdmin = role === 'admin'
   const isTeacher = role === 'teacher'
   const isAdminRoute = location.pathname.startsWith('/admin')
-  const isTeacherRoute = location.pathname.startsWith('/teacher')
 
   const studentTabs = [
     { path: '/dashboard', icon: 'home', label: t('nav.home') },
@@ -33,16 +32,19 @@ export default function BottomNavBar() {
 
   const adminTabs = [
     { path: '/dashboard', icon: 'dashboard', label: t('nav.home') },
-    { path: '/admin/people', icon: 'group', label: t('nav.home') },
+    { path: '/admin/people', icon: 'group', label: t('nav.courses') },
     { path: '/admin/courses', icon: 'menu_book', label: t('nav.courses') },
     { path: '/admin/calendar', icon: 'calendar_today', label: t('nav.calendar') },
     { path: '/admin/more', icon: 'more_horiz', label: t('common.all') },
   ]
 
+  // Admin on admin routes or dashboard -> admin tabs
+  // Teacher always gets teacher tabs (they share /calendar, /profile with students)
+  // Everyone else -> student tabs
   let tabs = studentTabs
   if (isAdmin && (isAdminRoute || location.pathname === '/dashboard')) {
     tabs = adminTabs
-  } else if (isTeacher && (isTeacherRoute || location.pathname === '/dashboard')) {
+  } else if (isTeacher) {
     tabs = teacherTabs
   }
 

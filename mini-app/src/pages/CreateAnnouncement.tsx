@@ -42,15 +42,16 @@ export default function CreateAnnouncement() {
 
   useEffect(() => {
     if (targetType === 'students' && courses.length > 0) {
-      // Load ALL students from ALL teacher's courses
-      Promise.all(courses.map((c) => getCourseStudents(c.id)))
+      // Load ALL students from ALL teacher's courses (resilient to partial failures)
+      Promise.allSettled(courses.map((c) => getCourseStudents(c.id)))
         .then((results) => {
-          const all = results.flat()
+          const all = results
+            .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof getCourseStudents>>> => r.status === 'fulfilled')
+            .flatMap(r => r.value)
           const unique = Array.from(new Map(all.map((s) => [s.id, s])).values())
           unique.sort((a, b) => (a.first_name || '').localeCompare(b.first_name || ''))
           setStudents(unique)
         })
-        .catch(console.error)
     } else {
       setStudents([])
     }
@@ -197,7 +198,7 @@ export default function CreateAnnouncement() {
                   onClick={() => toggleStudent(student.id)}
                 >
                   <span className={styles.studentName}>
-                    {student.first_name || student.username || `Ученик #${student.id}`}
+                    {student.first_name || student.username || `${t('profile.student')} #${student.id}`}
                   </span>
                   {student.username && (
                     <span className={styles.studentUsername}>@{student.username}</span>

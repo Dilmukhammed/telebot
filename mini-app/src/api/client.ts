@@ -295,7 +295,7 @@ export function getAdminUsers(params: { role?: string } = {}): Promise<UserOut[]
   const searchParams = new URLSearchParams()
   if (params.role) searchParams.append('role', params.role)
   const query = searchParams.toString()
-  return api<UserOut[]>(`/api/admin/users/${query ? '?' + query : ''}`)
+  return api<UserOut[]>(`/api/admin/users${query ? '?' + query : ''}`)
 }
 
 export function getAdminUser(id: number): Promise<UserOut> {

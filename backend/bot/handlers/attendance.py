@@ -2,7 +2,7 @@ import datetime as dt
 
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 
 from database import get_dbCtx
 from models import Lesson, LessonEnrollment, User, Attendance, LessonStatus, Subject
@@ -13,6 +13,22 @@ router = Router()
 def _get_tashkent_now():
     tashkent_tz = dt.timezone(dt.timedelta(hours=5))
     return dt.datetime.now(tashkent_tz).replace(tzinfo=None)
+
+
+async def _is_lesson_teacher(db, lesson_id: int, telegram_id: int) -> bool:
+    """Check if the telegram user is the teacher of this lesson."""
+    lesson_result = await db.execute(
+        select(Lesson).where(Lesson.id == lesson_id)
+    )
+    lesson = lesson_result.scalar_one_or_none()
+    if not lesson:
+        return False
+    # Get the teacher's telegram_id
+    teacher_result = await db.execute(
+        select(User.telegram_id).where(User.id == lesson.teacher_id)
+    )
+    teacher_tg_id = teacher_result.scalar()
+    return teacher_tg_id == telegram_id
 
 
 async def _build_student_keyboard(lesson_id: int, date_str: str, db) -> InlineKeyboardMarkup:
@@ -66,6 +82,11 @@ async def handle_lesson_happened(callback: CallbackQuery):
     date_str = parts[2]
 
     async with get_dbCtx() as db:
+        # Authorization check
+        if not await _is_lesson_teacher(db, lesson_id, callback.from_user.id):
+            await callback.answer("Нет прав", show_alert=True)
+            return
+
         # Verify lesson exists
         lesson_result = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
         lesson = lesson_result.scalar_one_or_none()
@@ -120,6 +141,18 @@ async def handle_lesson_cancelled(callback: CallbackQuery):
     date_str = parts[2]
 
     async with get_dbCtx() as db:
+        # Authorization check
+        if not await _is_lesson_teacher(db, lesson_id, callback.from_user.id):
+            await callback.answer("Нет прав", show_alert=True)
+            return
+
+        # Verify lesson exists
+        lesson_result = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
+        lesson = lesson_result.scalar_one_or_none()
+        if not lesson:
+            await callback.answer("Занятие не найдено", show_alert=True)
+            return
+
         lesson_date = dt.datetime.strptime(date_str, "%Y-%m-%d").date()
 
         # Create or update LessonStatus
@@ -166,6 +199,11 @@ async def handle_att_toggle(callback: CallbackQuery):
     date_str = parts[3]
 
     async with get_dbCtx() as db:
+        # Authorization check
+        if not await _is_lesson_teacher(db, lesson_id, callback.from_user.id):
+            await callback.answer("Нет прав", show_alert=True)
+            return
+
         lesson_date = dt.datetime.strptime(date_str, "%Y-%m-%d").date()
 
         # Upsert attendance
@@ -210,6 +248,11 @@ async def handle_att_done(callback: CallbackQuery):
     date_str = parts[2]
 
     async with get_dbCtx() as db:
+        # Authorization check
+        if not await _is_lesson_teacher(db, lesson_id, callback.from_user.id):
+            await callback.answer("Нет прав", show_alert=True)
+            return
+
         lesson_date = dt.datetime.strptime(date_str, "%Y-%m-%d").date()
 
         # Count present/total
@@ -235,7 +278,3 @@ async def handle_att_done(callback: CallbackQuery):
         f"Присутствовали: <b>{present_count}</b> из <b>{total}</b>"
     )
     await callback.answer()
-
-
-# Need to import func for count queries
-from sqlalchemy import func
