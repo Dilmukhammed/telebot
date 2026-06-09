@@ -14,6 +14,7 @@ from models import (
     Notification, NotificationRecipient, TeacherAvailability, Test,
     Attendance, AuditLog,
 )
+from api.users import user_to_dict
 from schemas import (
     AdminStatsOut, DashboardLessonOut, AdminLessonOut,
     RescheduleIn, AdminAnnouncementCreate, AdminAnnouncementOut,
