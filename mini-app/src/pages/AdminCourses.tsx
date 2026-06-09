@@ -264,7 +264,7 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
     setSchedule(schedule.filter((_, i) => i !== idx))
   }
 
-  const updateScheduleSlot = (idx: number, field: keyof ScheduleSlot, value: string | number) {
+  const updateScheduleSlot = (idx: number, field: keyof ScheduleSlot, value: string | number) => {
     const updated = [...schedule]
     updated[idx] = { ...updated[idx], [field]: value }
     setSchedule(updated)

@@ -307,3 +307,418 @@
   background: rgba(229, 57, 53, 0.06);
   border-radius: var(--radius-sm);
 }
+
+/* FAB */
+.fab {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(99, 14, 212, 0.3);
+  cursor: pointer;
+  z-index: 100;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.fab:hover { transform: scale(1.05); }
+.fab:active { transform: scale(0.95); }
+.fab .material-symbols-outlined { font-size: 28px; }
+
+/* Modal */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 200;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal {
+  background: var(--color-surface);
+  border-radius: 24px 24px 0 0;
+  width: 100%;
+  max-width: 500px;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px 0;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-on-surface);
+}
+
+.modalClose {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-gray-100);
+  color: var(--color-on-surface-variant);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Step indicator */
+.stepIndicator {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 20px;
+}
+
+.stepDot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-gray-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-on-surface-variant);
+  transition: all 0.2s;
+}
+
+.stepDotActive {
+  background: var(--color-primary);
+  color: var(--color-white);
+  box-shadow: 0 2px 8px rgba(99, 14, 212, 0.3);
+}
+
+.stepDotDone {
+  background: var(--color-primary-container);
+  color: var(--color-primary);
+}
+
+/* Modal body */
+.modalBody {
+  padding: 0 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 200px;
+}
+
+.stepHint {
+  font-size: var(--font-sm);
+  color: var(--color-on-surface-variant);
+  margin: 0;
+}
+
+/* Form */
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formGroup label {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--color-on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.formGroup input,
+.formGroup select {
+  padding: 12px 14px;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  background: var(--color-surface-container-lowest);
+  color: var(--color-on-surface);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.formGroup input:focus,
+.formGroup select:focus {
+  border-color: var(--color-primary);
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+/* Teacher selection */
+.teacherList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.teacherCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-container-lowest);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.teacherCard:hover {
+  border-color: var(--color-primary);
+}
+
+.teacherCardActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary-container);
+}
+
+.teacherAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: var(--font-sm);
+  flex-shrink: 0;
+}
+
+.teacherInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.teacherCardName {
+  font-weight: 600;
+  font-size: var(--font-sm);
+  color: var(--color-on-surface);
+}
+
+.teacherCardUsername {
+  font-size: var(--font-xs);
+  color: var(--color-on-surface-variant);
+}
+
+/* Schedule */
+.scheduleSlot {
+  background: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.scheduleSlotHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.scheduleSlotNum {
+  font-weight: 600;
+  font-size: var(--font-xs);
+  color: var(--color-primary);
+}
+
+.removeSlotBtn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.scheduleSlotFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.addSlotBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border: 1px dashed var(--color-gray-300);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: var(--font-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.addSlotBtn:hover {
+  background: var(--color-primary-container);
+  border-color: var(--color-primary);
+}
+
+/* Student selection */
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+}
+
+.searchBox .searchInput {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: var(--font-sm);
+  background: transparent;
+  color: var(--color-on-surface);
+}
+
+.studentList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.studentCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-container-lowest);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.studentCard:hover {
+  background: var(--color-gray-100);
+}
+
+.studentCardActive {
+  background: var(--color-primary-container);
+}
+
+.studentCheck {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-gray-300);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.studentCardActive .studentCheck {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+.studentInfo {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--font-sm);
+  color: var(--color-on-surface);
+}
+
+.studentUsername {
+  font-size: var(--font-xs);
+  color: var(--color-on-surface-variant);
+}
+
+.selectedCount {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--color-primary);
+  text-align: center;
+  padding: 8px;
+  background: var(--color-primary-container);
+  border-radius: var(--radius-md);
+}
+
+/* Modal footer */
+.modalFooter {
+  display: flex;
+  gap: 12px;
+  padding: 0 20px 20px;
+}
+
+.cancelBtn {
+  flex: 1;
+  padding: 14px;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-on-surface);
+  font-weight: 600;
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+.createBtn {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-weight: 600;
+  font-size: var(--font-sm);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.createBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
