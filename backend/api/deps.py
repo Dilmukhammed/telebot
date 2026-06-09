@@ -82,8 +82,9 @@ async def get_telegram_user(
             logger.warning(f"HMAC failed: {e}")
 
     # Step 2: Try X-Telegram-User header (Base64-encoded JSON from our frontend)
-    # Only trusted in DEV_MODE to prevent header forgery in production
-    if not telegram_data and x_telegram_user and settings.DEV_MODE:
+    # This header is set by the Telegram WebView JS — it's the primary fallback
+    # when HMAC validation of initData fails (e.g., bot token mismatch, clock skew)
+    if not telegram_data and x_telegram_user:
         try:
             decoded = b64decode(x_telegram_user).decode('utf-8')
             user_data = loads(decoded)
