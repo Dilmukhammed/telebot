@@ -57,7 +57,7 @@ const features = [
 
 export default function Landing() {
   const navigate = useNavigate()
-  const { user, loading: userLoading } = useUser()
+  const { user, loading: userLoading, refresh } = useUser()
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showTeacherOnboarding, setShowTeacherOnboarding] = useState(false)
 
@@ -221,8 +221,9 @@ export default function Landing() {
       {/* Onboarding Modal */}
       <OnboardingModal
         isOpen={showOnboarding}
-        onClose={() => {
+        onClose={async () => {
           setShowOnboarding(false)
+          await refresh()
           navigate('/dashboard')
         }}
       />
@@ -230,8 +231,9 @@ export default function Landing() {
       {/* Teacher Onboarding Modal */}
       <TeacherOnboardingModal
         isOpen={showTeacherOnboarding}
-        onClose={() => {
+        onClose={async () => {
           setShowTeacherOnboarding(false)
+          await refresh()
           navigate('/dashboard')
         }}
       />
