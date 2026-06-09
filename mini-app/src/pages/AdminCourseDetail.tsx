@@ -253,31 +253,12 @@ export default function AdminCourseDetail() {
                 )}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-              <button
-                onClick={openSubjectEdit}
-                style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#fff' }}>edit</span>
-              </button>
-              {course.is_archived ? (
-                <button
-                  onClick={handleUnarchive}
-                  style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                  title="Разархивировать"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#fff' }}>unarchive</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => { setArchiveConfirmName(''); setShowArchiveModal(true) }}
-                  style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                  title="Архивировать"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#fff' }}>archive</span>
-                </button>
-              )}
-            </div>
+            <button
+              onClick={openSubjectEdit}
+              style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#fff' }}>edit</span>
+            </button>
           </div>
           {course.is_archived && (
             <div style={{ marginTop: '8px', padding: '6px 12px', background: 'rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '13px', color: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -585,6 +566,37 @@ export default function AdminCourseDetail() {
           </div>
         )}
 
+        {/* ── Archive / Unarchive Section ── */}
+        <section className={styles.section} style={{ marginTop: '24px' }}>
+          {course.is_archived ? (
+            <button
+              onClick={handleUnarchive}
+              style={{
+                width: '100%', padding: '14px', borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--color-primary)', background: 'var(--color-primary-container)',
+                color: 'var(--color-primary)', fontWeight: 600, fontSize: 'var(--font-sm)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>unarchive</span>
+              Разархивировать курс
+            </button>
+          ) : (
+            <button
+              onClick={() => { setArchiveConfirmName(''); setShowArchiveModal(true) }}
+              style={{
+                width: '100%', padding: '14px', borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--color-error, #d32f2f)', background: 'transparent',
+                color: 'var(--color-error, #d32f2f)', fontWeight: 600, fontSize: 'var(--font-sm)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>archive</span>
+              Архивировать курс
+            </button>
+          )}
+        </section>
+
         {/* ── Archive Confirmation Modal ── */}
         {showArchiveModal && course && (
           <div className={styles.modalOverlay} onClick={() => setShowArchiveModal(false)}>
@@ -623,7 +635,7 @@ export default function AdminCourseDetail() {
                     className={styles.modalBtnPrimary}
                     onClick={handleArchive}
                     disabled={archiveConfirmName.trim() !== course.name || archiveSubmitting}
-                    style={{ flex: 1, opacity: archiveConfirmName.trim() !== course.name ? 0.5 : 1, background: '#d32f2f' }}
+                    style={{ flex: 1, opacity: archiveConfirmName.trim() !== course.name ? 0.5 : 1, background: '#d32f2f', color: '#fff' }}
                   >
                     {archiveSubmitting ? 'Архивация...' : 'Архивировать'}
                   </button>
