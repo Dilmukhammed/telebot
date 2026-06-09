@@ -4,6 +4,7 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from database import engine, Base
 from api.router import api_router
@@ -17,9 +18,19 @@ debug = os.environ.get("DEBUG", "false").lower() in ("true", "1", "yes")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: create tables + seed admin/teacher
+    # Startup: optionally wipe DB, create tables, seed admin/teacher
+    reset_db = os.environ.get("RESET_DB", "false").lower() in ("true", "1", "yes")
+
     async with engine.begin() as conn:
+        if reset_db:
+            print("[startup] RESET_DB=true — wiping all tables...")
+            # Get all table names, drop them
+            for table in reversed(Base.metadata.sorted_tables):
+                await conn.execute(text(f'DELETE FROM "{table.name}"'))
+            print("[startup] All tables cleared.")
+
         await conn.run_sync(Base.metadata.create_all)
+
     await seed_db()
     # Start reminder scheduler
     start_scheduler()
