@@ -43,6 +43,25 @@ export default function AdminCourseDetail() {
   const [auditLogs, setAuditLogs] = useState<AuditLogOut[]>([])
   const [showAudit, setShowAudit] = useState(false)
 
+  // Archive
+  const [showArchiveModal, setShowArchiveModal] = useState(false)
+  const [archiveConfirmName, setArchiveConfirmName] = useState('')
+  const [archiveSubmitting, setArchiveSubmitting] = useState(false)
+
+  const handleArchive = async () => {
+    if (!course) return
+    setArchiveSubmitting(true)
+    try {
+      // Archive is not implemented yet - just close modal
+      setShowArchiveModal(false)
+      setArchiveConfirmName('')
+    } catch (err: any) {
+      console.error('Archive error:', err)
+    } finally {
+      setArchiveSubmitting(false)
+    }
+  }
+
   const loadDetail = () => {
     const numId = Number(id)
     if (!id || isNaN(numId)) { setLoading(false); return }
