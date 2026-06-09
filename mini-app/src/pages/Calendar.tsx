@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { getCalendar, createAvailability, deleteAvailability } from '../api/client'
@@ -86,7 +86,7 @@ export default function Calendar() {
   const dayNames = DAY_NAMES[lang] || DAY_NAMES.ru
   const monthNames = MONTH_NAMES[lang] || MONTH_NAMES.ru
 
-  useEffect(() => {
+  const fetchCalendar = useCallback(() => {
     setLoading(true)
     setError(null)
     getCalendar(weekOffset)
@@ -94,6 +94,10 @@ export default function Calendar() {
       .catch((e) => setError(e instanceof Error ? e.message : 'Error loading calendar'))
       .finally(() => setLoading(false))
   }, [weekOffset])
+
+  useEffect(() => {
+    fetchCalendar()
+  }, [fetchCalendar])
 
   useEffect(() => {
     if (data) {
@@ -115,7 +119,7 @@ export default function Calendar() {
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'var(--color-outline)' }}>error</span>
           <p style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center' }}>{error || t('common.error')}</p>
           <button
-            onClick={() => { setWeekOffset(0) }}
+            onClick={fetchCalendar}
             style={{ padding: '10px 24px', borderRadius: '12px', border: 'none', background: 'var(--color-primary)', color: 'var(--color-on-primary)', fontWeight: 600, cursor: 'pointer' }}
           >
             {t('common.retry')}

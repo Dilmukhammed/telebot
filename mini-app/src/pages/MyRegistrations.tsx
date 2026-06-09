@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   getMyRegistrations,
   cancelRegistration,
@@ -13,20 +14,10 @@ import {
   EmptyState,
   Modal,
 } from '../shared/components';
+import { formatDateTime, langToLocale } from '../shared/utils/formatDate';
 import styles from './MyRegistrations.module.css';
 
 type FilterType = 'active' | 'all' | 'cancelled';
-
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 function isFutureTest(iso: string): boolean {
   return new Date(iso) > new Date();
@@ -40,6 +31,7 @@ function getResultForRegistration(
 }
 
 export const MyRegistrations: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const [registrations, setRegistrations] = useState<RegistrationOut[]>([]);
   const [results, setResults] = useState<ResultOut[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +39,8 @@ export const MyRegistrations: React.FC = () => {
   const [filter, setFilter] = useState<FilterType>('active');
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
+
+  const locale = langToLocale(i18n.language);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -59,11 +53,11 @@ export const MyRegistrations: React.FC = () => {
       setRegistrations(regs);
       setResults(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка загрузки');
+      setError(e instanceof Error ? e.message : t('common.error'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchData();
@@ -84,7 +78,7 @@ export const MyRegistrations: React.FC = () => {
       await cancelRegistration(id);
       await fetchData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка отмены записи');
+      setError(e instanceof Error ? e.message : t('registrations.cancelError'));
     } finally {
       setCancellingId(null);
       setConfirmId(null);
@@ -104,22 +98,23 @@ export const MyRegistrations: React.FC = () => {
   );
 
   if (loading) {
-    return <Loading fullPage message="Загрузка записей..." data-testid="loading" />;
+    return <Loading fullPage message={t('registrations.loading')} data-testid="loading" />;
   }
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.heading}>Мои записи</h1>
+      <h1 className={styles.heading}>{t('registrations.title')}</h1>
 
       {error && (
         <ErrorBanner
           message={error}
           onDismiss={() => setError(null)}
+          onRetry={fetchData}
           data-testid="error-banner"
         />
       )}
 
-      <div className={styles.filters} role="tablist" aria-label="Фильтр записей">
+      <div className={styles.filters} role="tablist" aria-label={t('registrations.filterLabel')}>
         <button
           className={`${styles.filterBtn} ${filter === 'active' ? styles.filterBtnActive : ''}`}
           onClick={() => setFilter('active')}
@@ -127,7 +122,7 @@ export const MyRegistrations: React.FC = () => {
           aria-selected={filter === 'active'}
           type="button"
         >
-          Активные
+          {t('registrations.active')}
           {activeCount > 0 && (
             <span className={styles.filterBadge}>{activeCount}</span>
           )}
@@ -139,7 +134,7 @@ export const MyRegistrations: React.FC = () => {
           aria-selected={filter === 'all'}
           type="button"
         >
-          Все
+          {t('registrations.all')}
         </button>
         <button
           className={`${styles.filterBtn} ${filter === 'cancelled' ? styles.filterBtnActive : ''}`}
@@ -148,7 +143,7 @@ export const MyRegistrations: React.FC = () => {
           aria-selected={filter === 'cancelled'}
           type="button"
         >
-          Отменённые
+          {t('registrations.cancelled')}
           {cancelledCount > 0 && (
             <span className={styles.filterBadge}>{cancelledCount}</span>
           )}
@@ -157,8 +152,8 @@ export const MyRegistrations: React.FC = () => {
 
       {filtered.length === 0 ? (
         <EmptyState
-          title="Нет записей"
-          message="У вас пока нет записей на тесты"
+          title={t('registrations.noRegistrations')}
+          message={t('registrations.noRegistrationsMessage')}
           data-testid="empty-state"
         />
       ) : (
@@ -179,17 +174,17 @@ export const MyRegistrations: React.FC = () => {
                   <span
                     className={`${styles.badge} ${reg.status === 'registered' ? styles.badgeGreen : styles.badgeGray}`}
                   >
-                    {reg.status === 'registered' ? 'Записан' : 'Отменён'}
+                    {reg.status === 'registered' ? t('registrations.registered') : t('registrations.statusCancelled')}
                   </span>
                 </div>
 
                 <p className={styles.datetime}>
-                  {formatDateTime(reg.test_datetime)}
+                  {formatDateTime(reg.test_datetime, locale)}
                 </p>
 
                 {result && (
                   <div className={styles.resultBlock}>
-                    <span className={styles.resultLabel}>Результат:</span>
+                    <span className={styles.resultLabel}>{t('registrations.result')}</span>
                     <span className={styles.resultScore}>
                       {result.score} / {result.max_score}
                     </span>
@@ -205,7 +200,7 @@ export const MyRegistrations: React.FC = () => {
                       data-testid="cancel-btn"
                       fullWidth
                     >
-                      Отменить
+                      {t('registrations.cancel')}
                     </Button>
                   </div>
                 )}
@@ -218,10 +213,10 @@ export const MyRegistrations: React.FC = () => {
       <Modal
         isOpen={confirmId !== null}
         onClose={() => setConfirmId(null)}
-        title="Подтвердите отмену"
+        title={t('registrations.confirmCancel')}
       >
         <p className={styles.confirmText}>
-          Вы уверены, что хотите отменить запись на тест?
+          {t('registrations.confirmCancelText')}
         </p>
         <div className={styles.confirmActions}>
           <Button
@@ -229,7 +224,7 @@ export const MyRegistrations: React.FC = () => {
             onClick={() => setConfirmId(null)}
             fullWidth
           >
-            Нет, оставить
+            {t('registrations.noLeave')}
           </Button>
           <Button
             variant="danger"
@@ -237,7 +232,7 @@ export const MyRegistrations: React.FC = () => {
             loading={cancellingId === confirmId}
             fullWidth
           >
-            Да, отменить
+            {t('registrations.yesCancel')}
           </Button>
         </div>
       </Modal>

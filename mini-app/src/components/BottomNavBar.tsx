@@ -13,10 +13,9 @@ export default function BottomNavBar() {
   if (location.pathname === '/') return null
 
   const isAdmin = role === 'admin'
+  const isTeacher = role === 'teacher'
   const isAdminRoute = location.pathname.startsWith('/admin')
-
-  // Show admin nav for admin users on admin routes, or always for admin on /dashboard
-  const showAdminNav = isAdmin && (isAdminRoute || location.pathname === '/dashboard')
+  const isTeacherRoute = location.pathname.startsWith('/teacher')
 
   const studentTabs = [
     { path: '/dashboard', icon: 'home', label: t('nav.home') },
@@ -25,15 +24,27 @@ export default function BottomNavBar() {
     { path: '/profile', icon: 'person', label: t('nav.profile') },
   ]
 
-  const adminTabs = [
-    { path: '/dashboard', icon: 'dashboard', label: 'Главная' },
-    { path: '/admin/people', icon: 'group', label: 'Люди' },
-    { path: '/admin/courses', icon: 'menu_book', label: 'Курсы' },
-    { path: '/admin/calendar', icon: 'calendar_today', label: 'Расписание' },
-    { path: '/admin/more', icon: 'more_horiz', label: 'Ещё' },
+  const teacherTabs = [
+    { path: '/dashboard', icon: 'dashboard', label: t('nav.home') },
+    { path: '/teacher/students', icon: 'group', label: t('teacher.studentsTitle') },
+    { path: '/calendar', icon: 'calendar_today', label: t('nav.calendar') },
+    { path: '/profile', icon: 'person', label: t('nav.profile') },
   ]
 
-  const tabs = showAdminNav ? adminTabs : studentTabs
+  const adminTabs = [
+    { path: '/dashboard', icon: 'dashboard', label: t('nav.home') },
+    { path: '/admin/people', icon: 'group', label: t('nav.home') },
+    { path: '/admin/courses', icon: 'menu_book', label: t('nav.courses') },
+    { path: '/admin/calendar', icon: 'calendar_today', label: t('nav.calendar') },
+    { path: '/admin/more', icon: 'more_horiz', label: t('common.all') },
+  ]
+
+  let tabs = studentTabs
+  if (isAdmin && (isAdminRoute || location.pathname === '/dashboard')) {
+    tabs = adminTabs
+  } else if (isTeacher && (isTeacherRoute || location.pathname === '/dashboard')) {
+    tabs = teacherTabs
+  }
 
   return (
     <nav className={styles.nav}>
@@ -43,7 +54,8 @@ export default function BottomNavBar() {
             (tab.path === '/admin/courses' && location.pathname.startsWith('/admin/courses')) ||
             (tab.path === '/admin/people' && location.pathname.startsWith('/admin/people')) ||
             (tab.path === '/admin/calendar' && location.pathname.startsWith('/admin/calendar')) ||
-            (tab.path === '/admin/more' && (location.pathname === '/admin/more' || location.pathname.startsWith('/admin/announcements')))
+            (tab.path === '/admin/more' && (location.pathname === '/admin/more' || location.pathname.startsWith('/admin/announcements'))) ||
+            (tab.path === '/teacher/students' && location.pathname.startsWith('/teacher/students'))
           return (
             <button
               key={tab.path}

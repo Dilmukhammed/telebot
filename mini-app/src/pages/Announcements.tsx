@@ -29,14 +29,15 @@ export default function Announcements() {
   const { user } = useUser()
   const [announcements, setAnnouncements] = useState<AnnouncementOut[]>([])
   const [loading, setLoading] = useState(true)
-  const [lastSeen] = useState(getLastSeenTime)
+  const [lastSeen, setLastSeen] = useState(getLastSeenTime)
 
   useEffect(() => {
     const isPrivileged = user && (user.role === 'teacher' || user.role === 'admin')
-    const fetcher = isPrivileged ? getTeacherAnnouncements() : getAnnouncements()
+    const fetcher = isPrivileged
+      ? getTeacherAnnouncements().catch(() => getAnnouncements())
+      : getAnnouncements()
     fetcher
       .then(setAnnouncements)
-      .catch(() => getAnnouncements().then(setAnnouncements))
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [user])
@@ -44,8 +45,9 @@ export default function Announcements() {
   // Mark announcements as seen when leaving the page
   useEffect(() => {
     return () => {
+      const now = Date.now()
       try {
-        localStorage.setItem(LAST_SEEN_KEY, String(Date.now()))
+        localStorage.setItem(LAST_SEEN_KEY, String(now))
       } catch {}
     }
   }, [])

@@ -1,21 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getMyResults } from '../api/client';
-import { Card } from '../shared/components/Card';
-import { Loading } from '../shared/components/Loading';
-import { EmptyState } from '../shared/components/EmptyState';
-import { ErrorBanner } from '../shared/components/ErrorBanner';
-
-interface ResultData {
-  id: number;
-  registration_id: number;
-  test_subject: string;
-  test_datetime: string;
-  score: number;
-  max_score: number;
-  comment?: string;
-}
+import type { ResultOut } from '../shared/types';
+import { Card, Loading, EmptyState, ErrorBanner } from '../shared/components';
+import { formatDate, langToLocale } from '../shared/utils/formatDate';
 
 function getScoreColor(score: number, maxScore: number): string {
+  if (maxScore <= 0) return 'var(--color-on-surface-variant)';
   const pct = (score / maxScore) * 100;
   if (pct >= 75) return '#2e7d32';
   if (pct >= 50) return '#f9a825';
@@ -23,6 +14,7 @@ function getScoreColor(score: number, maxScore: number): string {
 }
 
 function getScoreLabel(score: number, maxScore: number): string {
+  if (maxScore <= 0) return '⚪';
   const pct = (score / maxScore) * 100;
   if (pct >= 75) return '🟢';
   if (pct >= 50) return '🟡';
@@ -30,53 +22,51 @@ function getScoreLabel(score: number, maxScore: number): string {
 }
 
 export default function MyResults() {
-  const [results, setResults] = useState<ResultData[]>([]);
+  const { t, i18n } = useTranslation();
+  const [results, setResults] = useState<ResultOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const locale = langToLocale(i18n.language);
 
   useEffect(() => {
     async function load() {
       try {
         const data = await getMyResults();
-        setResults(data as unknown as ResultData[]);
-      } catch (e: any) {
-        setError(e.message || 'Ошибка загрузки');
+        setResults(data);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : t('common.error'));
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, []);
+  }, [t]);
 
-  if (loading) return <Loading fullPage message="Загрузка результатов..." data-testid="loading" />;
+  if (loading) return <Loading fullPage message={t('results.loading')} data-testid="loading" />;
   if (error) return <ErrorBanner message={error} data-testid="error-banner" />;
-  if (results.length === 0) return <EmptyState title="Нет результатов" message="У вас пока нет результатов тестов" data-testid="empty-state" />;
-
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-  };
+  if (results.length === 0) return <EmptyState title={t('results.noResults')} message={t('results.noResultsMessage')} data-testid="empty-state" />;
 
   return (
-    <div className="my-results" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <h2 style={{ color: 'var(--tg-text-color)', margin: 0 }}>Мои результаты</h2>
+    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <h2 style={{ color: 'var(--color-on-surface)', margin: 0 }}>{t('results.title')}</h2>
       {results.map((r) => (
         <Card key={r.id} data-testid="result-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <h4 style={{ margin: '0 0 4px 0', color: 'var(--tg-text-color)' }}>{r.test_subject}</h4>
-              <p style={{ margin: 0, color: 'var(--tg-hint-color)', fontSize: 'var(--font-sm)' }}>
-                {formatDate(r.test_datetime)}
+              <h4 style={{ margin: '0 0 4px 0', color: 'var(--color-on-surface)' }}>{r.test_subject}</h4>
+              <p style={{ margin: 0, color: 'var(--color-on-surface-variant)', fontSize: '13px' }}>
+                {formatDate(r.test_datetime, locale)}
               </p>
               {r.comment && (
-                <p style={{ margin: '4px 0 0 0', color: 'var(--tg-hint-color)', fontSize: 'var(--font-sm)', fontStyle: 'italic' }}>
+                <p style={{ margin: '4px 0 0 0', color: 'var(--color-on-surface-variant)', fontSize: '13px', fontStyle: 'italic' }}>
                   «{r.comment}»
                 </p>
               )}
             </div>
             <div style={{ textAlign: 'right' }}>
               <span style={{ fontSize: '24px' }}>{getScoreLabel(r.score, r.max_score)}</span>
-              <p style={{ margin: 0, color: getScoreColor(r.score, r.max_score), fontWeight: 'bold', fontSize: 'var(--font-lg)' }}>
+              <p style={{ margin: 0, color: getScoreColor(r.score, r.max_score), fontWeight: 'bold', fontSize: '18px' }}>
                 {r.score} / {r.max_score}
               </p>
             </div>

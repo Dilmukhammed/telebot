@@ -26,7 +26,10 @@ export default function AnnouncementDetail() {
     if (!id) return
     const numId = Number(id)
     const isPrivileged = user && (user.role === 'teacher' || user.role === 'admin')
-    const fetcher = isPrivileged ? getTeacherAnnouncementDetail(numId) : getAnnouncementDetail(numId)
+
+    const fetcher = isPrivileged
+      ? getTeacherAnnouncementDetail(numId).catch(() => getAnnouncementDetail(numId))
+      : getAnnouncementDetail(numId)
 
     fetcher
       .then((data) => {
@@ -35,9 +38,9 @@ export default function AnnouncementDetail() {
           getAnnouncementRecipients(numId).then(setRecipients).catch(console.error)
         }
       })
-      .catch((e) => setError(e.message || 'Error loading announcement'))
+      .catch((e) => setError(e.message || t('common.error')))
       .finally(() => setLoading(false))
-  }, [id, user])
+  }, [id, user, t])
 
   if (loading) {
     return <Loading fullPage message={t('common.loading')} />
