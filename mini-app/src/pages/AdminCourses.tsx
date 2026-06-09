@@ -6,12 +6,13 @@ import {
   createAdminSubject,
   getTeachersForSchedule,
   getAdminUsers,
+  unarchiveAdminSubject,
 } from '../api/client'
 import type { SearchResultOut, AdminSubjectOut, UserOut, ScheduleSlot } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import styles from './AdminCourses.module.css'
 
-type Tab = 'all' | 'search'
+type Tab = 'all' | 'search' | 'archive'
 
 const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
@@ -58,7 +59,7 @@ export default function AdminCourses() {
 
       <main className={styles.main}>
         <div className={styles.tabs}>
-          {([['all', 'Курсы'], ['search', 'Поиск']] as [Tab, string][]).map(([t, label]) => (
+          {([['all', 'Курсы'], ['search', 'Поиск'], ['archive', 'Архив']] as [Tab, string][]).map(([t, label]) => (
             <button
               key={t}
               className={`${styles.tab} ${tab === t ? styles.activeTab : ''}`}
@@ -70,6 +71,7 @@ export default function AdminCourses() {
         </div>
         {tab === 'all' && <AllCourses navigate={navigate} courses={courses} loading={false} />}
         {tab === 'search' && <SearchView />}
+        {tab === 'archive' && <ArchiveCourses navigate={navigate} />}
       </main>
 
       {/* FAB - Create Course */}
@@ -649,6 +651,71 @@ function SearchView() {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Archive View ────────────────────────────────────────────────────
+
+function ArchiveCourses({ navigate }: { navigate: (p: string) => void }) {
+  const [courses, setCourses] = useState<AdminSubjectOut[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getAdminSubjects(true)
+      .then(data => setCourses([...data].sort((a, b) => a.name.localeCompare(b.name, 'ru'))))
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <div className={styles.loading}>Загрузка архива...</div>
+
+  if (courses.length === 0) {
+    return (
+      <div className={styles.emptyState}>
+        <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>archive</span>
+        <p>Архив пуст</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.list}>
+      {courses.map(c => (
+        <div
+          key={c.id}
+          className={styles.courseCard}
+          onClick={() => navigate(`/admin/courses/${c.id}`)}
+          style={{ cursor: 'pointer', opacity: 0.7 }}
+        >
+          <div className={styles.cardHeader}>
+            <div className={styles.cardInfo}>
+              <span className={styles.badge} style={{ background: 'var(--color-outline)', color: 'var(--color-on-surface)' }}>
+                Архив
+              </span>
+              <h2 className={styles.courseTitle}>{c.name}</h2>
+            </div>
+            <div className={styles.cardRight}>
+              <span className={`material-symbols-outlined ${styles.courseChevron}`}>
+                chevron_right
+              </span>
+            </div>
+          </div>
+          <div className={styles.teacherRow}>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-outline)' }}>
+              person
+            </span>
+            <span className={styles.teacherName}>
+              {c.teacher_names.join(', ') || 'Без преподавателя'}
+            </span>
+            <span className={styles.metaDivider}>·</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-outline)' }}>
+              groups
+            </span>
+            <span className={styles.teacherName}>{c.student_count} уч.</span>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
