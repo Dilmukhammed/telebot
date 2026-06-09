@@ -46,7 +46,7 @@ export default function Profile() {
   const telegramAvatar = tgUser?.photo_url
 
   useEffect(() => {
-    if (user && (user.role === 'teacher' || user.role === 'admin')) {
+    if (user && user.role === 'teacher') {
       getAvailability().then(setAvailability).catch(() => {})
     }
   }, [user])
@@ -218,8 +218,8 @@ export default function Profile() {
           </div>
         </section>
 
-        {/* Availability Section (teacher/admin only) */}
-        {(user.role === 'teacher' || user.role === 'admin') && (
+        {/* Availability Section (teacher only) */}
+        {user.role === 'teacher' && (
           <section className={styles.actionsSection}>
             <div className={styles.actionsCard}>
               <div className={styles.availabilityHeader}>

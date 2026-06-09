@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAdminStats, getTeacherAnnouncements } from '../api/client'
-import type { AdminStats, AnnouncementOut } from '../shared/types'
+import type { AdminStats } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './AdminDashboard.module.css'
@@ -9,7 +9,6 @@ import styles from './AdminDashboard.module.css'
 export default function AdminDashboard() {
   const navigate = useNavigate()
   const [stats, setStats] = useState<AdminStats | null>(null)
-  const [announcements, setAnnouncements] = useState<AnnouncementOut[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
@@ -24,9 +23,7 @@ export default function AdminDashboard() {
       .then(([statsResult, annResult]) => {
         if (statsResult.status === 'fulfilled') setStats(statsResult.value)
         if (annResult.status === 'fulfilled') {
-          const anns = annResult.value
-          setAnnouncements(anns)
-          setUnreadCount(anns.filter(a => !a.is_read).length)
+          setUnreadCount(annResult.value.filter(a => !a.is_read).length)
         }
       })
       .finally(() => setLoading(false))
