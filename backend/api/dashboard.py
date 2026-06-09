@@ -70,16 +70,6 @@ async def get_dashboard(
         "total_courses": len(set(subj.id for les, subj in enrolled_lessons)),
     }
 
-    # If no enrollments, show all active lessons (demo mode)
-    if not enrolled_lessons:
-        all_lessons_result = await db.execute(
-            select(Lesson, Subject)
-            .join(Subject, Subject.id == Lesson.subject_id)
-            .where(Lesson.is_active == True)
-            .order_by(Lesson.day_of_week, Lesson.time)
-        )
-        enrolled_lessons = all_lessons_result.all()
-
     # Filter and sort upcoming lessons
     upcoming_lessons = []
     for lesson, subject in enrolled_lessons:
