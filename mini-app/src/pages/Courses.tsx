@@ -92,7 +92,7 @@ export default function Courses() {
             onClick={() => navigate('/join')}
             className={styles.joinCourseCard}
           >
-            <span className="material-symbols-outlined">key</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>key</span>
             {t('courses.joinByCode')}
           </button>
         )}
