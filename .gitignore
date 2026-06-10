@@ -11,3 +11,5 @@ dist/
 tunnel_url.txt
 *.db
 *.sqlite3
+gemini-bot-calendar-*.json
+service-account.json

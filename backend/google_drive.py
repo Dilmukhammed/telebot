@@ -1,5 +1,6 @@
 """Google Drive integration for file uploads."""
 
+import json
 import logging
 from typing import Optional
 
@@ -16,13 +17,18 @@ SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 
 def _get_drive_service():
     """Build Google Drive API service from service account credentials."""
-    if not settings.GOOGLE_SERVICE_ACCOUNT_KEY_PATH:
-        raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_KEY_PATH is not configured")
+    if settings.GOOGLE_SERVICE_ACCOUNT_JSON:
+        # Railway / production: JSON string in env var
+        info = json.loads(settings.GOOGLE_SERVICE_ACCOUNT_JSON)
+        creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+    elif settings.GOOGLE_SERVICE_ACCOUNT_KEY_PATH:
+        # Local dev: JSON file on disk
+        creds = service_account.Credentials.from_service_account_file(
+            settings.GOOGLE_SERVICE_ACCOUNT_KEY_PATH, scopes=SCOPES,
+        )
+    else:
+        raise RuntimeError("Set GOOGLE_SERVICE_ACCOUNT_JSON or GOOGLE_SERVICE_ACCOUNT_KEY_PATH")
 
-    creds = service_account.Credentials.from_service_account_file(
-        settings.GOOGLE_SERVICE_ACCOUNT_KEY_PATH,
-        scopes=SCOPES,
-    )
     return build("drive", "v3", credentials=creds)
 
 
