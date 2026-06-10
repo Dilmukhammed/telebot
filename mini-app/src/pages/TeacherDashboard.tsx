@@ -104,16 +104,9 @@ export default function TeacherDashboard() {
   const { user } = useUser()
   const { data, isLoading, error } = useTeacherDashboard()
   const { data: announcements = [] } = useAnnouncements('teacher')
-  const [unreadCount, setUnreadCount] = useState(0)
-
-  useEffect(() => {
-    if (!announcements) return
-    const lastSeen = Number(localStorage.getItem('lastSeenAnnouncement')) || 0
-    const count = announcements.filter(
-      n => new Date(n.sent_at).getTime() > lastSeen && n.sender_id !== user?.id
-    ).length
-    setUnreadCount(count)
-  }, [announcements, user])
+  const unreadCount = announcements.filter(
+    n => !n.is_read && n.sender_id !== user?.id
+  ).length
 
   const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
   const telegramAvatar = tgUser?.photo_url
