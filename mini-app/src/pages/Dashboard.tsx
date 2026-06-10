@@ -197,14 +197,8 @@ export default function Dashboard() {
                 </span>
               )}
             </div>
-            <div className={styles.welcomeAvatar}>
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Avatar" />
-              ) : (
-                <div className={styles.welcomeAvatarPlaceholder}>
-                  <span className="material-symbols-outlined">person</span>
-                </div>
-              )}
+            <div className={styles.welcomeDecoration}>
+              <span className="material-symbols-outlined">auto_awesome</span>
             </div>
           </div>
         </section>

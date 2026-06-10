@@ -290,14 +290,8 @@ export default function TeacherDashboard() {
                 {t('profile.teacher')}
               </span>
             </div>
-            <div className={styles.welcomeAvatar}>
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Avatar" />
-              ) : (
-                <div className={styles.welcomeAvatarPlaceholder}>
-                  <span className="material-symbols-outlined">person</span>
-                </div>
-              )}
+            <div className={styles.welcomeDecoration}>
+              <span className="material-symbols-outlined">school</span>
             </div>
           </div>
         </section>
