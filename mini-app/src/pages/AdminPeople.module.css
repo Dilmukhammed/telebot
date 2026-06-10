@@ -15,29 +15,33 @@
 .tabs {
   display: flex;
   gap: 4px;
-  background: var(--color-secondary-container);
-  border-radius: var(--radius-full);
-  padding: 3px;
+  background: #f1f3f9;
+  border-radius: 9999px;
+  padding: 4px;
   margin-bottom: var(--spacing-md);
 }
 
 .tab {
   flex: 1;
-  padding: 10px var(--spacing-md);
+  padding: 8px var(--spacing-md);
   border: none;
-  border-radius: var(--radius-full);
+  border-radius: 9999px;
   background: transparent;
-  font-weight: var(--font-semibold);
+  font-weight: 600;
   font-size: var(--font-sm);
-  color: var(--color-on-surface-variant);
-  transition: all var(--transition-fast);
+  color: #64748b;
+  transition: all 0.2s ease;
   cursor: pointer;
 }
 
+.tab:hover {
+  color: var(--color-primary);
+}
+
 .activeTab {
-  background: var(--color-primary);
-  color: var(--color-white);
-  box-shadow: 0 4px 12px rgba(99, 14, 212, 0.2);
+  background: #ffffff;
+  color: var(--color-primary) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 /* Search */
