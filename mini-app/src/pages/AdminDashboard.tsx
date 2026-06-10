@@ -29,6 +29,20 @@ export default function AdminDashboard() {
     )
   }
 
+  // Mini-calendar widget date calculation (Tashkent Time)
+  const today = new Date(Date.now() + 5 * 60 * 60 * 1000)
+  const dayNum = today.getUTCDate()
+  const isEn = i18n.language?.startsWith('en')
+  const isUz = i18n.language?.startsWith('uz')
+  const monthsRu = ['ЯНВ', 'ФЕВ', 'МАР', 'АПР', 'МАЙ', 'ИЮН', 'ИЮЛ', 'АВГ', 'СЕН', 'ОКТ', 'НОЯ', 'ДЕК']
+  const monthsEn = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+  const monthsUz = ['YAN', 'FEV', 'MAR', 'APR', 'MAY', 'IYN', 'IYL', 'AVG', 'SEN', 'OKT', 'NOY', 'DEK']
+  const daysRu = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ']
+  const daysEn = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+  const daysUz = ['YAK', 'DUSH', 'SESH', 'CHOR', 'PAY', 'JUM', 'SHAN']
+  const calendarMonth = (isEn ? monthsEn : isUz ? monthsUz : monthsRu)[today.getUTCMonth()] || ''
+  const calendarDayName = (isEn ? daysEn : isUz ? daysUz : daysRu)[today.getUTCDay()] || ''
+
   return (
     <div className={styles.page}>
       <SiteHeader avatarUrl={telegramAvatar} announcementCount={unreadCount} announcementPath="/admin/announcements" />
@@ -36,8 +50,7 @@ export default function AdminDashboard() {
       <main>
         {/* Welcome Card */}
         <section className={styles.welcomeCard}>
-          <div className={styles.welcomeGradientBg} />
-          <div className={styles.welcomeCardContent}>
+          <div className={styles.welcomeLeft}>
             <h1 className={styles.welcomeTitle}>{t('admin.dashboard.title')}</h1>
             <p className={styles.welcomeSub}>
               <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
@@ -45,6 +58,16 @@ export default function AdminDashboard() {
               </span>
               {t('admin.dashboard.role_admin')} &middot; EduCenter &middot; {new Date().toLocaleDateString(currentLocale, { day: 'numeric', month: 'long' })}
             </p>
+          </div>
+
+          <div className={styles.welcomeCalendarWidget}>
+            <div className={styles.widgetHeader}>
+              {calendarMonth}
+            </div>
+            <div className={styles.widgetBody}>
+              <span className={styles.widgetDayNum}>{dayNum}</span>
+              <span className={styles.widgetDayName}>{calendarDayName}</span>
+            </div>
           </div>
         </section>
 

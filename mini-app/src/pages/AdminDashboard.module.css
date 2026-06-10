@@ -40,50 +40,96 @@ main {
 
 /* Welcome Card */
 .welcomeCard {
+  background: var(--color-surface-container-lowest);
+  border: 1px solid rgba(124, 58, 237, 0.08);
+  border-radius: var(--radius-xl, 16px);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.03);
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(246, 243, 253, 0.95) 100%);
   position: relative;
   overflow: hidden;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
 }
 
-.welcomeGradientBg {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, #7c3aed 0%, #630ed4 50%, #4c058f 100%);
-  opacity: 0.95;
-  z-index: 1;
-}
-
-.welcomeGradientBg::before {
-  content: '';
-  position: absolute;
-  top: -20%;
-  right: -10%;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-  filter: blur(20px);
-}
-
-.welcomeCardContent {
-  position: relative;
-  z-index: 2;
-  padding: var(--spacing-lg);
+.welcomeLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding-right: 12px;
 }
 
 .welcomeTitle {
-  font-size: var(--font-lg);
+  font-size: 20px;
   font-weight: 800;
-  line-height: 1.2;
-  color: var(--color-on-primary);
+  color: var(--color-on-surface);
   margin: 0;
+  letter-spacing: -0.015em;
 }
 
 .welcomeSub {
   font-size: var(--font-xs);
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--color-on-surface-variant);
   margin: 4px 0 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Beautiful Calendar Icon Widget */
+.welcomeCalendarWidget {
+  width: 52px;
+  height: 56px;
+  background: #ffffff;
+  border: 1.5px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  flex-shrink: 0;
+}
+
+.widgetHeader {
+  height: 16px;
+  background: linear-gradient(135deg, #7c3aed 0%, #630ed4 100%);
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.5px;
+}
+
+.widgetBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+  padding-bottom: 2px;
+}
+
+.widgetDayNum {
+  font-size: 18px;
+  font-weight: 800;
+  color: #1a1a2e;
+}
+
+.widgetDayName {
+  font-size: 8px;
+  font-weight: 700;
+  color: #7b7b8f;
+  text-transform: uppercase;
+  margin-top: 1px;
 }
 
 /* Stats Grid */
