@@ -1,5 +1,6 @@
 """Google Drive integration for file uploads."""
 
+import io
 import json
 import logging
 from typing import Optional
@@ -49,7 +50,7 @@ async def upload_file(
         "parents": [settings.GOOGLE_DRIVE_FOLDER_ID],
     }
     media = MediaIoBaseUpload(
-        file_bytes,
+        io.BytesIO(file_bytes),
         mimetype=mime_type,
         resumable=True,
     )
