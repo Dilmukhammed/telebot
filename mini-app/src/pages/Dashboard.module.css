@@ -641,19 +641,19 @@
 
 .lessonCardOngoing {
   background: var(--color-surface-container-lowest) !important;
-  border-color: var(--color-outline-variant, #e0e0e0) !important;
-  border-left: 6px solid var(--color-primary, #630ed4) !important;
-  box-shadow: var(--shadow-md) !important;
+  border-color: rgba(16, 185, 129, 0.15) !important;
+  border-left: 6px solid #10b981 !important;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.05) !important;
   transition: all 0.2s ease;
 }
 
 .lessonCardOngoing .lessonTime {
-  background: var(--color-secondary-container, #e3e1ed) !important;
+  background: rgba(16, 185, 129, 0.08) !important;
 }
 
 .lessonCardOngoing .lessonDay,
 .lessonCardOngoing .lessonHour {
-  color: var(--color-primary, #630ed4) !important;
+  color: #059669 !important;
 }
 
 .countdownActive {

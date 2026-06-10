@@ -112,12 +112,13 @@ function EnrollmentRequestsSection() {
       <div className={styles.sectionHeader}>
         <h2 className={styles.sectionTitle}>{t('teacher.enrollmentRequests')}</h2>
         <span style={{
-          background: 'var(--color-primary)',
-          color: 'var(--color-on-primary)',
+          background: 'rgba(16, 185, 129, 0.1)',
+          color: '#059669',
+          border: '1px solid rgba(16, 185, 129, 0.22)',
           borderRadius: 'var(--radius-full)',
           padding: '2px 10px',
           fontSize: 'var(--font-xs)',
-          fontWeight: 600,
+          fontWeight: 700,
         }}>
           {requests.length}
         </span>
