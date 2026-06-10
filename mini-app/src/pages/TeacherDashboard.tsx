@@ -277,19 +277,27 @@ export default function TeacherDashboard() {
       <main className={styles.main}>
         {/* Welcome Section */}
         <section className={styles.welcomeCard}>
-          <div className={styles.welcomeGradientBg} />
           <div className={styles.welcomeCardContent}>
             <div className={styles.welcomeText}>
               <h1 className={styles.welcomeTitle}>
                 {t('dashboard.greeting', { name: profile.first_name })}
               </h1>
+              <p className={styles.motivationText}>
+                {t('dashboard.motivation')}
+              </p>
               <span className={styles.gradeBadge}>
                 <span className="material-symbols-outlined" style={{ fontSize: '14px', fontVariationSettings: "'FILL' 1" }}>stars</span>
                 {t('profile.teacher')}
               </span>
-              <p className={styles.motivationText}>
-                {t('dashboard.motivation')}
-              </p>
+            </div>
+            <div className={styles.welcomeAvatar}>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" />
+              ) : (
+                <div className={styles.welcomeAvatarPlaceholder}>
+                  <span className="material-symbols-outlined">person</span>
+                </div>
+              )}
             </div>
           </div>
         </section>
