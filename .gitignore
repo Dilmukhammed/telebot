@@ -13,3 +13,4 @@ tunnel_url.txt
 *.sqlite3
 gemini-bot-calendar-*.json
 service-account.json
+oauth_client.json

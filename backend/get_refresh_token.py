@@ -14,10 +14,10 @@ from urllib.parse import urlparse, parse_qs
 
 from google_auth_oauthlib.flow import Flow
 
-CLIENT_SECRETS_FILE = "gemini-bot-calendar-7784736b55fb.json"  # Your OAuth2 client JSON
+CLIENT_SECRETS_FILE = "oauth_client.json"
 SCOPES = ["https://www.googleapis.com/auth/drive.file"]
-REDIRECT_PORT = 8090
-REDIRECT_URI = f"http://localhost:{REDIRECT_PORT}/callback"
+REDIRECT_PORT = 3000
+REDIRECT_URI = f"http://localhost:{REDIRECT_PORT}/oauth/google/callback"
 
 
 class CallbackHandler(BaseHTTPRequestHandler):
@@ -45,18 +45,15 @@ class CallbackHandler(BaseHTTPRequestHandler):
 
 
 def main():
-    # Load client config
     with open(CLIENT_SECRETS_FILE) as f:
         client_config = json.load(f)
 
-    # Create flow
     flow = Flow.from_client_config(
-        {"web": client_config["web"]},
+        client_config,
         scopes=SCOPES,
         redirect_uri=REDIRECT_URI,
     )
 
-    # Get authorization URL
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
@@ -67,7 +64,6 @@ def main():
     print(f"If it doesn't open, go to:\n{auth_url}\n")
     webbrowser.open(auth_url)
 
-    # Start local server to catch callback
     server = HTTPServer(("localhost", REDIRECT_PORT), CallbackHandler)
     print(f"Waiting for authorization on localhost:{REDIRECT_PORT}...")
 
@@ -76,7 +72,6 @@ def main():
 
     server.server_close()
 
-    # Exchange code for tokens
     flow.fetch_token(code=CallbackHandler.code)
     creds = flow.credentials
 
