@@ -14,7 +14,7 @@
   max-height: 85vh;
   overflow-y: auto;
   background: var(--color-surface, #fff);
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  border-radius: 24px 24px 0 0;
   padding: var(--spacing-md) var(--spacing-lg) var(--spacing-xl);
 }
 
@@ -65,9 +65,14 @@
 }
 
 .typeChipActive {
-  background: var(--color-primary-container, #e8def8);
-  border-color: var(--color-primary, #6750a4);
-  color: var(--color-primary, #6750a4);
+  background: #ffffff !important;
+  border-color: var(--color-primary, #6750a4) !important;
+  color: var(--color-primary, #6750a4) !important;
+  box-shadow: 0 2px 6px rgba(99, 14, 212, 0.12);
+}
+
+.typeChipActive span {
+  font-weight: 600;
 }
 
 .input {

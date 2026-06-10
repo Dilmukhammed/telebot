@@ -331,7 +331,7 @@
 
 .modal {
   background: var(--color-surface-container-lowest);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-radius: 24px 24px 0 0;
   padding: var(--spacing-lg);
   width: 100%;
   max-width: 480px;
