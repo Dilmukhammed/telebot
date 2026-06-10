@@ -6,17 +6,22 @@ export function useMaterials(subjectId?: number, lessonId?: number) {
   return useQuery({
     queryKey: ['materials', { subjectId, lessonId }],
     queryFn: () => getMaterials(subjectId, lessonId),
-    enabled: subjectId !== undefined || lessonId !== undefined,
+    enabled: (subjectId !== undefined && subjectId !== 0) || (lessonId !== undefined && lessonId !== 0),
+    staleTime: 60_000, // 1 minute
   })
+}
+
+function invalidateAllMaterialQueries(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['materials'] })
+  qc.invalidateQueries({ queryKey: ['lesson'] })
+  qc.invalidateQueries({ queryKey: ['course'] })
 }
 
 export function useCreateMaterial() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: MaterialCreate) => createMaterial(data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['materials'] })
-    },
+    onSuccess: () => invalidateAllMaterialQueries(qc),
   })
 }
 
@@ -26,9 +31,7 @@ export function useUploadMaterial() {
     mutationFn: ({ file, title, subjectId, lessonId }: {
       file: File; title: string; subjectId?: number; lessonId?: number
     }) => uploadMaterial(file, title, subjectId, lessonId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['materials'] })
-    },
+    onSuccess: () => invalidateAllMaterialQueries(qc),
   })
 }
 
@@ -36,8 +39,6 @@ export function useDeleteMaterial() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => deleteMaterial(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['materials'] })
-    },
+    onSuccess: () => invalidateAllMaterialQueries(qc),
   })
 }
