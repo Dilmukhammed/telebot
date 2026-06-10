@@ -40,32 +40,6 @@ export default function Courses() {
       <SiteHeader title={t('courses.title')} hideProfile />
 
       <main className={styles.main}>
-        {/* Join Course Button for students */}
-        {isStudent && (
-          <button
-            onClick={() => navigate('/join')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              width: '100%',
-              padding: '14px',
-              marginBottom: 'var(--spacing-md)',
-              background: 'var(--color-primary)',
-              color: 'var(--color-on-primary)',
-              border: 'none',
-              borderRadius: 'var(--radius-full)',
-              fontSize: 'var(--font-md)',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>key</span>
-            Записаться по коду
-          </button>
-        )}
-
         {/* Course Cards */}
         <div className={styles.coursesList}>
           {courses.length > 0 ? (
@@ -110,8 +84,18 @@ export default function Courses() {
               <p>{t('courses.noCourses')}</p>
             </div>
           )}
-
         </div>
+
+        {/* Join Course Button for students */}
+        {isStudent && (
+          <button
+            onClick={() => navigate('/join')}
+            className={styles.joinCourseCard}
+          >
+            <span className="material-symbols-outlined">key</span>
+            Записаться по коду
+          </button>
+        )}
 
         <div className={styles.bottomSpacer} />
       </main>

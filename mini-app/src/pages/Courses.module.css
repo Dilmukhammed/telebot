@@ -199,3 +199,27 @@
   color: var(--color-on-surface-variant);
   font-size: var(--font-sm);
 }
+
+.joinCourseCard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  background: rgba(99, 14, 212, 0.01);
+  border: 2px dashed rgba(99, 14, 212, 0.2);
+  border-radius: var(--radius-lg);
+  color: var(--color-primary);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 12px;
+}
+
+.joinCourseCard:active {
+  transform: scale(0.98);
+  background: rgba(99, 14, 212, 0.05);
+  border-color: rgba(99, 14, 212, 0.35);
+}
