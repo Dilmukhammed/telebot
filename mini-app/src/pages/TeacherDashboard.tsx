@@ -319,7 +319,7 @@ export default function TeacherDashboard() {
 
       <main className={styles.main}>
         {/* Welcome Section */}
-        <div className={styles.welcomeCard} onClick={() => navigate('/calendar')} role="button" tabIndex={0}>
+        <div className={styles.welcomeCard}>
           <div className={styles.welcomeLeft}>
             <h1 className={styles.welcomeGreeting}>
               {getGreeting(profile.first_name)}

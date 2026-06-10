@@ -34,16 +34,8 @@
   box-shadow: 0 4px 20px rgba(124, 58, 237, 0.03);
   margin-bottom: 16px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(246, 243, 253, 0.95) 100%);
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-}
-
-.welcomeCard:active {
-  transform: scale(0.98);
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.02);
-  background: linear-gradient(135deg, rgba(252, 251, 255, 0.95) 0%, rgba(241, 237, 252, 0.95) 100%);
 }
 
 .welcomeLeft {
@@ -101,12 +93,6 @@
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(124, 58, 237, 0.06);
   flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.welcomeCard:hover .welcomeCalendarWidget {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.12);
 }
 
 .widgetHeader {
