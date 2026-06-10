@@ -53,28 +53,37 @@
 /* Tab Navigation */
 .tabNav {
   display: flex;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--color-surface-container-lowest);
-  border-bottom: 1px solid var(--color-gray-200);
+  gap: 4px;
+  background: #f1f3f9;
+  border-radius: 9999px;
+  padding: 4px;
+  margin: 12px 16px 0;
+  max-width: 600px;
+}
+
+@media (min-width: 632px) {
+  .tabNav {
+    margin: 12px auto 0;
+  }
 }
 
 .tabButton {
   flex: 1;
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   font-weight: 600;
   padding: 8px;
   border: none;
   background: transparent;
-  color: var(--color-on-surface-variant);
-  border-radius: var(--radius-md);
+  color: #64748b;
+  border-radius: 9999px;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 0.2s ease;
 }
 
 .tabButtonActive {
-  background: rgba(99, 14, 212, 0.08);
-  color: var(--color-primary);
+  background: #ffffff;
+  color: var(--color-primary) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 /* Main */
