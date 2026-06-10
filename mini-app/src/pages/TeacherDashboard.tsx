@@ -112,13 +112,12 @@ function EnrollmentRequestsSection() {
       <div className={styles.sectionHeader}>
         <h2 className={styles.sectionTitle}>{t('teacher.enrollmentRequests')}</h2>
         <span style={{
-          background: 'rgba(16, 185, 129, 0.1)',
-          color: '#059669',
-          border: '1px solid rgba(16, 185, 129, 0.22)',
+          background: 'var(--color-primary)',
+          color: 'var(--color-on-primary)',
           borderRadius: 'var(--radius-full)',
           padding: '2px 10px',
           fontSize: 'var(--font-xs)',
-          fontWeight: 700,
+          fontWeight: 600,
         }}>
           {requests.length}
         </span>
@@ -364,7 +363,7 @@ export default function TeacherDashboard() {
               onClick={() => navigate('/teacher/students')}
               style={{ cursor: 'pointer' }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: '22px', color: '#10b981' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '22px', color: 'var(--color-primary)' }}>
                 groups
               </span>
               <span className={styles.statValue}>{stats.total_students}</span>

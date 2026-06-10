@@ -86,18 +86,18 @@
   width: 52px;
   height: 56px;
   background: #ffffff;
-  border: 1.5px solid rgba(16, 185, 129, 0.22);
+  border: 1.5px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
   flex-shrink: 0;
 }
 
 .widgetHeader {
   height: 16px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, #7c3aed 0%, #630ed4 100%);
   color: #ffffff;
   font-size: 8px;
   font-weight: 800;
@@ -186,15 +186,15 @@
   padding: 14px 16px;
   background: var(--color-surface-container-lowest);
   border-radius: var(--radius-lg);
-  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.04);
-  border: 1px solid rgba(124, 58, 237, 0.06);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-left: 4px solid var(--color-primary-container);
   transition: all 0.2s ease;
 }
 
 .lessonCard:active {
   transform: scale(0.97);
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.02);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
 }
 
 .lessonTime {
@@ -204,8 +204,8 @@
   justify-content: center;
   min-width: 52px;
   height: 40px;
-  background: var(--color-secondary-container, #e3e1ed);
-  border-radius: var(--radius-sm);
+  background: #f1f3f9;
+  border-radius: var(--radius-md, 8px);
   padding: 0 8px;
 }
 
@@ -213,13 +213,13 @@
   font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--color-primary);
+  color: #64748b;
 }
 
 .lessonHour {
   font-size: var(--font-md);
   font-weight: 700;
-  color: var(--color-primary);
+  color: #1e293b;
 }
 
 .lessonInfo {
@@ -265,7 +265,7 @@
   background: var(--color-surface-container-lowest);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--color-outline-variant, #ccc3d8);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   gap: 4px;
   transition: all 0.2s ease;
 }
@@ -641,19 +641,19 @@
 
 .lessonCardOngoing {
   background: var(--color-surface-container-lowest) !important;
-  border-color: rgba(16, 185, 129, 0.15) !important;
-  border-left: 6px solid #10b981 !important;
-  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.05) !important;
+  border-color: rgba(99, 14, 212, 0.12) !important;
+  border-left: 6px solid var(--color-primary, #630ed4) !important;
+  box-shadow: var(--shadow-md) !important;
   transition: all 0.2s ease;
 }
 
 .lessonCardOngoing .lessonTime {
-  background: rgba(16, 185, 129, 0.08) !important;
+  background: var(--color-secondary-container, #e3e1ed) !important;
 }
 
 .lessonCardOngoing .lessonDay,
 .lessonCardOngoing .lessonHour {
-  color: #059669 !important;
+  color: var(--color-primary, #630ed4) !important;
 }
 
 .countdownActive {
