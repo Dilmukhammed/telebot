@@ -30,6 +30,9 @@ export {
   useMarkAttendance,
   useLessonAttendance,
   useUpdateLesson,
+  useEnrollmentRequests,
+  useApproveEnrollment,
+  useRejectEnrollment,
 } from './useTeacher'
 
 // Lesson

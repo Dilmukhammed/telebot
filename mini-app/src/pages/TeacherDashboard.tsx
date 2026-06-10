@@ -99,7 +99,6 @@ const isLessonOngoing = (dateStr?: string, timeStr?: string): boolean => {
 }
 
 function EnrollmentRequestsSection() {
-  const { t } = useTranslation()
   const { data: requests = [], isLoading } = useEnrollmentRequests()
   const approveMutation = useApproveEnrollment()
   const rejectMutation = useRejectEnrollment()

@@ -1,12 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
 import { joinCourse } from '../api/client'
 import SiteHeader from '../components/SiteHeader'
 import styles from './JoinCourse.module.css'
 
 export default function JoinCourse() {
-  const { t } = useTranslation()
   const navigate = useNavigate()
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
