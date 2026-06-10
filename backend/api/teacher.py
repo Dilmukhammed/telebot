@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 
 from database import get_db
-from models import User, Lesson, LessonEnrollment, Subject, Attendance, Notification, NotificationRecipient, NotificationRead, LessonStatus
+from models import User, Lesson, LessonEnrollment, Subject, Attendance, Notification, NotificationRecipient, NotificationRead, LessonStatus, EnrollmentRequest
 from api.deps import require_teacher
 
 router = APIRouter(prefix="/teacher", tags=["teacher"])
@@ -588,6 +588,7 @@ class TeacherCourseOut(BaseModel):
     id: int
     name: str
     student_count: int
+    invite_code: str | None = None
 
 
 @router.get("/courses", response_model=list[TeacherCourseOut])
@@ -637,6 +638,7 @@ async def get_teacher_courses(
             id=subject.id,
             name=subject.name,
             student_count=student_counts.get(subject.id, 0),
+            invite_code=subject.invite_code,
         ))
 
     return courses
@@ -878,6 +880,174 @@ async def create_announcement(
         sender_role=user.role,
         sender_id=notification.sender_id,
     )
+
+
+# --- Enrollment Requests ---
+
+class EnrollmentRequestOut(BaseModel):
+    id: int
+    subject_id: int
+    subject_name: str
+    user_id: int
+    user_name: str
+    status: str
+    created_at: str
+
+
+@router.get("/enrollment-requests", response_model=list[EnrollmentRequestOut])
+async def get_enrollment_requests(
+    user: User = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get pending enrollment requests for teacher's courses."""
+    # Get subject IDs where teacher has lessons
+    lessons_result = await db.execute(
+        select(Lesson.subject_id)
+        .where(and_(Lesson.teacher_id == user.id, Lesson.is_active == True))
+        .distinct()
+    )
+    subject_ids = [row[0] for row in lessons_result.all()]
+    if not subject_ids:
+        return []
+
+    # Get pending requests
+    result = await db.execute(
+        select(EnrollmentRequest, Subject, User)
+        .join(Subject, Subject.id == EnrollmentRequest.subject_id)
+        .join(User, User.id == EnrollmentRequest.user_id)
+        .where(
+            and_(
+                EnrollmentRequest.subject_id.in_(subject_ids),
+                EnrollmentRequest.status == "pending",
+            )
+        )
+        .order_by(EnrollmentRequest.created_at.desc())
+    )
+    rows = result.all()
+
+    return [
+        EnrollmentRequestOut(
+            id=req.id,
+            subject_id=req.subject_id,
+            subject_name=subject.name,
+            user_id=req.user_id,
+            user_name=student.first_name or (f"@{student.username}" if student.username else "Ученик"),
+            status=req.status,
+            created_at=req.created_at.strftime("%Y-%m-%d %H:%M") if req.created_at else "",
+        )
+        for req, subject, student in rows
+    ]
+
+
+@router.post("/enrollment-requests/{request_id}/approve")
+async def approve_enrollment(
+    request_id: int,
+    user: User = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """Approve enrollment request - enroll student in all lessons."""
+    result = await db.execute(
+        select(EnrollmentRequest, Subject)
+        .join(Subject, Subject.id == EnrollmentRequest.subject_id)
+        .where(EnrollmentRequest.id == request_id)
+    )
+    row = result.one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    req, subject = row
+
+    # Verify teacher owns this course
+    lesson_check = await db.execute(
+        select(Lesson.id)
+        .where(and_(Lesson.subject_id == req.subject_id, Lesson.teacher_id == user.id, Lesson.is_active == True))
+        .limit(1)
+    )
+    if not lesson_check.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Not your course")
+
+    # Get all active lessons for this subject
+    lessons_result = await db.execute(
+        select(Lesson.id)
+        .where(and_(Lesson.subject_id == req.subject_id, Lesson.is_active == True))
+    )
+    lesson_ids = [row[0] for row in lessons_result.all()]
+
+    # Enroll student in all lessons
+    for lesson_id in lesson_ids:
+        existing = await db.execute(
+            select(LessonEnrollment)
+            .where(and_(LessonEnrollment.lesson_id == lesson_id, LessonEnrollment.user_id == req.user_id))
+        )
+        if not existing.scalar_one_or_none():
+            db.add(LessonEnrollment(lesson_id=lesson_id, user_id=req.user_id))
+
+    # Update request status
+    req.status = "approved"
+    await db.commit()
+
+    # Notify student via Telegram
+    from bot.bot import bot
+    student_result = await db.execute(select(User.telegram_id).where(User.id == req.user_id))
+    tg_id = student_result.scalar_one_or_none()
+    if tg_id:
+        try:
+            await bot.send_message(
+                chat_id=tg_id,
+                text=f"✅ Ваша заявка на курс <b>{subject.name}</b> одобрена! Вы зачислены.",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+
+    return {"message": "Enrollment approved"}
+
+
+@router.post("/enrollment-requests/{request_id}/reject")
+async def reject_enrollment(
+    request_id: int,
+    user: User = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reject enrollment request."""
+    result = await db.execute(
+        select(EnrollmentRequest, Subject)
+        .join(Subject, Subject.id == EnrollmentRequest.subject_id)
+        .where(EnrollmentRequest.id == request_id)
+    )
+    row = result.one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    req, subject = row
+
+    # Verify teacher owns this course
+    lesson_check = await db.execute(
+        select(Lesson.id)
+        .where(and_(Lesson.subject_id == req.subject_id, Lesson.teacher_id == user.id, Lesson.is_active == True))
+        .limit(1)
+    )
+    if not lesson_check.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Not your course")
+
+    req.status = "rejected"
+    await db.commit()
+
+    # Notify student via Telegram
+    from bot.bot import bot
+    student_result = await db.execute(select(User.telegram_id).where(User.id == req.user_id))
+    tg_id = student_result.scalar_one_or_none()
+    if tg_id:
+        try:
+            await bot.send_message(
+                chat_id=tg_id,
+                text=f"❌ Ваша заявка на курс <b>{subject.name}</b> отклонена.",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+
+    return {"message": "Enrollment rejected"}
 
 
 # --- Lesson Status & Attendance Endpoints ---

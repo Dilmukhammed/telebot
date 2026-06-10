@@ -1,5 +1,7 @@
 import json as _json
 import logging
+import secrets
+import string
 from html import escape
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -65,6 +67,18 @@ def _calculate_end_time(start_time: str, duration_minutes: int = 90) -> str:
         return f"{total // 60:02d}:{total % 60:02d}"
     except Exception:
         return ""
+
+
+def _time_to_minutes(t: str) -> int:
+    h, m = map(int, t.split(":"))
+    return h * 60 + m
+
+
+def _times_overlap(start1: str, end1: str, start2: str, end2: str) -> bool:
+    """True if two HH:MM intervals overlap."""
+    s1, e1 = _time_to_minutes(start1), _time_to_minutes(end1)
+    s2, e2 = _time_to_minutes(start2), _time_to_minutes(end2)
+    return s1 < e2 and e1 > s2
 
 
 # ── Stats ─────────────────────────────────────────────────────────────
@@ -215,16 +229,18 @@ async def search_courses(
     admin=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    # Search courses matching day/time
+    if _time_to_minutes(time_from) >= _time_to_minutes(time_to):
+        raise HTTPException(status_code=400, detail="time_from must be before time_to")
+
+    # Lessons on selected days in non-archived courses
     query = (
         select(Lesson, Subject)
         .join(Subject, Lesson.subject_id == Subject.id)
         .where(
             and_(
                 Lesson.is_active == True,
+                Subject.is_archived == False,
                 Lesson.day_of_week.in_(days),
-                Lesson.time >= time_from,
-                Lesson.time <= time_to,
             )
         )
     )
@@ -236,24 +252,31 @@ async def search_courses(
     result = await db.execute(query)
     lessons = result.all()
 
-    courses = []
-    seen_subjects = set()
-    for lesson, subject in lessons:
-        if subject.id in seen_subjects:
-            continue
-        seen_subjects.add(subject.id)
-
-        # Count enrollments
-        count_result = await db.execute(
-            select(func.count()).select_from(LessonEnrollment)
-            .where(LessonEnrollment.lesson_id == lesson.id)
+    lesson_ids = [lesson.id for lesson, _ in lessons]
+    enrollment_counts: dict[int, int] = {}
+    if lesson_ids:
+        counts_result = await db.execute(
+            select(LessonEnrollment.lesson_id, func.count(LessonEnrollment.id))
+            .where(LessonEnrollment.lesson_id.in_(lesson_ids))
+            .group_by(LessonEnrollment.lesson_id)
         )
-        student_count = count_result.scalar() or 0
+        enrollment_counts = dict(counts_result.all())
 
-        end_time = _calculate_end_time(lesson.time, subject.duration_minutes or 90)
+    courses = []
+    for lesson, subject in lessons:
+        duration = subject.duration_minutes or 90
+        end_time = _calculate_end_time(lesson.time, duration)
+        if not end_time or not _times_overlap(lesson.time, end_time, time_from, time_to):
+            continue
+
+        student_count = enrollment_counts.get(lesson.id, 0)
+        spots_left = lesson.max_capacity - student_count
+        if spots_left <= 0:
+            continue
 
         courses.append(SearchCourseResult(
             id=subject.id,
+            lesson_id=lesson.id,
             name=subject.name,
             teacher_name=lesson.teacher_name,
             day_of_week=lesson.day_of_week,
@@ -262,10 +285,14 @@ async def search_courses(
             end_time=end_time,
             room=lesson.room,
             student_count=student_count,
-            has_open_slots=student_count < lesson.max_capacity,
+            max_capacity=lesson.max_capacity,
+            spots_left=spots_left,
+            has_open_slots=True,
         ))
 
-    # Search teacher availability slots
+    courses.sort(key=lambda x: (x.day_of_week, x.time, x.name))
+
+    # Teacher availability windows overlapping the search range
     avail_query = (
         select(TeacherAvailability, User)
         .join(User, TeacherAvailability.teacher_id == User.id)
@@ -273,8 +300,8 @@ async def search_courses(
             and_(
                 TeacherAvailability.is_active == True,
                 TeacherAvailability.day_of_week.in_(days),
-                TeacherAvailability.start_time >= time_from,
-                TeacherAvailability.start_time <= time_to,
+                User.role == "teacher",
+                User.is_active == True,
             )
         )
     )
@@ -286,6 +313,8 @@ async def search_courses(
 
     open_slots = []
     for slot, user in avail_slots:
+        if not _times_overlap(slot.start_time, slot.end_time, time_from, time_to):
+            continue
         open_slots.append(SearchAvailabilityResult(
             teacher_id=user.id,
             teacher_name=user.first_name or user.username or "Преподаватель",
@@ -294,6 +323,8 @@ async def search_courses(
             start_time=slot.start_time,
             end_time=slot.end_time,
         ))
+
+    open_slots.sort(key=lambda x: (x.day_of_week, x.start_time, x.teacher_name))
 
     return SearchResultOut(courses=courses, open_slots=open_slots)
 
@@ -738,6 +769,7 @@ async def get_admin_subjects(
             student_count=student_counts.get(subj.id, 0),
             teacher_names=teacher_names,
             is_archived=subj.is_archived or False,
+            invite_code=subj.invite_code,
         ))
 
     return out
@@ -764,12 +796,25 @@ async def create_admin_subject(
             raise HTTPException(status_code=400, detail="Teacher not found")
         teacher_name = f"{teacher.first_name or ''} {teacher.last_name or ''}".strip()
 
+    # Generate unique invite code
+    alphabet = string.ascii_uppercase + string.digits
+    invite_code = None
+    for _ in range(10):  # Try 10 times max
+        code = ''.join(secrets.choice(alphabet) for _ in range(6))
+        exists = await db.execute(select(Subject).where(Subject.invite_code == code))
+        if not exists.scalar_one_or_none():
+            invite_code = code
+            break
+    if not invite_code:
+        raise HTTPException(status_code=500, detail="Failed to generate unique invite code")
+
     # Create subject
     subject = Subject(
         name=data.name,
         description=data.description,
         duration_weeks=data.duration_weeks,
         duration_minutes=data.duration_minutes,
+        invite_code=invite_code,
     )
     db.add(subject)
     await db.flush()
@@ -950,6 +995,7 @@ async def get_admin_subject_detail(
         duration_weeks=subject.duration_weeks,
         start_date=subject.start_date.strftime("%Y-%m-%d") if subject.start_date else None,
         is_archived=subject.is_archived or False,
+        invite_code=subject.invite_code,
         lessons=admin_lessons,
         students=[
             UserOut(

@@ -4,8 +4,8 @@ from sqlalchemy import select, and_
 from datetime import datetime, timedelta
 
 from database import get_db
-from models import Subject, Lesson, User, LessonStatus, LessonEnrollment
-from schemas import CourseOut, CourseDetailOut, CourseLessonOut, LessonDetailOut, LessonMaterialOut, LessonAgendaItemOut, LessonHomeworkOut
+from models import Subject, Lesson, User, LessonStatus, LessonEnrollment, EnrollmentRequest
+from schemas import CourseOut, CourseDetailOut, CourseLessonOut, LessonDetailOut, LessonMaterialOut, LessonAgendaItemOut, LessonHomeworkOut, JoinCourseIn, EnrollmentRequestOut
 from api.deps import get_telegram_user
 
 router = APIRouter(prefix="/courses", tags=["courses"])
@@ -348,5 +348,69 @@ async def get_course_detail(
         duration_weeks=subject.duration_weeks,
         duration_minutes=subject.duration_minutes or 90,
         start_date=subject.start_date.strftime("%Y-%m-%d") if subject.start_date else None,
+        invite_code=subject.invite_code,
         lessons=course_lessons,
     )
+
+
+@router.post("/join")
+async def join_course(
+    data: JoinCourseIn,
+    user: User = Depends(get_telegram_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Student joins a course using invite code. Creates pending enrollment request."""
+    if user.role != "student":
+        raise HTTPException(status_code=403, detail="Only students can join courses")
+
+    # Find subject by invite code
+    result = await db.execute(
+        select(Subject).where(Subject.invite_code == data.invite_code.upper())
+    )
+    subject = result.scalar_one_or_none()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Invalid invite code")
+
+    if subject.is_archived:
+        raise HTTPException(status_code=400, detail="This course is archived")
+
+    # Check if already enrolled in any lesson of this subject
+    lessons_result = await db.execute(
+        select(Lesson.id).where(Lesson.subject_id == subject.id, Lesson.is_active == True)
+    )
+    lesson_ids = [row[0] for row in lessons_result.all()]
+    if lesson_ids:
+        existing_enrollment = await db.execute(
+            select(LessonEnrollment).where(
+                and_(
+                    LessonEnrollment.lesson_id.in_(lesson_ids),
+                    LessonEnrollment.user_id == user.id
+                )
+            )
+        )
+        if existing_enrollment.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="You are already enrolled in this course")
+
+    # Check if already has a pending request
+    existing_request = await db.execute(
+        select(EnrollmentRequest).where(
+            and_(
+                EnrollmentRequest.subject_id == subject.id,
+                EnrollmentRequest.user_id == user.id,
+                EnrollmentRequest.status == "pending"
+            )
+        )
+    )
+    if existing_request.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="You already have a pending request for this course")
+
+    # Create enrollment request
+    enrollment_request = EnrollmentRequest(
+        subject_id=subject.id,
+        user_id=user.id,
+        status="pending",
+    )
+    db.add(enrollment_request)
+    await db.commit()
+
+    return {"message": "Request sent successfully", "subject_name": subject.name}

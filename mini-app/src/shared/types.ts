@@ -250,6 +250,7 @@ export interface CourseDetailOut {
   duration_weeks: number | null;
   duration_minutes: number;
   start_date?: string | null;
+  invite_code?: string | null;
   lessons: CourseLessonOut[];
 }
 
@@ -432,6 +433,7 @@ export interface AdminLessonOut {
 
 export interface SearchCourseResult {
   id: number;
+  lesson_id: number;
   name: string;
   teacher_name: string;
   day_of_week: number;
@@ -440,6 +442,8 @@ export interface SearchCourseResult {
   end_time: string;
   room: string;
   student_count: number;
+  max_capacity: number;
+  spots_left: number;
   has_open_slots: boolean;
 }
 

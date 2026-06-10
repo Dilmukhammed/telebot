@@ -86,6 +86,38 @@ async def lifespan(app: FastAPI):
                 except Exception:
                     pass
 
+            # Add invite_code column to subjects if missing
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE subjects ADD COLUMN invite_code VARCHAR(6)"
+                ))
+                await conn.execute(text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_subjects_invite_code ON subjects (invite_code)"
+                ))
+            except Exception:
+                pass  # Column already exists
+
+            # Create enrollment_requests table if missing
+            try:
+                await conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS enrollment_requests (
+                        id SERIAL PRIMARY KEY,
+                        subject_id INTEGER NOT NULL REFERENCES subjects(id),
+                        user_id INTEGER NOT NULL REFERENCES users(id),
+                        status VARCHAR DEFAULT 'pending',
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        UNIQUE(subject_id, user_id)
+                    )
+                """))
+                await conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_enrollment_requests_subject_id ON enrollment_requests (subject_id)"
+                ))
+                await conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_enrollment_requests_user_id ON enrollment_requests (user_id)"
+                ))
+            except Exception:
+                pass  # Table already exists
+
         if reset_db:
             print("[startup] RESET_DB=true — wiping all tables...")
             for table in reversed(Base.metadata.sorted_tables):

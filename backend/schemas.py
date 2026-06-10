@@ -156,6 +156,7 @@ class CourseDetailOut(BaseModel):
     duration_weeks: Optional[int] = None  # Course duration in weeks (None = indefinite)
     duration_minutes: int = 90  # Lesson duration in minutes
     start_date: Optional[str] = None  # Course start date ("YYYY-MM-DD")
+    invite_code: Optional[str] = None
     lessons: list[CourseLessonOut]
 
 
@@ -402,6 +403,7 @@ class AdminAnnouncementOut(BaseModel):
 
 class SearchCourseResult(BaseModel):
     id: int
+    lesson_id: int
     name: str
     teacher_name: str
     day_of_week: int
@@ -410,6 +412,8 @@ class SearchCourseResult(BaseModel):
     end_time: str
     room: str
     student_count: int
+    max_capacity: int
+    spots_left: int
     has_open_slots: bool
 
 
@@ -436,6 +440,7 @@ class AdminSubjectOut(BaseModel):
     student_count: int = 0
     teacher_names: list[str] = []
     is_archived: bool = False
+    invite_code: Optional[str] = None
 
 
 class AdminSubjectDetailOut(BaseModel):
@@ -446,6 +451,7 @@ class AdminSubjectDetailOut(BaseModel):
     duration_weeks: Optional[int] = None
     start_date: Optional[str] = None
     is_archived: bool = False
+    invite_code: Optional[str] = None
     lessons: list[AdminLessonOut] = []
     students: list[UserOut] = []
 
@@ -516,3 +522,19 @@ class AuditLogOut(BaseModel):
     performed_by_name: Optional[str] = None
     performed_by_type: Optional[str] = None
     performed_at: str
+
+
+# --- Enrollment ---
+
+class JoinCourseIn(BaseModel):
+    invite_code: str = Field(min_length=6, max_length=6)
+
+
+class EnrollmentRequestOut(BaseModel):
+    id: int
+    subject_id: int
+    subject_name: str
+    user_id: int
+    user_name: str
+    status: str
+    created_at: str

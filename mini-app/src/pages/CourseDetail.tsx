@@ -178,6 +178,20 @@ export default function CourseDetail() {
                   <span className={styles.aboutRowValue}>{course.location}</span>
                 </div>
               )}
+              {isTeacherOrAdmin && course.invite_code && (
+                <div
+                  className={styles.aboutRow}
+                  onClick={() => { navigator.clipboard.writeText(course.invite_code!); alert('Код скопирован!') }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)', fontSize: '20px' }}>key</span>
+                  <span className={styles.aboutRowLabel}>Код для записи</span>
+                  <span className={styles.aboutRowValue} style={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: '2px' }}>
+                    {course.invite_code}
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px', marginLeft: '8px', verticalAlign: 'middle', opacity: 0.6 }}>content_copy</span>
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Schedule & Details */}

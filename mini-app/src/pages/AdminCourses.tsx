@@ -547,6 +547,10 @@ function SearchView() {
       setError('Выберите хотя бы один день')
       return
     }
+    if (timeFrom >= timeTo) {
+      setError('Время «С» должно быть раньше «По»')
+      return
+    }
     setSearching(true)
     setError('')
     try {
@@ -598,35 +602,38 @@ function SearchView() {
 
       {results && (
         <div className={styles.results}>
-          <h3 className={styles.resultsTitle}>Совпадающие занятия</h3>
+          <h3 className={styles.resultsTitle}>Курсы со свободными местами</h3>
           {results.courses.length === 0 ? (
             <div className={styles.emptyState}>
               <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#7b7487' }}>search_off</span>
-              <p>Занятий не найдено</p>
+              <p>Нет курсов с местами в выбранное время</p>
             </div>
           ) : (
             results.courses.map(c => (
-              <div key={c.id} className={styles.resultCard}>
+              <div key={c.lesson_id} className={styles.resultCard}>
                 <div className={styles.resultName}>{c.name}</div>
                 <div className={styles.resultMeta}>
-                  {c.teacher_name} · {c.day_name} {c.time}-{c.end_time} · {c.room} · {c.student_count} уч.
+                  {c.teacher_name} · {c.day_name} {c.time}–{c.end_time} · {c.room}
+                </div>
+                <div className={styles.resultMeta}>
+                  Свободно {c.spots_left} из {c.max_capacity} мест
                 </div>
               </div>
             ))
           )}
 
-          <h3 className={styles.resultsTitle}>Свободные слоты</h3>
+          <h3 className={styles.resultsTitle}>Открытые слоты учителей</h3>
           {results.open_slots.length === 0 ? (
             <div className={styles.emptyState}>
               <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#7b7487' }}>event_available</span>
-              <p>Нет доступных окон</p>
+              <p>Нет окон у учителей в выбранное время</p>
             </div>
           ) : (
-            results.open_slots.map((s, idx) => (
-              <div key={idx} className={`${styles.resultCard} ${styles.resultCardAccent}`}>
+            results.open_slots.map(s => (
+              <div key={`${s.teacher_id}-${s.day_of_week}-${s.start_time}`} className={`${styles.resultCard} ${styles.resultCardAccent}`}>
                 <div className={styles.resultName}>{s.teacher_name}</div>
                 <div className={styles.resultMeta}>
-                  {s.day_name} {s.start_time}-{s.end_time}
+                  {s.day_name} {s.start_time}–{s.end_time}
                 </div>
               </div>
             ))

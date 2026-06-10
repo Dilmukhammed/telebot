@@ -32,6 +32,7 @@ class Subject(Base):
     duration_minutes: Mapped[int] = mapped_column(Integer, default=90)  # Lesson duration in minutes
     start_date: Mapped[dt.datetime | None] = mapped_column(DateTime, default=utcnow, nullable=True)  # Course start date
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, index=True)  # Archived courses hidden from students/teachers
+    invite_code: Mapped[str | None] = mapped_column(String(6), unique=True, nullable=True, index=True)  # Short code for student enrollment
 
     tests: Mapped[list["Test"]] = relationship("Test", back_populates="subject")
     lessons: Mapped[list["Lesson"]] = relationship("Lesson", back_populates="subject")
@@ -276,4 +277,23 @@ class AuditLog(Base):
 
     __table_args__ = (
         Index("ix_audit_entity", "entity_type", "entity_id"),
+    )
+
+
+class EnrollmentRequest(Base):
+    """Student request to join a course via invite code."""
+    __tablename__ = "enrollment_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    subject_id: Mapped[int] = mapped_column(Integer, ForeignKey("subjects.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String, default="pending")  # pending/approved/rejected
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
+
+    subject: Mapped["Subject"] = relationship("Subject")
+    user: Mapped["User"] = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint("subject_id", "user_id", name="uq_enrollment_request"),
+        CheckConstraint("status IN ('pending', 'approved', 'rejected')", name="ck_enrollment_status"),
     )
