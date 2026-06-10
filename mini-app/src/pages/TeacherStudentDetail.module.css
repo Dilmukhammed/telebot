@@ -39,7 +39,7 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary-container) 0%, var(--color-primary) 100%);
+  background: var(--color-secondary-container, #e3e1ed);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -50,7 +50,7 @@
 
 .avatar .material-symbols-outlined {
   font-size: 32px;
-  color: var(--color-on-primary);
+  color: var(--color-primary, #630ed4);
 }
 
 .avatarImg {
@@ -169,7 +169,7 @@
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-primary-container) 0%, var(--color-primary) 100%);
+  background: var(--color-primary, #630ed4);
   border-radius: 3px;
   transition: width 0.3s ease;
 }

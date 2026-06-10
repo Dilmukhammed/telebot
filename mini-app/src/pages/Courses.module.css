@@ -46,16 +46,16 @@
   background: var(--color-surface-container-lowest);
   border-radius: var(--radius-lg);
   padding: 16px;
-  border: 1px solid var(--color-gray-200);
-  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.04);
+  border: 1px solid var(--color-outline-variant, #ccc3d8);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
   transition: all 0.2s ease;
 }
 
 .courseCard:active {
   transform: scale(0.98);
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.02);
-  border-color: rgba(124, 58, 237, 0.15);
+  box-shadow: none;
+  border-color: var(--color-primary-container, #7c3aed);
 }
 
 .cardHeader {

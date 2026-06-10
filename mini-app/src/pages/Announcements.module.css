@@ -101,7 +101,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.4);
+  box-shadow: var(--shadow-md);
   cursor: pointer;
   transition: transform 0.2s, background 0.2s;
   z-index: 99;

@@ -63,7 +63,7 @@
 .metaItem span:first-child,
 .metaItemFull span:first-child {
   font-size: 18px;
-  color: var(--color-primary);
+  color: var(--color-on-surface-variant);
 }
 
 .metaItemFull {
@@ -363,11 +363,11 @@
   width: 36px;
   height: 36px;
   border-radius: var(--radius-md);
-  background: rgba(99, 14, 212, 0.05);
+  background: var(--color-gray-100);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-primary);
+  color: var(--color-on-surface-variant);
   flex-shrink: 0;
 }
 
@@ -565,7 +565,7 @@
 
 .attendanceUser span:first-child {
   font-size: 16px;
-  color: var(--color-primary);
+  color: var(--color-outline-variant, #ccc3d8);
 }
 
 .attendanceItemPresent .attendanceUser span:first-child {
@@ -846,8 +846,8 @@
 .planItemNumber {
   font-size: var(--font-xs);
   font-weight: 700;
-  color: var(--color-primary);
-  background: rgba(99, 14, 212, 0.08);
+  color: var(--color-on-surface-variant);
+  background: var(--color-gray-100);
   width: 24px;
   height: 24px;
   display: flex;

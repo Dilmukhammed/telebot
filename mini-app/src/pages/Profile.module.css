@@ -49,7 +49,7 @@
   border: 2px solid var(--color-secondary-container);
   padding: 2px;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--color-primary-container) 0%, var(--color-primary) 100%);
+  background: var(--color-secondary-container, #e3e1ed);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -58,7 +58,7 @@
 
 .avatar .material-symbols-outlined {
   font-size: 36px;
-  color: var(--color-on-primary);
+  color: var(--color-primary, #630ed4);
 }
 
 .avatarImg {
@@ -140,8 +140,8 @@
   gap: var(--spacing-xs);
   padding: 4px 12px;
   border-radius: 9999px;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: var(--color-secondary-container, #e3e1ed);
+  color: var(--color-primary, #630ed4);
   font-size: var(--font-xs);
   font-weight: 500;
   line-height: 14px;
@@ -243,11 +243,11 @@
   width: 36px;
   height: 36px;
   border-radius: var(--radius-md);
-  background: rgba(99, 14, 212, 0.08);
+  background: var(--color-gray-100);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-primary);
+  color: var(--color-on-surface-variant);
 }
 
 .actionLabel {

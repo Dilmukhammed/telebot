@@ -49,7 +49,7 @@ export default function Announcements() {
                         width: '8px',
                         height: '8px',
                         borderRadius: '50%',
-                        background: 'var(--color-primary)',
+                        background: 'var(--color-danger, #e53935)',
                         flexShrink: 0,
                       }} />
                     )}

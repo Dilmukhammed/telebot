@@ -228,7 +228,6 @@
 
 .dayButtonActive {
   background: var(--color-primary);
-  box-shadow: 0 2px 8px rgba(99, 14, 212, 0.3);
 }
 
 .dayButtonActive:hover {
@@ -355,9 +354,9 @@
   align-items: center;
   gap: 3px;
   font-size: var(--font-xs);
-  font-weight: 600;
-  color: var(--color-primary);
-  background: rgba(99, 14, 212, 0.08);
+  font-weight: 500;
+  color: var(--color-on-surface-variant);
+  background: var(--color-secondary-container, #e3e1ed);
   padding: 3px var(--spacing-sm);
   border-radius: 9999px;
 }
@@ -416,7 +415,7 @@
 }
 
 .weekDayHeaderActive {
-  background: rgba(99, 14, 212, 0.05);
+  background: var(--color-surface-container-high, #f3f4f6);
 }
 
 .weekDayName {
@@ -441,7 +440,6 @@
   background: var(--color-primary);
   color: var(--color-on-primary);
   border-radius: 50%;
-  box-shadow: 0 2px 6px rgba(99, 14, 212, 0.2);
 }
 
 /* Week Grid */
@@ -478,7 +476,7 @@
 }
 
 .dayColumnActive {
-  background: rgba(99, 14, 212, 0.03);
+  background: rgba(0, 0, 0, 0.015);
 }
 
 .hourCell {
