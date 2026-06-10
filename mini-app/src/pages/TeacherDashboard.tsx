@@ -364,7 +364,7 @@ export default function TeacherDashboard() {
               onClick={() => navigate('/teacher/students')}
               style={{ cursor: 'pointer' }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: '22px', color: 'var(--color-primary)' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '22px', color: '#10b981' }}>
                 groups
               </span>
               <span className={styles.statValue}>{stats.total_students}</span>

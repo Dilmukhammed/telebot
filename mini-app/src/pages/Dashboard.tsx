@@ -272,7 +272,7 @@ export default function Dashboard() {
                 onClick={() => navigate('/courses')}
                 style={{ cursor: 'pointer' }}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '22px', color: 'var(--color-primary)' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '22px', color: '#10b981' }}>
                   menu_book
                 </span>
                 <span className={styles.statValue}>{data.stats.total_courses}</span>
