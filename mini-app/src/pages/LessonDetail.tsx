@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useLessonDetail, useLessonAttendance } from '../api/hooks'
+import { useLessonDetail, useLessonAttendance, useCreateMaterial, useUploadMaterial, useDeleteMaterial } from '../api/hooks'
 import { markLessonStatus, markAttendance, updateLesson } from '../api/client'
-import type { AttendanceRecordIn } from '../shared/types'
+import type { AttendanceRecordIn, MaterialCreate } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
+import MaterialCard from '../components/MaterialCard'
+import MaterialForm from '../components/MaterialForm'
 import { Loading } from '../shared/components'
 import styles from './LessonDetail.module.css'
 
@@ -28,6 +30,31 @@ export default function LessonDetail() {
   const [showPlanModal, setShowPlanModal] = useState(false)
   const [editPlan, setEditPlan] = useState<{ title: string; description: string }[]>([])
   const [savingEdit, setSavingEdit] = useState(false)
+  const [showMaterialForm, setShowMaterialForm] = useState(false)
+
+  const createMaterial = useCreateMaterial()
+  const uploadMaterial = useUploadMaterial()
+  const deleteMaterial = useDeleteMaterial()
+
+  const handleMaterialSubmit = (data: MaterialCreate & { file?: File }) => {
+    if (data.type === 'file' && data.file) {
+      uploadMaterial.mutate(
+        { file: data.file, title: data.title, lessonId: lesson?.id },
+        { onSuccess: () => setShowMaterialForm(false) }
+      )
+    } else {
+      createMaterial.mutate(
+        { title: data.title, type: data.type, lesson_id: lesson?.id, subject_id: lesson?.subject_id, url: data.url, content: data.content },
+        { onSuccess: () => setShowMaterialForm(false) }
+      )
+    }
+  }
+
+  const handleMaterialDelete = (id: number) => {
+    if (confirm('Удалить материал?')) {
+      deleteMaterial.mutate(id)
+    }
+  }
   const [editError, setEditError] = useState<string | null>(null)
 
   const handleMarkStatus = async (status: 'happened' | 'cancelled') => {
@@ -153,16 +180,6 @@ export default function LessonDetail() {
     const d = new Date(dateStr + 'T00:00:00')
     const locale = i18n.language === 'en' ? 'en-US' : i18n.language === 'uz' ? 'uz-UZ' : 'ru-RU'
     return d.toLocaleDateString(locale, { day: 'numeric', month: 'long' })
-  }
-
-  const getMaterialIcon = (type: string) => {
-    switch (type) {
-      case 'slides': return 'present_to_all'
-      case 'worksheet': return 'description'
-      case 'video': return 'video_library'
-      case 'document': return 'description'
-      default: return 'description'
-    }
   }
 
   return (
@@ -357,21 +374,30 @@ export default function LessonDetail() {
         )}
 
         {/* Materials Section */}
-        {lesson.materials.length > 0 && (
-          <section className={styles.section}>
+        <section className={styles.section}>
+          <div className={styles.sectionHeaderRow}>
             <h3 className={styles.sectionTitle}>{t('lessonDetail.materials')}</h3>
-            <div className={styles.materialsScroll}>
+            {lesson.is_teacher && (
+              <button className={styles.addMaterialBtn} onClick={() => setShowMaterialForm(true)}>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+              </button>
+            )}
+          </div>
+          {lesson.materials.length > 0 ? (
+            <div className={styles.materialsList}>
               {lesson.materials.map((material) => (
-                <button key={material.id} className={styles.materialCard}>
-                  <span className={`material-symbols-outlined ${styles.materialIcon}`}>
-                    {getMaterialIcon(material.type)}
-                  </span>
-                  <span className={styles.materialTitle}>{material.title}</span>
-                </button>
+                <MaterialCard
+                  key={material.id}
+                  material={material}
+                  canDelete={lesson.is_teacher}
+                  onDelete={handleMaterialDelete}
+                />
               ))}
             </div>
-          </section>
-        )}
+          ) : (
+            <p className={styles.noMaterialsText}>{t('courseDetail.noMaterials')}</p>
+          )}
+        </section>
 
         {/* Homework Section */}
         {lesson.homework && (
@@ -506,6 +532,14 @@ export default function LessonDetail() {
             </button>
           </div>
         </div>
+      )}
+
+      {showMaterialForm && lesson && (
+        <MaterialForm
+          onSubmit={handleMaterialSubmit}
+          onClose={() => setShowMaterialForm(false)}
+          isPending={createMaterial.isPending || uploadMaterial.isPending}
+        />
       )}
     </div>
   )

@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     WEBAPP_URL: str = ""
     DEV_MODE: bool = False
     PORT: int = 8000
+    GOOGLE_SERVICE_ACCOUNT_KEY_PATH: str = ""  # Path to service account JSON key
+    GOOGLE_DRIVE_FOLDER_ID: str = ""  # Google Drive folder ID for uploads
 
     model_config = {
         "env_file": ".env",

@@ -280,6 +280,39 @@ class AuditLog(Base):
     )
 
 
+class Material(Base):
+    """Course or lesson material (file, link, video, text)."""
+    __tablename__ = "materials"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    subject_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("subjects.id"), nullable=True, index=True)
+    lesson_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("lessons.id"), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    type: Mapped[str] = mapped_column(String, nullable=False)  # file, video, youtube, link, text
+    url: Mapped[str | None] = mapped_column(String, nullable=True)  # Google Drive link or external URL
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)  # For text type (markdown)
+    file_name: Mapped[str | None] = mapped_column(String, nullable=True)  # Original filename
+    file_size: Mapped[int | None] = mapped_column(Integer, nullable=True)  # Bytes
+    google_file_id: Mapped[str | None] = mapped_column(String, nullable=True)  # Google Drive file ID
+    created_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
+
+    subject: Mapped["Subject | None"] = relationship("Subject")
+    lesson: Mapped["Lesson | None"] = relationship("Lesson")
+    creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])
+
+    __table_args__ = (
+        CheckConstraint(
+            "subject_id IS NOT NULL OR lesson_id IS NOT NULL",
+            name="ck_material_parent",
+        ),
+        CheckConstraint(
+            "type IN ('file', 'video', 'youtube', 'link', 'text')",
+            name="ck_material_type",
+        ),
+    )
+
+
 class EnrollmentRequest(Base):
     """Student request to join a course via invite code."""
     __tablename__ = "enrollment_requests"

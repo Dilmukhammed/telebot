@@ -254,13 +254,30 @@ export interface CourseDetailOut {
   lessons: CourseLessonOut[];
 }
 
-// Lesson detail types
-export interface LessonMaterialOut {
+// Material types
+export interface MaterialOut {
   id: number;
   title: string;
-  type: 'slides' | 'worksheet' | 'video' | 'document';
+  type: 'file' | 'video' | 'youtube' | 'link' | 'text';
   url?: string;
+  content?: string;
+  file_name?: string;
+  file_size?: number;
+  created_by: number;
+  created_at: string;
 }
+
+export interface MaterialCreate {
+  title: string;
+  type: 'file' | 'video' | 'youtube' | 'link' | 'text';
+  subject_id?: number;
+  lesson_id?: number;
+  url?: string;
+  content?: string;
+}
+
+// Legacy alias
+export type LessonMaterialOut = MaterialOut;
 
 export interface LessonAgendaItemOut {
   id: number;

@@ -171,11 +171,35 @@ class LessonOut(BaseModel):
     is_active: bool
 
 
-class LessonMaterialOut(BaseModel):
+class MaterialOut(BaseModel):
     id: int
     title: str
-    type: str  # "slides", "worksheet", "video", "document"
+    type: str  # "file", "video", "youtube", "link", "text"
     url: Optional[str] = None
+    content: Optional[str] = None
+    file_name: Optional[str] = None
+    file_size: Optional[int] = None
+    created_by: int
+    created_at: str
+
+
+class MaterialCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    type: str = Field(pattern="^(file|video|youtube|link|text)$")
+    subject_id: Optional[int] = None
+    lesson_id: Optional[int] = None
+    url: Optional[str] = None
+    content: Optional[str] = None
+
+
+class MaterialUpdate(BaseModel):
+    title: Optional[str] = None
+    url: Optional[str] = None
+    content: Optional[str] = None
+
+
+# Legacy alias for backward compatibility
+LessonMaterialOut = MaterialOut
 
 
 class LessonAgendaItemOut(BaseModel):

@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useCourseDetail, useCourseStudents } from '../api/hooks'
+import { useCourseDetail, useCourseStudents, useMaterials, useCreateMaterial, useUploadMaterial, useDeleteMaterial } from '../api/hooks'
 import { useUser } from '../context/UserContext'
-import type { CourseLessonOut } from '../shared/types'
+import type { CourseLessonOut, MaterialCreate } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
+import MaterialCard from '../components/MaterialCard'
+import MaterialForm from '../components/MaterialForm'
 import { Loading, Toast } from '../shared/components'
 import styles from './CourseDetail.module.css'
 
@@ -27,6 +29,32 @@ export default function CourseDetail() {
   const { data: students = [] } = useCourseStudents(isTeacherOrAdmin ? courseId : 0)
   const [activeTab, setActiveTab] = useState<Tab>('lessons')
   const [copied, setCopied] = useState(false)
+  const [showMaterialForm, setShowMaterialForm] = useState(false)
+
+  const { data: materials = [] } = useMaterials(courseId)
+  const createMaterial = useCreateMaterial()
+  const uploadMaterial = useUploadMaterial()
+  const deleteMaterial = useDeleteMaterial()
+
+  const handleMaterialSubmit = (data: MaterialCreate & { file?: File }) => {
+    if (data.type === 'file' && data.file) {
+      uploadMaterial.mutate(
+        { file: data.file, title: data.title, subjectId: courseId },
+        { onSuccess: () => setShowMaterialForm(false) }
+      )
+    } else {
+      createMaterial.mutate(
+        { title: data.title, type: data.type, subject_id: courseId, url: data.url, content: data.content },
+        { onSuccess: () => setShowMaterialForm(false) }
+      )
+    }
+  }
+
+  const handleMaterialDelete = (id: number) => {
+    if (confirm('Удалить материал?')) {
+      deleteMaterial.mutate(id)
+    }
+  }
 
   const lang = i18n.language as 'ru' | 'en' | 'uz'
   const monthNames = MONTH_NAMES[lang] || MONTH_NAMES.ru
@@ -148,12 +176,34 @@ export default function CourseDetail() {
 
         {/* Materials Tab */}
         {activeTab === 'materials' && (
-          <div className={styles.emptyState}>
-            <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>
-              folder_open
-            </span>
-            <p>{t('courseDetail.noMaterials')}</p>
-          </div>
+          <>
+            {materials.length > 0 ? (
+              <section className={styles.section}>
+                <div className={styles.materialsList}>
+                  {materials.map((m) => (
+                    <MaterialCard
+                      key={m.id}
+                      material={m}
+                      canDelete={isTeacherOrAdmin}
+                      onDelete={handleMaterialDelete}
+                    />
+                  ))}
+                </div>
+              </section>
+            ) : (
+              <div className={styles.emptyState}>
+                <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>
+                  folder_open
+                </span>
+                <p>{t('courseDetail.noMaterials')}</p>
+              </div>
+            )}
+            {isTeacherOrAdmin && (
+              <button className={styles.fab} onClick={() => setShowMaterialForm(true)}>
+                <span className="material-symbols-outlined">add</span>
+              </button>
+            )}
+          </>
         )}
 
         {/* About Tab */}
@@ -296,6 +346,14 @@ export default function CourseDetail() {
 
       {copied && (
         <Toast message={t('courseDetail.copiedToClipboard')} onClose={() => setCopied(false)} />
+      )}
+
+      {showMaterialForm && (
+        <MaterialForm
+          onSubmit={handleMaterialSubmit}
+          onClose={() => setShowMaterialForm(false)}
+          isPending={createMaterial.isPending || uploadMaterial.isPending}
+        />
       )}
     </div>
   )

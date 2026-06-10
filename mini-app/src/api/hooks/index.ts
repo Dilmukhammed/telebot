@@ -38,6 +38,9 @@ export {
 // Lesson
 export { useLessonDetail } from './useLesson'
 
+// Materials
+export { useMaterials, useCreateMaterial, useUploadMaterial, useDeleteMaterial } from './useMaterials'
+
 // Admin
 export {
   useAdminStats,

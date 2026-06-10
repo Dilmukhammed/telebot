@@ -11,6 +11,7 @@ from api.dashboard import router as dashboard_router
 from api.courses import router as courses_router
 from api.teacher import router as teacher_router
 from api.admin import router as admin_panel_router
+from api.materials import router as materials_router
 
 api_router = APIRouter()
 
@@ -43,3 +44,4 @@ api_router.include_router(dashboard_router)
 api_router.include_router(courses_router)  # This now includes /courses/lessons/{lesson_id}
 api_router.include_router(teacher_router)
 api_router.include_router(admin_panel_router)
+api_router.include_router(materials_router)

@@ -4,8 +4,8 @@ from sqlalchemy import select, and_
 from datetime import datetime, timedelta
 
 from database import get_db
-from models import Subject, Lesson, User, LessonStatus, LessonEnrollment, EnrollmentRequest
-from schemas import CourseOut, CourseDetailOut, CourseLessonOut, LessonDetailOut, LessonMaterialOut, LessonAgendaItemOut, LessonHomeworkOut, JoinCourseIn, EnrollmentRequestOut
+from models import Subject, Lesson, User, LessonStatus, LessonEnrollment, EnrollmentRequest, Material
+from schemas import CourseOut, CourseDetailOut, CourseLessonOut, LessonDetailOut, MaterialOut, LessonAgendaItemOut, LessonHomeworkOut, JoinCourseIn, EnrollmentRequestOut
 from api.deps import get_telegram_user
 
 router = APIRouter(prefix="/courses", tags=["courses"])
@@ -170,11 +170,17 @@ async def get_lesson_detail(
             lesson_number = 1
         title = f"Занятие {lesson_number}"
 
-    # Mock materials (in real app, these would come from database)
+    # Fetch real materials for this lesson
+    materials_result = await db.execute(
+        select(Material).where(Material.lesson_id == lesson_id).order_by(Material.created_at.desc())
+    )
     materials = [
-        LessonMaterialOut(id=1, title="Lecture Slides", type="slides"),
-        LessonMaterialOut(id=2, title="Worksheet", type="worksheet"),
-        LessonMaterialOut(id=3, title="Class Recording", type="video"),
+        MaterialOut(
+            id=m.id, title=m.title, type=m.type, url=m.url,
+            content=m.content, file_name=m.file_name, file_size=m.file_size,
+            created_by=m.created_by, created_at=m.created_at.isoformat() if m.created_at else "",
+        )
+        for m in materials_result.scalars().all()
     ]
 
     # Parse lesson plan from DB (JSON field)

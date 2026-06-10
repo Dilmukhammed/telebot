@@ -169,4 +169,63 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
                 text("CREATE INDEX IF NOT EXISTS ix_enrollment_requests_user_id ON enrollment_requests (user_id)")
             )
 
+    if not await _table_exists(conn, "materials", dialect):
+        logger.info("Creating materials table")
+        if dialect == "postgresql":
+            await conn.execute(text("""
+                CREATE TABLE materials (
+                    id SERIAL PRIMARY KEY,
+                    subject_id INTEGER REFERENCES subjects(id),
+                    lesson_id INTEGER REFERENCES lessons(id),
+                    title VARCHAR NOT NULL,
+                    type VARCHAR NOT NULL,
+                    url VARCHAR,
+                    content TEXT,
+                    file_name VARCHAR,
+                    file_size INTEGER,
+                    google_file_id VARCHAR,
+                    created_by INTEGER NOT NULL REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    CHECK (subject_id IS NOT NULL OR lesson_id IS NOT NULL),
+                    CHECK (type IN ('file', 'video', 'youtube', 'link', 'text'))
+                )
+            """))
+            await conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_materials_subject_id ON materials (subject_id)")
+            )
+            await conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_materials_lesson_id ON materials (lesson_id)")
+            )
+            await conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_materials_created_by ON materials (created_by)")
+            )
+        else:
+            await conn.execute(text("""
+                CREATE TABLE materials (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    subject_id INTEGER REFERENCES subjects(id),
+                    lesson_id INTEGER REFERENCES lessons(id),
+                    title VARCHAR NOT NULL,
+                    type VARCHAR NOT NULL,
+                    url VARCHAR,
+                    content TEXT,
+                    file_name VARCHAR,
+                    file_size INTEGER,
+                    google_file_id VARCHAR,
+                    created_by INTEGER NOT NULL REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CHECK (subject_id IS NOT NULL OR lesson_id IS NOT NULL),
+                    CHECK (type IN ('file', 'video', 'youtube', 'link', 'text'))
+                )
+            """))
+            await conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_materials_subject_id ON materials (subject_id)")
+            )
+            await conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_materials_lesson_id ON materials (lesson_id)")
+            )
+            await conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_materials_created_by ON materials (created_by)")
+            )
+
     logger.info("Schema migrations complete")

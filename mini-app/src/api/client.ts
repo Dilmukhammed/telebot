@@ -1,5 +1,5 @@
 import WebApp from '@twa-dev/sdk'
-import type { TestOut, RegistrationOut, ResultOut, UserOut, OnboardingData, DashboardOut, CalendarWeekOut, CourseOut, CourseDetailOut, LessonDetailOut, TeacherDashboardOut, TeacherStudentsOut, TeacherStudentDetailOut, AnnouncementOut, AnnouncementRecipient, TeacherStudentOut, LessonStatusOut, AttendanceRecordIn, AttendanceListOut, TeacherAvailabilityOut, AdminStats, AdminLessonOut, SearchResultOut, AdminAnnouncementCreate, AdminAnnouncementOut, AdminSubjectOut, AdminSubjectDetailOut, AuditLogOut, AdminSubjectCreate } from '../shared/types'
+import type { TestOut, RegistrationOut, ResultOut, UserOut, OnboardingData, DashboardOut, CalendarWeekOut, CourseOut, CourseDetailOut, LessonDetailOut, TeacherDashboardOut, TeacherStudentsOut, TeacherStudentDetailOut, AnnouncementOut, AnnouncementRecipient, TeacherStudentOut, LessonStatusOut, AttendanceRecordIn, AttendanceListOut, TeacherAvailabilityOut, AdminStats, AdminLessonOut, SearchResultOut, AdminAnnouncementCreate, AdminAnnouncementOut, AdminSubjectOut, AdminSubjectDetailOut, AuditLogOut, AdminSubjectCreate, MaterialOut, MaterialCreate } from '../shared/types'
 
 const BASE_URL = import.meta.env.VITE_API_URL || ''
 
@@ -433,4 +433,54 @@ export function getAdminAuditLog(params?: { entity_type?: string; entity_id?: nu
   if (params?.limit) searchParams.append('limit', String(params.limit))
   const query = searchParams.toString()
   return api<AuditLogOut[]>(`/api/admin/audit-log${query ? '?' + query : ''}`)
+}
+
+// ── Materials API ──────────────────────────────────────────────────
+
+export function getMaterials(subjectId?: number, lessonId?: number): Promise<MaterialOut[]> {
+  const params = new URLSearchParams()
+  if (subjectId !== undefined) params.append('subject_id', String(subjectId))
+  if (lessonId !== undefined) params.append('lesson_id', String(lessonId))
+  return api<MaterialOut[]>(`/api/materials?${params.toString()}`)
+}
+
+export function createMaterial(data: MaterialCreate): Promise<MaterialOut> {
+  return api<MaterialOut>('/api/materials', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function uploadMaterial(file: File, title: string, subjectId?: number, lessonId?: number): Promise<MaterialOut> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('title', title)
+  if (subjectId !== undefined) formData.append('subject_id', String(subjectId))
+  if (lessonId !== undefined) formData.append('lesson_id', String(lessonId))
+
+  const url = `${BASE_URL}/api/materials/upload`
+  const authHeaders = getAuthHeaders()
+  // Remove Content-Type for FormData (browser sets it with boundary)
+  const { 'Content-Type': _, ...headers } = authHeaders
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+  })
+
+  if (!response.ok) {
+    let message = `Error (${response.status})`
+    try {
+      const body = await response.json()
+      if (body.detail) message = body.detail
+    } catch { /* ignore */ }
+    throw new Error(message)
+  }
+
+  return response.json()
+}
+
+export function deleteMaterial(id: number): Promise<void> {
+  return api<void>(`/api/materials/${id}`, { method: 'DELETE' })
 }
