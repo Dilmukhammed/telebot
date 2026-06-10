@@ -13,6 +13,7 @@ const Calendar = lazy(() => import('./pages/Calendar'))
 const Courses = lazy(() => import('./pages/Courses'))
 const CourseDetail = lazy(() => import('./pages/CourseDetail'))
 const LessonDetail = lazy(() => import('./pages/LessonDetail'))
+const JoinCourse = lazy(() => import('./pages/JoinCourse'))
 const Announcements = lazy(() => import('./pages/Announcements'))
 const AnnouncementDetail = lazy(() => import('./pages/AnnouncementDetail'))
 const CreateAnnouncement = lazy(() => import('./pages/CreateAnnouncement'))
@@ -79,6 +80,7 @@ function App() {
           <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
           <Route path="/course/:id" element={<ProtectedRoute><CourseDetail /></ProtectedRoute>} />
           <Route path="/lesson/:id" element={<ProtectedRoute><LessonDetail /></ProtectedRoute>} />
+          <Route path="/join" element={<ProtectedRoute allowedRoles={['student']}><JoinCourse /></ProtectedRoute>} />
           <Route path="/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
           <Route path="/announcement/:id" element={<ProtectedRoute><AnnouncementDetail /></ProtectedRoute>} />
           <Route path="/announcements/create" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><CreateAnnouncement /></ProtectedRoute>} />

@@ -12,6 +12,9 @@ import {
   markAttendance,
   getLessonAttendance,
   updateLesson,
+  getEnrollmentRequests,
+  approveEnrollment,
+  rejectEnrollment,
 } from '../client'
 
 export function useTeacherDashboard() {
@@ -122,6 +125,37 @@ export function useUpdateLesson() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lesson'] })
       queryClient.invalidateQueries({ queryKey: ['teacher-dashboard'] })
+    },
+  })
+}
+
+export function useEnrollmentRequests() {
+  return useQuery({
+    queryKey: ['enrollment-requests'],
+    queryFn: getEnrollmentRequests,
+    staleTime: 10_000,
+  })
+}
+
+export function useApproveEnrollment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (requestId: number) => approveEnrollment(requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollment-requests'] })
+      queryClient.invalidateQueries({ queryKey: ['teacher-dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['teacher-students'] })
+      queryClient.invalidateQueries({ queryKey: ['teacher-courses'] })
+    },
+  })
+}
+
+export function useRejectEnrollment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (requestId: number) => rejectEnrollment(requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollment-requests'] })
     },
   })
 }

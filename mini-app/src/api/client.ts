@@ -113,6 +113,13 @@ export function getCourseDetail(id: number): Promise<CourseDetailOut> {
   return api<CourseDetailOut>(`/api/courses/${id}`)
 }
 
+export function joinCourse(inviteCode: string): Promise<{ message: string; subject_name: string }> {
+  return api('/api/courses/join', {
+    method: 'POST',
+    body: JSON.stringify({ invite_code: inviteCode }),
+  })
+}
+
 export function getLessonDetail(id: number, date?: string): Promise<LessonDetailOut> {
   const params = date ? `?date=${date}` : ''
   return api<LessonDetailOut>(`/api/courses/lessons/${id}${params}`)
@@ -198,6 +205,18 @@ export function markAttendance(lessonId: number, date: string, records: Attendan
 
 export function getLessonAttendance(lessonId: number, date: string): Promise<AttendanceListOut> {
   return api<AttendanceListOut>(`/api/teacher/lessons/${lessonId}/attendance?date=${date}`)
+}
+
+export function getEnrollmentRequests(): Promise<{ id: number; subject_id: number; subject_name: string; user_id: number; user_name: string; status: string; created_at: string }[]> {
+  return api('/api/teacher/enrollment-requests')
+}
+
+export function approveEnrollment(requestId: number): Promise<{ message: string }> {
+  return api(`/api/teacher/enrollment-requests/${requestId}/approve`, { method: 'POST' })
+}
+
+export function rejectEnrollment(requestId: number): Promise<{ message: string }> {
+  return api(`/api/teacher/enrollment-requests/${requestId}/reject`, { method: 'POST' })
 }
 
 export function updateLesson(lessonId: number, data: { custom_title?: string | null; lesson_plan?: string | null }): Promise<LessonDetailOut> {

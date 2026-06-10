@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useCourses } from '../api/hooks'
+import { useUser } from '../context/UserContext'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './Courses.module.css'
@@ -21,7 +22,9 @@ const COURSE_BADGES: Record<string, string> = {
 export default function Courses() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { user } = useUser()
   const { data: rawCourses, isLoading } = useCourses()
+  const isStudent = user?.role === 'student'
 
   const courses = useMemo(() => {
     if (!rawCourses) return []
@@ -37,6 +40,32 @@ export default function Courses() {
       <SiteHeader title={t('courses.title')} hideProfile />
 
       <main className={styles.main}>
+        {/* Join Course Button for students */}
+        {isStudent && (
+          <button
+            onClick={() => navigate('/join')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              width: '100%',
+              padding: '14px',
+              marginBottom: 'var(--spacing-md)',
+              background: 'var(--color-primary)',
+              color: 'var(--color-on-primary)',
+              border: 'none',
+              borderRadius: 'var(--radius-full)',
+              fontSize: 'var(--font-md)',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>key</span>
+            Записаться по коду
+          </button>
+        )}
+
         {/* Course Cards */}
         <div className={styles.coursesList}>
           {courses.length > 0 ? (
