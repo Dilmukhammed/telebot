@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useLessonDetail, useAdminLessonAttendance } from '../api/hooks'
 import {
   markAdminLessonStatus,
@@ -9,12 +10,14 @@ import {
 import type { AttendanceRecordIn } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
+import { langToLocale } from '../shared/utils/formatDate'
 import styles from './LessonDetail.module.css'
 
 export default function AdminLessonDetail() {
   const { id } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
   const date = searchParams.get('date')
   const numId = Number(id)
 
@@ -128,11 +131,12 @@ export default function AdminLessonDetail() {
     setShowPlanModal(true)
   }
 
-  if (isLoading) return <Loading fullPage message="Загрузка..." />
+  if (isLoading) return <Loading fullPage message={t('common.loading')} />
 
+  const currentLocale = langToLocale(i18n.language)
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr + 'T00:00:00')
-    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
+    return d.toLocaleDateString(currentLocale, { day: 'numeric', month: 'long' })
   }
 
   const getMaterialIcon = (type: string) => {
@@ -147,11 +151,11 @@ export default function AdminLessonDetail() {
   if (error || !lesson) {
     return (
       <div className={styles.page}>
-        <SiteHeader title="Урок" onBack={() => navigate(-1)} hideProfile />
+        <SiteHeader title={t('admin.lesson_detail.lesson')} onBack={() => navigate(-1)} hideProfile />
         <div className={styles.errorState}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#ba1a1a' }}>error</span>
-          <p>{error?.message || 'Ошибка загрузки'}</p>
-          <button onClick={() => navigate(-1)} className={styles.backButton}>Назад</button>
+          <p>{error?.message || t('admin.lesson_detail.error')}</p>
+          <button onClick={() => navigate(-1)} className={styles.backButton}>{t('common.back')}</button>
         </div>
       </div>
     )
@@ -159,7 +163,7 @@ export default function AdminLessonDetail() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title="Урок" onBack={() => navigate(-1)} hideProfile />
+      <SiteHeader title={t('admin.lesson_detail.lesson')} onBack={() => navigate(-1)} hideProfile />
 
       <main className={styles.main}>
         {/* Header */}
@@ -189,7 +193,7 @@ export default function AdminLessonDetail() {
 
         {/* Instructor */}
         <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Преподаватель</h3>
+          <h3 className={styles.sectionTitle}>{t('admin.lesson_detail.teacher')}</h3>
           <div className={styles.instructorCard}>
             <div className={styles.instructorAvatar}>
               {lesson.teacher_photo_url ? (
@@ -213,24 +217,24 @@ export default function AdminLessonDetail() {
         {/* Lesson Status & Attendance */}
         {(lesson.status === 'past' || lesson.status === 'today') && (
           <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Статус занятия</h3>
+            <h3 className={styles.sectionTitle}>{t('admin.lesson_detail.lesson_status')}</h3>
             {!lesson.lesson_status ? (
               <div className={styles.statusPrompt}>
-                <p className={styles.statusPromptText}>Отметить статус занятия</p>
+                <p className={styles.statusPromptText}>{t('admin.lesson_detail.mark_status')}</p>
                 <div className={styles.statusButtons}>
                   <button className={styles.happenedButton} onClick={() => handleMarkStatus('happened')} disabled={savingStatus}>
                     <span className="material-symbols-outlined">check_circle</span>
-                    Проведено
+                    {t('admin.lesson_detail.status_happened')}
                   </button>
                   <button className={styles.cancelledButton} onClick={() => handleMarkStatus('cancelled')} disabled={savingStatus}>
                     <span className="material-symbols-outlined">cancel</span>
-                    Отменено
+                    {t('admin.lesson_detail.status_cancelled')}
                   </button>
                 </div>
               </div>
             ) : lesson.lesson_status === 'happened' ? (
               <div className={styles.attendanceSection}>
-                <h4 className={styles.attendanceTitle}>Посещаемость</h4>
+                <h4 className={styles.attendanceTitle}>{t('admin.lesson_detail.attendance')}</h4>
                 {attendance ? (
                   <>
                     <div className={`${styles.attendanceList} ${(attendanceSaved || attendance.saved) ? styles.attendanceListLocked : ''}`}>
@@ -247,7 +251,7 @@ export default function AdminLessonDetail() {
                             <span>{record.first_name}</span>
                           </div>
                           <span className={`${styles.attendanceStatus} ${record.present ? styles.attendanceStatusPresent : styles.attendanceStatusAbsent}`}>
-                            {record.present ? 'Есть' : 'Нет'}
+                            {record.present ? t('admin.lesson_detail.present') : t('admin.lesson_detail.absent')}
                           </span>
                         </div>
                       ))}
@@ -255,11 +259,11 @@ export default function AdminLessonDetail() {
                     {attendanceSaved ? (
                       <div className={styles.attendanceSavedBanner}>
                         <span className="material-symbols-outlined">check_circle</span>
-                        <span>Посещаемость сохранена</span>
+                        <span>{t('admin.lesson_detail.attendance_saved')}</span>
                       </div>
                     ) : !attendance.saved ? (
                       <button className={styles.saveAttendanceButton} onClick={handleSaveAttendance} disabled={savingAttendance}>
-                        {savingAttendance ? '...' : 'Сохранить посещаемость'}
+                        {savingAttendance ? '...' : t('admin.lesson_detail.save_attendance')}
                       </button>
                     ) : null}
                     {attendanceError && (
@@ -267,13 +271,13 @@ export default function AdminLessonDetail() {
                     )}
                   </>
                 ) : (
-                  <Loading message="Загрузка..." />
+                  <Loading message={t('common.loading')} />
                 )}
               </div>
             ) : (
               <div className={styles.cancelledBadge}>
                 <span className="material-symbols-outlined">block</span>
-                <span>Занятие отменено</span>
+                <span>{t('admin.lesson_detail.lesson_cancelled')}</span>
               </div>
             )}
           </section>
@@ -282,7 +286,7 @@ export default function AdminLessonDetail() {
         {/* Lesson Plan */}
         <section className={styles.section}>
           <div className={styles.sectionTitleRow}>
-            <h3 className={styles.sectionTitle}>План урока</h3>
+            <h3 className={styles.sectionTitle}>{t('admin.lesson_detail.lesson_plan')}</h3>
             {lesson.agenda.length > 0 && (
               <button className={styles.editBtn} onClick={openPlanModal}>
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
@@ -307,7 +311,7 @@ export default function AdminLessonDetail() {
           ) : (
             <button className={styles.emptyPlanBtn} onClick={openPlanModal}>
               <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>add_notes</span>
-              <span>Добавить план</span>
+              <span>{t('admin.lesson_detail.add_plan')}</span>
             </button>
           )}
         </section>
@@ -315,7 +319,7 @@ export default function AdminLessonDetail() {
         {/* Materials */}
         {lesson.materials.length > 0 && (
           <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Материалы</h3>
+            <h3 className={styles.sectionTitle}>{t('admin.lesson_detail.materials')}</h3>
             <div className={styles.materialsScroll}>
               {lesson.materials.map((material) => (
                 <button key={material.id} className={styles.materialCard}>
@@ -330,11 +334,11 @@ export default function AdminLessonDetail() {
         {/* Homework */}
         {lesson.homework && (
           <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Домашнее задание</h3>
+            <h3 className={styles.sectionTitle}>{t('admin.lesson_detail.homework')}</h3>
             <div className={`${styles.homeworkCard} ${styles[lesson.homework.status]}`}>
               <div className={styles.homeworkBadge}>
                 <span className={`${styles.homeworkBadgeText} ${styles[lesson.homework.status]}`}>
-                  {lesson.homework.status === 'pending' ? 'Ожидает' : lesson.homework.status === 'submitted' ? 'Сдано' : 'Проверено'}
+                  {lesson.homework.status === 'pending' ? t('admin.lesson_detail.homework_pending') : lesson.homework.status === 'submitted' ? t('admin.lesson_detail.homework_submitted') : t('admin.lesson_detail.homework_reviewed')}
                 </span>
               </div>
               <div className={styles.homeworkContent}>
@@ -346,7 +350,7 @@ export default function AdminLessonDetail() {
                   {lesson.homework.due_date && (
                     <div className={styles.homeworkDue}>
                       <span className="material-symbols-outlined">event_repeat</span>
-                      <span>Сдать: {formatDate(lesson.homework.due_date)}</span>
+                      <span>{t('admin.lesson_detail.homework_due', { date: formatDate(lesson.homework.due_date) })}</span>
                     </div>
                   )}
                 </div>
@@ -363,14 +367,14 @@ export default function AdminLessonDetail() {
         <div className={styles.modalOverlay} onClick={() => setShowTitleModal(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>Название урока</h3>
+              <h3 className={styles.modalTitle}>{t('admin.lesson_detail.lesson_title')}</h3>
               <button className={styles.modalClose} onClick={() => setShowTitleModal(false)}>
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
             <input type="text" className={styles.modalInput} value={editTitle} onChange={(e) => setEditTitle(e.target.value)} autoFocus />
             <button className={styles.modalSaveBtn} onClick={handleSaveTitle} disabled={savingEdit}>
-              {savingEdit ? 'Сохранение...' : 'Сохранить'}
+              {savingEdit ? t('admin.lesson_detail.saving') : t('common.save')}
             </button>
           </div>
         </div>
@@ -381,7 +385,7 @@ export default function AdminLessonDetail() {
         <div className={styles.modalOverlay} onClick={() => setShowPlanModal(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>План урока</h3>
+              <h3 className={styles.modalTitle}>{t('admin.lesson_detail.lesson_plan')}</h3>
               <button className={styles.modalClose} onClick={() => setShowPlanModal(false)}>
                 <span className="material-symbols-outlined">close</span>
               </button>
@@ -397,10 +401,10 @@ export default function AdminLessonDetail() {
                       </button>
                     )}
                   </div>
-                  <input type="text" className={styles.modalInput} placeholder="Тема" value={item.title}
+                  <input type="text" className={styles.modalInput} placeholder={t('admin.lesson_detail.topic')} value={item.title}
                     onChange={(e) => { const updated = [...editPlan]; updated[index] = { ...updated[index], title: e.target.value }; setEditPlan(updated) }}
                   />
-                  <textarea className={styles.modalTextarea} placeholder="Описание" value={item.description} rows={2}
+                  <textarea className={styles.modalTextarea} placeholder={t('admin.lesson_detail.description')} value={item.description} rows={2}
                     onChange={(e) => { const updated = [...editPlan]; updated[index] = { ...updated[index], description: e.target.value }; setEditPlan(updated) }}
                   />
                 </div>
@@ -408,10 +412,10 @@ export default function AdminLessonDetail() {
             </div>
             <button className={styles.addPlanItemBtn} onClick={() => setEditPlan([...editPlan, { title: '', description: '' }])}>
               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
-              Добавить пункт
+              {t('admin.lesson_detail.add_item')}
             </button>
             <button className={styles.modalSaveBtn} onClick={handleSavePlan} disabled={savingEdit}>
-              {savingEdit ? 'Сохранение...' : 'Сохранить'}
+              {savingEdit ? t('admin.lesson_detail.saving') : t('common.save')}
             </button>
           </div>
         </div>

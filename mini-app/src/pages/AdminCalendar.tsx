@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAdminLessons } from '../api/hooks'
 import { rescheduleLesson, cancelAdminLesson, markAdminLessonStatus } from '../api/client'
 import type { AdminLessonOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
+import { langToLocale } from '../shared/utils/formatDate'
 import styles from './AdminCalendar.module.css'
 
-const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
-const MONTH_NAMES = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
 
 const getTashkentDate = () => {
@@ -100,6 +100,21 @@ const getLessonStatus = (lesson: AdminLessonOut, todayStr: string): string => {
 export default function AdminCalendar() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { t, i18n } = useTranslation()
+  const currentLocale = langToLocale(i18n.language)
+
+  const dayNames = Array.from({ length: 7 }, (_, i) => t(`courseDetail.daysShort.${i}`))
+  const monthNamesLong = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(2026, i, 1)
+    const name = d.toLocaleDateString(currentLocale, { month: 'long' })
+    return name.charAt(0).toUpperCase() + name.slice(1)
+  })
+  const monthNamesShort = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(2026, i, 1)
+    const name = d.toLocaleDateString(currentLocale, { month: 'short' }).replace('.', '')
+    return name.charAt(0).toUpperCase() + name.slice(1)
+  })
+
   const [weekOffset, setWeekOffset] = useState(0)
   const { data: lessons = [], isLoading, refetch } = useAdminLessons({ week_offset: weekOffset })
   const [view, setView] = useState<'day' | 'week'>(searchParams.get('view') === 'week' ? 'week' : 'day')
@@ -136,7 +151,7 @@ export default function AdminCalendar() {
   const currentDate = weekDates[selectedDay]
   const currentLessons = byDate[currentDate] || []
 
-  const monthName = MONTH_NAMES[new Date(monday + 'T00:00:00').getMonth()]
+  const monthName = monthNamesLong[new Date(monday + 'T00:00:00').getMonth()]
   const year = new Date(monday + 'T00:00:00').getFullYear()
 
   const jumpToMonth = (yr: number, month: number) => {
@@ -173,19 +188,19 @@ export default function AdminCalendar() {
       setNewDate('')
       setNewTime('')
     } catch (err: any) {
-      setActionError(err.message || 'Ошибка')
+      setActionError(err.message || t('admin.calendar.error'))
     } finally {
       setActionLoading(false)
     }
   }
 
   if (isLoading) {
-    return <Loading fullPage message="Загрузка..." />
+    return <Loading fullPage message={t('common.loading')} />
   }
 
   return (
     <div className={styles.page}>
-      <SiteHeader title="Расписание" onBack={() => navigate('/dashboard')} hideProfile />
+      <SiteHeader title={t('admin.courses.schedule')} onBack={() => navigate('/dashboard')} hideProfile />
 
       {/* Calendar Navigation */}
       <div className={styles.calendarNav}>
@@ -201,7 +216,7 @@ export default function AdminCalendar() {
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_left</span>
             </button>
             <button className={styles.todayButton} onClick={() => { setWeekOffset(0); setSelectedDay((getTashkentDate().getDay() + 6) % 7) }}>
-              Сегодня
+              {t('calendar.today')}
             </button>
             <button className={styles.navButton} onClick={() => setWeekOffset(w => w + 1)}>
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_right</span>
@@ -224,13 +239,13 @@ export default function AdminCalendar() {
               </button>
             </div>
             <div className={styles.monthGrid}>
-              {MONTH_NAMES.map((name, i) => (
+              {monthNamesShort.map((name, i) => (
                 <button
                   key={i}
                   className={`${styles.monthButton} ${year === pickerYear && new Date(monday + 'T00:00:00').getMonth() === i ? styles.monthButtonActive : ''}`}
                   onClick={() => jumpToMonth(pickerYear, i)}
                 >
-                  {name.slice(0, 3)}
+                  {name}
                 </button>
               ))}
             </div>
@@ -241,10 +256,10 @@ export default function AdminCalendar() {
       {/* View Toggle */}
       <div className={styles.viewToggle}>
         <button className={`${styles.viewButton} ${view === 'day' ? styles.viewButtonActive : ''}`} onClick={() => setView('day')}>
-          День
+          {t('calendar.dayView')}
         </button>
         <button className={`${styles.viewButton} ${view === 'week' ? styles.viewButtonActive : ''}`} onClick={() => setView('week')}>
-          Неделя
+          {t('calendar.weekView')}
         </button>
       </div>
 
@@ -258,14 +273,14 @@ export default function AdminCalendar() {
                 className={`${styles.dayButton} ${i === selectedDay ? styles.dayButtonActive : ''}`}
                 onClick={() => setSelectedDay(i)}
               >
-                <span className={styles.dayName}>{DAY_NAMES[i]}</span>
+                <span className={styles.dayName}>{dayNames[i]}</span>
                 <span className={styles.dayNumber}>{new Date(date + 'T00:00:00').getDate()}</span>
               </button>
             ))}
           </div>
 
           <div className={styles.dayLessons}>
-            <h3 className={styles.sectionLabel}>Занятия</h3>
+            <h3 className={styles.sectionLabel}>{t('admin.calendar.lessons_section')}</h3>
             {currentLessons.length > 0 ? (
               currentLessons.map(lesson => (
                 <AdminLessonCard
@@ -278,7 +293,7 @@ export default function AdminCalendar() {
             ) : (
               <div className={styles.emptyState}>
                 <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#7b7487' }}>event_busy</span>
-                <p>Нет занятий</p>
+                <p>{t('calendar.noLessons')}</p>
               </div>
             )}
           </div>
@@ -294,7 +309,7 @@ export default function AdminCalendar() {
               const isToday = date === todayStr
               return (
                 <div key={date} className={`${styles.weekDayHeader} ${isToday ? styles.weekDayHeaderActive : ''}`}>
-                  <span className={styles.weekDayName}>{DAY_NAMES[i]}</span>
+                  <span className={styles.weekDayName}>{dayNames[i]}</span>
                   <span className={`${styles.weekDayNumber} ${isToday ? styles.weekDayNumberActive : ''}`}>
                     {new Date(date + 'T00:00:00').getDate()}
                   </span>
@@ -372,23 +387,23 @@ export default function AdminCalendar() {
                 <div className={styles.slotModalActions}>
                   <button className={styles.slotModalConfirm} onClick={() => { setModalType('status'); setActionError('') }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>check_circle</span>
-                    Проведено
+                    {t('admin.calendar.status_happened')}
                   </button>
                   <button className={styles.slotModalDelete} onClick={() => { setModalType('cancel'); setActionError('') }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>cancel</span>
-                    Отменить
+                    {t('admin.calendar.cancel')}
                   </button>
                 </div>
                 <div className={styles.slotModalActions} style={{ marginTop: 8 }}>
                   <button className={styles.slotModalCancel} onClick={() => { setModalType('reschedule'); setActionError(''); setNewDate(selectedLesson?.date || ''); setNewTime(selectedLesson?.time || '') }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>schedule</span>
-                    Перенести
+                    {t('admin.calendar.reschedule')}
                   </button>
                 </div>
                 <div className={styles.slotModalActions} style={{ marginTop: 8 }}>
                   <button className={styles.slotModalCancel} onClick={() => navigate(`/admin/lessons/${selectedLesson.id}?date=${selectedLesson.date}`)}>
                     <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>open_in_new</span>
-                    Открыть занятие
+                    {t('admin.calendar.open_lesson')}
                   </button>
                 </div>
               </>
@@ -397,15 +412,15 @@ export default function AdminCalendar() {
             {modalType === 'status' && (
               <>
                 <span className="material-symbols-outlined" style={{ fontSize: '40px', color: 'var(--color-success, #43a047)' }}>check_circle</span>
-                <h3 className={styles.slotModalTitle}>Проведено?</h3>
+                <h3 className={styles.slotModalTitle}>{t('admin.calendar.happened_question')}</h3>
                 <p className={styles.slotModalText}>
                   {selectedLesson.subject_name} · {selectedLesson.date}
                 </p>
                 {actionError && <p className={styles.modalError}>{actionError}</p>}
                 <div className={styles.slotModalActions}>
-                  <button className={styles.slotModalCancel} onClick={() => setModalType('options')}>Назад</button>
+                  <button className={styles.slotModalCancel} onClick={() => setModalType('options')}>{t('common.back')}</button>
                   <button className={styles.slotModalConfirm} onClick={handleAction} disabled={actionLoading}>
-                    {actionLoading ? '...' : 'Подтвердить'}
+                    {actionLoading ? '...' : t('admin.calendar.confirm')}
                   </button>
                 </div>
               </>
@@ -414,15 +429,15 @@ export default function AdminCalendar() {
             {modalType === 'cancel' && (
               <>
                 <span className="material-symbols-outlined" style={{ fontSize: '40px', color: 'var(--color-error, #ba1a1a)' }}>cancel</span>
-                <h3 className={styles.slotModalTitle}>Отменить занятие?</h3>
+                <h3 className={styles.slotModalTitle}>{t('admin.calendar.cancel_question')}</h3>
                 <p className={styles.slotModalText}>
                   {selectedLesson.subject_name} · {selectedLesson.date}
                 </p>
                 {actionError && <p className={styles.modalError}>{actionError}</p>}
                 <div className={styles.slotModalActions}>
-                  <button className={styles.slotModalCancel} onClick={() => setModalType('options')}>Назад</button>
+                  <button className={styles.slotModalCancel} onClick={() => setModalType('options')}>{t('common.back')}</button>
                   <button className={styles.slotModalDelete} onClick={handleAction} disabled={actionLoading}>
-                    {actionLoading ? '...' : 'Отменить'}
+                    {actionLoading ? '...' : t('admin.calendar.cancel')}
                   </button>
                 </div>
               </>
@@ -431,12 +446,12 @@ export default function AdminCalendar() {
             {modalType === 'reschedule' && (
               <>
                 <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#d97706' }}>schedule</span>
-                <h3 className={styles.slotModalTitle}>Перенести занятие</h3>
+                <h3 className={styles.slotModalTitle}>{t('admin.calendar.reschedule_lesson')}</h3>
                 <p className={styles.slotModalText}>
                   {selectedLesson.subject_name} · {selectedLesson.teacher_name}
                 </p>
                 <div className={styles.modalField}>
-                  <label className={styles.modalFieldLabel}>Новая дата</label>
+                  <label className={styles.modalFieldLabel}>{t('admin.calendar.new_date')}</label>
                   <input
                     type="date"
                     className={styles.modalInput}
@@ -445,7 +460,7 @@ export default function AdminCalendar() {
                   />
                 </div>
                 <div className={styles.modalField}>
-                  <label className={styles.modalFieldLabel}>Новое время (опционально)</label>
+                  <label className={styles.modalFieldLabel}>{t('admin.calendar.new_time_optional')}</label>
                   <input
                     type="time"
                     className={styles.modalInput}
@@ -455,9 +470,9 @@ export default function AdminCalendar() {
                 </div>
                 {actionError && <p className={styles.modalError}>{actionError}</p>}
                 <div className={styles.slotModalActions}>
-                  <button className={styles.slotModalCancel} onClick={() => setModalType('options')}>Назад</button>
+                  <button className={styles.slotModalCancel} onClick={() => setModalType('options')}>{t('common.back')}</button>
                   <button className={styles.slotModalConfirm} onClick={handleAction} disabled={actionLoading || !newDate}>
-                    {actionLoading ? '...' : 'Перенести'}
+                    {actionLoading ? '...' : t('admin.calendar.reschedule')}
                   </button>
                 </div>
               </>
@@ -471,7 +486,7 @@ export default function AdminCalendar() {
         <div className={styles.slotModalOverlay} onClick={() => setGroupModal(null)}>
           <div className={styles.groupModal} onClick={e => e.stopPropagation()}>
             <div className={styles.groupModalHeader}>
-              <h3 className={styles.slotModalTitle}>Занятия в это время</h3>
+              <h3 className={styles.slotModalTitle}>{t('admin.calendar.lessons_at_this_time')}</h3>
               <button className={styles.modalCloseBtn} onClick={() => setGroupModal(null)}>
                 <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>close</span>
               </button>
@@ -623,6 +638,7 @@ function AdminLessonBlock({ lesson, todayStr, onClick }: { lesson: AdminLessonOu
 }
 
 function AdminGroupBlock({ lessons, time, endTime, onClick }: { lessons: AdminLessonOut[]; time: string; endTime: string; onClick: () => void }) {
+  const { t } = useTranslation()
   const [startH, startM] = time.split(':').map(Number)
   const [endH, endM] = endTime.split(':').map(Number)
   const top = (startH * 80) + (startM / 60 * 80)
@@ -634,7 +650,7 @@ function AdminGroupBlock({ lessons, time, endTime, onClick }: { lessons: AdminLe
       style={{ top: `${top}px`, height: `${height}px`, cursor: 'pointer' }}
       onClick={onClick}
     >
-      <span className={styles.groupBlockBadge}>{lessons.length} занятия</span>
+      <span className={styles.groupBlockBadge}>{t('admin.calendar.lessons_count', { count: lessons.length })}</span>
       <span className={styles.groupBlockTime}>{time} - {endTime}</span>
       <span className={styles.groupBlockTeachers}>
         {lessons.slice(0, 3).map(l => l.teacher_name).join(', ')}

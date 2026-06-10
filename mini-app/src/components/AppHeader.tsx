@@ -1,13 +1,10 @@
 import { useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import WebApp from '@twa-dev/sdk'
 
-const TITLES: Record<string, string> = {
-  '/registrations': 'Мои записи',
-  '/results': 'Мои результаты',
-}
-
 export default function AppHeader() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const isHome = location.pathname === '/'
@@ -34,8 +31,12 @@ export default function AppHeader() {
   if (isHome) return null
 
   const title = location.pathname.startsWith('/test/')
-    ? 'Регистрация'
-    : TITLES[location.pathname] || ''
+    ? t('components.appHeader.registration')
+    : location.pathname === '/registrations'
+    ? t('nav.registrations')
+    : location.pathname === '/results'
+    ? t('nav.results')
+    : ''
 
   return (
     <header style={{
@@ -50,7 +51,7 @@ export default function AppHeader() {
     }}>
       <button
         onClick={handleBack}
-        aria-label="Назад"
+        aria-label={t('common.back')}
         style={{
           background: 'none',
           border: 'none',

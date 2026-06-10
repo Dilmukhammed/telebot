@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAdminUser, useUpdateAdminUserRole } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
 import styles from './AdminUserProfile.module.css'
@@ -7,6 +8,7 @@ import styles from './AdminUserProfile.module.css'
 export default function AdminUserProfile() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const numId = Number(id)
   const { data: user, isLoading, error, refetch } = useAdminUser(numId)
   const updateRoleMutation = useUpdateAdminUserRole()
@@ -16,29 +18,33 @@ export default function AdminUserProfile() {
   const handleRoleChange = async (newRole: string) => {
     if (!user) return
     if (newRole === user.role) return
-    const labels: Record<string, string> = { student: 'Ученик', teacher: 'Преподаватель', admin: 'Администратор' }
-    if (!window.confirm(`Изменить роль на "${labels[newRole]}"?`)) return
+    const labels: Record<string, string> = {
+      student: t('admin.profile.role_student'),
+      teacher: t('admin.profile.role_teacher'),
+      admin: t('admin.profile.role_admin')
+    }
+    if (!window.confirm(t('admin.profile.change_role_confirm', { role: labels[newRole] }))) return
     setRoleError('')
     setUpdatingRole(true)
     try {
       await updateRoleMutation.mutateAsync({ id: user.id, role: newRole })
       await refetch()
     } catch (e: any) {
-      setRoleError(e.message || 'Ошибка обновления роли')
+      setRoleError(e.message || t('admin.profile.update_role_error'))
     } finally {
       setUpdatingRole(false)
     }
   }
 
-  if (isLoading) return <div className={styles.loading}>Загрузка...</div>
+  if (isLoading) return <div className={styles.loading}>{t('common.loading')}</div>
   if (error || !user) {
     return (
       <div className={styles.page}>
-        <SiteHeader title="Профиль" onBack={() => navigate('/admin/people')} hideProfile />
+        <SiteHeader title={t('admin.profile.title')} onBack={() => navigate('/admin/people')} hideProfile />
         <main className={styles.main}>
           <div className={styles.emptyState}>
             <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>person_off</span>
-            <p>{error?.message || 'Пользователь не найден'}</p>
+            <p>{error?.message || t('admin.profile.user_not_found')}</p>
           </div>
         </main>
       </div>
@@ -51,12 +57,12 @@ export default function AdminUserProfile() {
     return '?'
   }
 
-  const roleLabel = user.role === 'admin' ? 'Администратор' : user.role === 'teacher' ? 'Преподаватель' : 'Ученик'
+  const roleLabel = user.role === 'admin' ? t('admin.profile.role_admin') : user.role === 'teacher' ? t('admin.profile.role_teacher') : t('admin.profile.role_student')
 
   return (
     <div className={styles.page}>
       <SiteHeader
-        title={`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Профиль'}
+        title={`${user.first_name || ''} ${user.last_name || ''}`.trim() || t('admin.profile.title')}
         onBack={() => navigate('/admin/people')}
         hideProfile
       />
@@ -72,12 +78,12 @@ export default function AdminUserProfile() {
             )}
           </div>
           <div className={styles.profileInfo}>
-            <h1 className={styles.name}>{user.first_name || 'Без имени'} {user.last_name || ''}</h1>
+            <h1 className={styles.name}>{user.first_name || t('admin.people.no_name')} {user.last_name || ''}</h1>
             <div className={styles.meta}>
               {user.username && <span className={styles.metaTag}>@{user.username}</span>}
               <span className={styles.metaTag}>{roleLabel}</span>
               <span className={`${styles.metaTag} ${user.is_active ? styles.metaTagActive : styles.metaTagInactive}`}>
-                {user.is_active ? 'Активен' : 'Неактивен'}
+                {user.is_active ? t('admin.profile.active') : t('admin.profile.inactive')}
               </span>
             </div>
           </div>
@@ -85,7 +91,7 @@ export default function AdminUserProfile() {
 
         {/* Info */}
         <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Информация</h3>
+          <h3 className={styles.sectionTitle}>{t('admin.profile.info_section')}</h3>
           <div className={styles.infoGrid}>
             <div className={styles.infoItem}>
               <div className={styles.infoItemHeader}>
@@ -104,7 +110,7 @@ export default function AdminUserProfile() {
             <div className={styles.infoItem}>
               <div className={styles.infoItemHeader}>
                 <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-primary)' }}>call</span>
-                <span className={styles.infoLabel}>Телефон</span>
+                <span className={styles.infoLabel}>{t('admin.profile.phone')}</span>
               </div>
               {user.phone ? (
                 <a href={`tel:${user.phone}`} className={styles.infoValueLink}>{user.phone}</a>
@@ -115,16 +121,16 @@ export default function AdminUserProfile() {
             <div className={styles.infoItem}>
               <div className={styles.infoItemHeader}>
                 <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-primary)' }}>school</span>
-                <span className={styles.infoLabel}>Класс</span>
+                <span className={styles.infoLabel}>{t('admin.profile.grade')}</span>
               </div>
-              <span className={styles.infoValue}>{user.grade ? `${user.grade} кл.` : '—'}</span>
+              <span className={styles.infoValue}>{user.grade ? t('admin.people.grade', { grade: user.grade }) : '—'}</span>
             </div>
           </div>
         </section>
 
         {/* Role management */}
         <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Управление ролью</h3>
+          <h3 className={styles.sectionTitle}>{t('admin.profile.role_management')}</h3>
           {error && (
             <div style={{ color: '#ef4444', fontSize: '13px', padding: '8px 12px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: '8px', marginBottom: '8px' }}>
               {error}
@@ -132,9 +138,9 @@ export default function AdminUserProfile() {
           )}
           <div className={styles.roleSelectorContainer}>
             {[
-              { r: 'student', label: 'Ученик', icon: 'person' },
-              { r: 'teacher', label: 'Преподаватель', icon: 'school' },
-              { r: 'admin', label: 'Администратор', icon: 'admin_panel_settings' }
+              { r: 'student', label: t('admin.profile.role_student'), icon: 'person' },
+              { r: 'teacher', label: t('admin.profile.role_teacher'), icon: 'school' },
+              { r: 'admin', label: t('admin.profile.role_admin'), icon: 'admin_panel_settings' }
             ].map(({ r, label, icon }) => {
               const active = user.role === r
               return (

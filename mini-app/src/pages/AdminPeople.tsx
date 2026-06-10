@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAdminUsers, useCreateAdminUser } from '../api/hooks'
 import type { UserOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
@@ -9,6 +10,7 @@ type Tab = 'students' | 'teachers'
 
 export default function AdminPeople() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [searchParams] = useSearchParams()
   const initialTab = searchParams.get('tab') === 'teachers' ? 'teachers' : 'students'
   const [tab, setTab] = useState<Tab>(initialTab)
@@ -40,7 +42,7 @@ export default function AdminPeople() {
 
   const handleCreateTeacher = async () => {
     if (!createForm.first_name || !createForm.last_name || !createForm.username || !createForm.phone) {
-      setCreateError('Заполните все поля')
+      setCreateError(t('admin.people.fill_all_fields'))
       return
     }
 
@@ -51,7 +53,7 @@ export default function AdminPeople() {
       setShowCreateModal(false)
       setCreateForm({ first_name: '', last_name: '', username: '', phone: '' })
     } catch (err: any) {
-      setCreateError(err?.message || 'Ошибка создания')
+      setCreateError(err?.message || t('admin.people.create_error'))
     } finally {
       setCreateLoading(false)
     }
@@ -59,7 +61,7 @@ export default function AdminPeople() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title="Люди" onBack={() => navigate('/dashboard')} hideProfile />
+      <SiteHeader title={t('admin.people.title')} onBack={() => navigate('/dashboard')} hideProfile />
 
       <main className={styles.main}>
         {/* Tabs */}
@@ -68,13 +70,13 @@ export default function AdminPeople() {
             className={`${styles.tab} ${tab === 'students' ? styles.activeTab : ''}`}
             onClick={() => { setTab('students'); setSearchQuery('') }}
           >
-            Ученики
+            {t('admin.people.students')}
           </button>
           <button
             className={`${styles.tab} ${tab === 'teachers' ? styles.activeTab : ''}`}
             onClick={() => { setTab('teachers'); setSearchQuery('') }}
           >
-            Преподаватели
+            {t('admin.people.teachers')}
           </button>
         </div>
 
@@ -83,7 +85,7 @@ export default function AdminPeople() {
           <span className={`material-symbols-outlined ${styles.searchIcon}`}>search</span>
           <input
             type="text"
-            placeholder="Поиск по имени или телефону..."
+            placeholder={t('admin.people.search_placeholder')}
             className={styles.searchInput}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
@@ -97,19 +99,19 @@ export default function AdminPeople() {
 
         {/* List */}
         {isLoading ? (
-          <div className={styles.loading}>Загрузка...</div>
+          <div className={styles.loading}>{t('common.loading')}</div>
         ) : filteredUsers.length === 0 ? (
           <div className={styles.emptyState}>
             <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>
               {searchQuery ? 'search_off' : 'group'}
             </span>
-            <p>{searchQuery ? 'Никого не найдено' : 'Нет пользователей'}</p>
+            <p>{searchQuery ? t('admin.people.no_results') : t('admin.people.no_users')}</p>
           </div>
         ) : (
           <>
             <div className={styles.sectionHeader}>
               <h2 className={styles.sectionTitle}>
-                {tab === 'students' ? 'Ученики' : 'Преподаватели'}
+                {tab === 'students' ? t('admin.people.students') : t('admin.people.teachers')}
               </h2>
               <span className={styles.countBadge}>{filteredUsers.length}</span>
             </div>
@@ -130,20 +132,20 @@ export default function AdminPeople() {
                   <div className={styles.info}>
                     <div className={styles.nameRow}>
                       <span className={styles.name}>
-                        {u.first_name || u.username || 'Без имени'} {u.last_name || ''}
+                        {u.first_name || u.username || t('admin.people.no_name')} {u.last_name || ''}
                       </span>
                       {!u.onboarded && (
-                        <span className={styles.pendingBadge}>Новый</span>
+                        <span className={styles.pendingBadge}>{t('admin.people.new')}</span>
                       )}
                       {!u.is_active && (
-                        <span className={styles.inactiveBadge}>Блок</span>
+                        <span className={styles.inactiveBadge}>{t('admin.people.blocked')}</span>
                       )}
                     </div>
                     <div className={styles.meta}>
                       {u.username && <span className={styles.metaPill}>@{u.username}</span>}
                       {u.phone && <span className={styles.metaPill}>{u.phone}</span>}
                       {tab === 'students' && u.grade && (
-                        <span className={styles.metaPill}>{u.grade} кл.</span>
+                        <span className={styles.metaPill}>{t('admin.people.grade', { grade: u.grade })}</span>
                       )}
                     </div>
                   </div>
@@ -170,7 +172,7 @@ export default function AdminPeople() {
         <div className={styles.modalOverlay} onClick={() => setShowCreateModal(false)}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3>Новый преподаватель</h3>
+              <h3>{t('admin.people.new_teacher')}</h3>
               <button className={styles.modalClose} onClick={() => setShowCreateModal(false)}>
                 <span className="material-symbols-outlined">close</span>
               </button>
@@ -182,32 +184,32 @@ export default function AdminPeople() {
               )}
 
               <div className={styles.formGroup}>
-                <label>Имя *</label>
+                <label>{t('admin.people.first_name_label')}</label>
                 <input
                   type="text"
-                  placeholder="Имя"
+                  placeholder={t('admin.people.first_name_placeholder')}
                   value={createForm.first_name}
                   onChange={e => setCreateForm({ ...createForm, first_name: e.target.value })}
                 />
               </div>
 
               <div className={styles.formGroup}>
-                <label>Фамилия *</label>
+                <label>{t('admin.people.last_name_label')}</label>
                 <input
                   type="text"
-                  placeholder="Фамилия"
+                  placeholder={t('admin.people.last_name_placeholder')}
                   value={createForm.last_name}
                   onChange={e => setCreateForm({ ...createForm, last_name: e.target.value })}
                 />
               </div>
 
               <div className={styles.formGroup}>
-                <label>Username *</label>
+                <label>{t('admin.people.username_label')}</label>
                 <div className={styles.usernameInput}>
                   <span className={styles.atSign}>@</span>
                   <input
                     type="text"
-                    placeholder="username"
+                    placeholder={t('admin.people.username_placeholder')}
                     value={createForm.username}
                     onChange={e => setCreateForm({ ...createForm, username: e.target.value.replace(/[^a-zA-Z0-9_]/g, '') })}
                   />
@@ -215,10 +217,10 @@ export default function AdminPeople() {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Телефон *</label>
+                <label>{t('admin.people.phone_label')}</label>
                 <input
                   type="tel"
-                  placeholder="+998 XX XXX XX XX"
+                  placeholder={t('admin.people.phone_placeholder')}
                   value={createForm.phone}
                   onChange={e => setCreateForm({ ...createForm, phone: e.target.value })}
                 />
@@ -230,14 +232,14 @@ export default function AdminPeople() {
                 className={styles.cancelBtn}
                 onClick={() => setShowCreateModal(false)}
               >
-                Отмена
+                {t('common.cancel')}
               </button>
               <button
                 className={styles.createBtn}
                 onClick={handleCreateTeacher}
                 disabled={createLoading}
               >
-                {createLoading ? 'Создание...' : 'Создать'}
+                {createLoading ? t('admin.people.creating') : t('admin.people.create')}
               </button>
             </div>
           </div>

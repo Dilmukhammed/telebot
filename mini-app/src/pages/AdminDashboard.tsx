@@ -1,11 +1,15 @@
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAdminStats, useAnnouncements } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
+import { langToLocale } from '../shared/utils/formatDate'
 import styles from './AdminDashboard.module.css'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
+  const currentLocale = langToLocale(i18n.language)
   const { data: stats, isLoading } = useAdminStats()
   const { data: announcements = [] } = useAnnouncements('admin')
   const unreadCount = announcements.filter(a => !a.is_read).length
@@ -14,13 +18,13 @@ export default function AdminDashboard() {
   const telegramAvatar = tgUser?.photo_url
 
   if (isLoading) {
-    return <Loading fullPage message="Загрузка..." />
+    return <Loading fullPage message={t('common.loading')} />
   }
 
   if (!stats) {
     return (
       <div className={styles.page}>
-        <div className={styles.error}>Ошибка загрузки</div>
+        <div className={styles.error}>{t('common.error')}</div>
       </div>
     )
   }
@@ -34,12 +38,12 @@ export default function AdminDashboard() {
         <section className={styles.welcomeCard}>
           <div className={styles.welcomeGradientBg} />
           <div className={styles.welcomeCardContent}>
-            <h1 className={styles.welcomeTitle}>Панель управления</h1>
+            <h1 className={styles.welcomeTitle}>{t('admin.dashboard.title')}</h1>
             <p className={styles.welcomeSub}>
               <span className="material-symbols-outlined" style={{ fontSize: '14px', verticalAlign: 'middle', marginRight: '4px' }}>
                 admin_panel_settings
               </span>
-              Администратор &middot; EduCenter &middot; {new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+              {t('admin.dashboard.role_admin')} &middot; EduCenter &middot; {new Date().toLocaleDateString(currentLocale, { day: 'numeric', month: 'long' })}
             </p>
           </div>
         </section>
@@ -50,22 +54,22 @@ export default function AdminDashboard() {
             <div className={styles.statCard} onClick={() => navigate('/admin/people')}>
               <span className="material-symbols-outlined">group</span>
               <span className={styles.statValue}>{stats.student_count}</span>
-              <span className={styles.statLabel}>Учеников</span>
+              <span className={styles.statLabel}>{t('admin.dashboard.students')}</span>
             </div>
             <div className={styles.statCard} onClick={() => navigate('/admin/people?tab=teachers')}>
               <span className="material-symbols-outlined">school</span>
               <span className={styles.statValue}>{stats.teacher_count}</span>
-              <span className={styles.statLabel}>Учителей</span>
+              <span className={styles.statLabel}>{t('admin.dashboard.teachers')}</span>
             </div>
             <div className={styles.statCard} onClick={() => navigate('/admin/courses')}>
               <span className="material-symbols-outlined">menu_book</span>
               <span className={styles.statValue}>{stats.course_count}</span>
-              <span className={styles.statLabel}>Курсов</span>
+              <span className={styles.statLabel}>{t('admin.dashboard.courses')}</span>
             </div>
             <div className={styles.statCard} onClick={() => navigate('/admin/courses')}>
               <span className="material-symbols-outlined">quiz</span>
               <span className={styles.statValue}>{stats.active_tests}</span>
-              <span className={styles.statLabel}>Тестов</span>
+              <span className={styles.statLabel}>{t('admin.dashboard.tests')}</span>
             </div>
           </div>
         </section>
@@ -75,7 +79,7 @@ export default function AdminDashboard() {
           <div className={styles.actionsGrid}>
             <div className={styles.actionCard} onClick={() => navigate('/admin/courses?tab=search')}>
               <span className="material-symbols-outlined">search</span>
-              Найти свободные слоты
+              {t('admin.dashboard.find_slots')}
             </div>
           </div>
         </section>

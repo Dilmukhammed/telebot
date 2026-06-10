@@ -1,20 +1,22 @@
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import SiteHeader from '../components/SiteHeader'
 import styles from './AdminMore.module.css'
 
-const items = [
-  { icon: 'campaign', label: 'Объявления', to: '/admin/announcements' },
-  { icon: 'calendar_month', label: 'Расписание', to: '/admin/calendar' },
-  { icon: 'search', label: 'Поиск слотов', to: '/admin/courses?tab=search' },
-  { icon: 'person', label: 'Профиль', to: '/profile' },
-]
-
 export default function AdminMore() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
+
+  const items = [
+    { icon: 'campaign', label: t('admin.announcements.title'), to: '/admin/announcements' },
+    { icon: 'calendar_month', label: t('admin.courses.schedule'), to: '/admin/calendar' },
+    { icon: 'search', label: t('admin.dashboard.find_slots'), to: '/admin/courses?tab=search' },
+    { icon: 'person', label: t('admin.profile.title'), to: '/profile' },
+  ]
 
   return (
     <div className={styles.page}>
-      <SiteHeader title="Ещё" onBack={() => navigate('/dashboard')} hideProfile />
+      <SiteHeader title={t('admin.more.title')} onBack={() => navigate('/dashboard')} hideProfile />
 
       <main className={styles.main}>
         <div className={styles.list}>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAdminSubjectDetail, useAdminAuditLog, useAdminUsers } from '../api/hooks'
 import {
   updateSubject,
@@ -11,13 +12,15 @@ import {
 } from '../api/client'
 import SiteHeader from '../components/SiteHeader'
 import { Toast } from '../shared/components'
+import { langToLocale } from '../shared/utils/formatDate'
 import styles from './AdminCourseDetail.module.css'
-
-const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
 export default function AdminCourseDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
+  const currentLocale = langToLocale(i18n.language)
+  const dayNames = Array.from({ length: 7 }, (_, i) => t(`courseDetail.daysShort.${i}`))
   const courseId = Number(id)
   const { data: course, isLoading, error, refetch } = useAdminSubjectDetail(courseId)
   const { data: auditLogs = [] } = useAdminAuditLog({ entity_type: 'subject', entity_id: courseId, limit: 20 })
@@ -57,7 +60,7 @@ export default function AdminCourseDetail() {
       await archiveAdminSubject(course.id)
       navigate('/admin/courses')
     } catch (e: any) {
-      alert(e.message || 'Ошибка архивации')
+      alert(e.message || t('admin.course_detail.archive_error'))
     } finally {
       setArchiveSubmitting(false)
     }
@@ -69,7 +72,7 @@ export default function AdminCourseDetail() {
       await unarchiveAdminSubject(course.id)
       await refetch()
     } catch (e: any) {
-      alert(e.message || 'Ошибка разархивации')
+      alert(e.message || t('admin.course_detail.unarchive_error'))
     }
   }
 
@@ -104,7 +107,7 @@ export default function AdminCourseDetail() {
       setShowSubjectEdit(false)
       refetch()
     } catch (e: any) {
-      setSubjectError(e.message || 'Ошибка сохранения')
+      setSubjectError(e.message || t('admin.course_detail.save_error'))
     } finally {
       setSubjectSubmitting(false)
     }
@@ -133,7 +136,7 @@ export default function AdminCourseDetail() {
       setShowCreateLesson(false)
       refetch()
     } catch (e: any) {
-      setLessonError(e.message || 'Ошибка создания')
+      setLessonError(e.message || t('admin.course_detail.create_error'))
     } finally {
       setLessonSubmitting(false)
     }
@@ -147,25 +150,25 @@ export default function AdminCourseDetail() {
 
   const handleEnroll = async (userId: number) => {
     const lessons = course?.lessons
-    if (!lessons || lessons.length === 0) { alert('Нет уроков для записи'); return }
+    if (!lessons || lessons.length === 0) { alert(t('admin.course_detail.no_lessons_for_enroll')); return }
     try {
       await Promise.all(lessons.map(l => adminEnrollStudent(l.id, userId)))
       setShowEnrollModal(false)
       refetch()
     } catch (e: any) {
-      alert(e.message || 'Ошибка записи')
+      alert(e.message || t('admin.course_detail.enroll_error'))
     }
   }
 
   const handleUnenroll = async (userId: number) => {
     const lessons = course?.lessons
     if (!lessons || lessons.length === 0) return
-    if (!confirm('Отписать ученика от курса?')) return
+    if (!confirm(t('admin.course_detail.unenroll_confirm'))) return
     try {
       await Promise.all(lessons.map(l => adminUnenrollStudent(l.id, userId)))
       refetch()
     } catch (e: any) {
-      alert(e.message || 'Ошибка отписки')
+      alert(e.message || t('admin.course_detail.unenroll_error'))
     }
   }
 
@@ -187,15 +190,15 @@ export default function AdminCourseDetail() {
     return styleMap[`gradient_${gradients[hash % gradients.length]}`] || ''
   }
 
-  if (isLoading) return <div className={styles.loading}>Загрузка...</div>
+  if (isLoading) return <div className={styles.loading}>{t('common.loading')}</div>
   if (error || !course) {
     return (
       <div className={styles.page}>
-        <SiteHeader title="Курс" onBack={() => navigate('/admin/courses')} hideProfile />
+        <SiteHeader title={t('admin.course_detail.course')} onBack={() => navigate('/admin/courses')} hideProfile />
         <main className={styles.main}>
           <div className={styles.emptyState}>
             <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>error</span>
-            <p>{error?.message || 'Курс не найден'}</p>
+            <p>{error?.message || t('admin.course_detail.not_found')}</p>
           </div>
         </main>
       </div>
@@ -214,10 +217,10 @@ export default function AdminCourseDetail() {
               <h1 className={styles.title}>{course.name}</h1>
               {course.description && <p className={styles.desc}>{course.description}</p>}
               <div className={styles.metaRow}>
-                <span className={styles.metaTag}>{course.duration_minutes} мин.</span>
-                {course.duration_weeks && <span className={styles.metaTag}>{course.duration_weeks} нед.</span>}
+                <span className={styles.metaTag}>{t('admin.course_detail.minutes_short', { count: course.duration_minutes })}</span>
+                {course.duration_weeks && <span className={styles.metaTag}>{t('admin.course_detail.weeks_short', { count: course.duration_weeks })}</span>}
                 {course.start_date && (
-                  <span className={styles.metaTag}>С {new Date(course.start_date).toLocaleDateString('ru-RU')}</span>
+                  <span className={styles.metaTag}>{t('admin.course_detail.from_date', { date: new Date(course.start_date).toLocaleDateString(currentLocale) })}</span>
                 )}
               </div>
               {course.invite_code && (
@@ -241,7 +244,7 @@ export default function AdminCourseDetail() {
           {course.is_archived && (
             <div style={{ marginTop: '8px', padding: '6px 12px', background: 'rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '13px', color: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>archive</span>
-              Курс в архиве
+              {t('admin.course_detail.course_in_archive')}
             </div>
           )}
         </div>
@@ -249,19 +252,19 @@ export default function AdminCourseDetail() {
         {/* Lessons */}
         <section className={styles.section}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-sm)' }}>
-            <h3 className={styles.sectionTitle} style={{ margin: 0 }}>Расписание ({course.lessons.length})</h3>
+            <h3 className={styles.sectionTitle} style={{ margin: 0 }}>{t('admin.course_detail.schedule_count', { count: course.lessons.length })}</h3>
             <button
               onClick={openCreateLesson}
               style={{ background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-full)', padding: '6px 14px', cursor: 'pointer', fontSize: 'var(--font-xs)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add</span>
-              Урок
+              {t('admin.course_detail.lesson')}
             </button>
           </div>
           {course.lessons.length === 0 ? (
             <div className={styles.emptyState}>
               <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#7b7487' }}>event_busy</span>
-              <p>Нет занятия</p>
+              <p>{t('admin.course_detail.no_lessons')}</p>
             </div>
           ) : (
             <div className={styles.list}>
@@ -279,7 +282,7 @@ export default function AdminCourseDetail() {
                     <div className={styles.lessonMainContent}>
                       <div className={styles.lessonTimeBlock}>
                         <span className={styles.timeBlockDate}>
-                          {new Date(l.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                          {new Date(l.date).toLocaleDateString(currentLocale, { day: 'numeric', month: 'short' })}
                         </span>
                         <span className={styles.timeBlockDay}>{l.day_name}</span>
                         <span className={styles.timeBlockTime}>{l.time}</span>
@@ -294,21 +297,21 @@ export default function AdminCourseDetail() {
                           {l.room && (
                             <div className={styles.lessonMetaItem}>
                               <span className="material-symbols-outlined">meeting_room</span>
-                              <span>Каб: {l.room}</span>
+                              <span>{t('admin.course_detail.room_short', { room: l.room })}</span>
                             </div>
                           )}
                           <div className={styles.lessonMetaItem}>
                             <span className="material-symbols-outlined">groups</span>
-                            <span>{l.student_count} уч.</span>
+                            <span>{t('admin.course_detail.students_short', { count: l.student_count })}</span>
                           </div>
                         </div>
 
                         <div className={styles.lessonStatusRow}>
                           <span className={`${styles.statusBadge} ${styles[`status_${l.lesson_status || 'planned'}`]}`}>
-                            {l.lesson_status === 'cancelled' ? 'Отменен'
-                              : l.lesson_status === 'happened' ? 'Проведен'
-                              : l.lesson_status === 'rescheduled' ? 'Перенесен'
-                              : 'Запланирован'}
+                            {l.lesson_status === 'cancelled' ? t('admin.course_detail.status_cancelled')
+                              : l.lesson_status === 'happened' ? t('admin.course_detail.status_happened')
+                              : l.lesson_status === 'rescheduled' ? t('admin.course_detail.status_rescheduled')
+                              : t('admin.course_detail.status_planned')}
                           </span>
                         </div>
                       </div>
@@ -325,19 +328,19 @@ export default function AdminCourseDetail() {
         {/* Students */}
         <section className={styles.section}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-sm)' }}>
-            <h3 className={styles.sectionTitle} style={{ margin: 0 }}>Ученики ({course.students?.length || 0})</h3>
+            <h3 className={styles.sectionTitle} style={{ margin: 0 }}>{t('admin.course_detail.students_count', { count: course.students?.length || 0 })}</h3>
             <button
               onClick={openEnroll}
               style={{ background: 'var(--color-gray-100)', border: 'none', borderRadius: 'var(--radius-full)', padding: '6px 14px', cursor: 'pointer', fontSize: 'var(--font-xs)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>person_add</span>
-              Добавить
+              {t('admin.course_detail.add')}
             </button>
           </div>
           {!course.students || course.students.length === 0 ? (
             <div className={styles.emptyState}>
               <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#7b7487' }}>group</span>
-              <p>Нет зачисленных</p>
+              <p>{t('admin.course_detail.no_students_enrolled')}</p>
             </div>
           ) : (
             <div className={styles.studentList}>
@@ -348,11 +351,11 @@ export default function AdminCourseDetail() {
                   </div>
                   <div className={styles.studentInfo} onClick={() => navigate(`/admin/people/${s.id}`)}>
                     <div className={styles.studentName}>{s.first_name} {s.last_name || ''}</div>
-                    {s.grade && <div className={styles.studentMeta}>{s.grade} кл.</div>}
+                    {s.grade && <div className={styles.studentMeta}>{t('admin.people.grade', { grade: s.grade })}</div>}
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleUnenroll(s.id) }}
-                    title="Отписать"
+                    title={t('admin.course_detail.unenroll')}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-danger)', padding: '4px' }}
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person_remove</span>
@@ -370,28 +373,28 @@ export default function AdminCourseDetail() {
             style={{ background: 'var(--color-gray-100)', border: 'none', borderRadius: 'var(--radius-full)', padding: '8px 16px', cursor: 'pointer', fontSize: 'var(--font-xs)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>history</span>
-            {showAudit ? 'Скрыть историю' : 'История изменений'}
+            {showAudit ? t('admin.course_detail.hide_history') : t('admin.course_detail.history_changes')}
           </button>
           {showAudit && (
             <div style={{ marginTop: '12px' }}>
               {auditLogs.length === 0 ? (
-                <div className={styles.emptyState}><p>Нет записей</p></div>
+                <div className={styles.emptyState}><p>{t('admin.course_detail.no_history_records')}</p></div>
               ) : (
                 <div className={styles.list}>
                   {auditLogs.map(log => (
                     <div key={log.id} className={styles.lessonCard} style={{ padding: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-xs)' }}>
                         <span style={{ fontWeight: 600 }}>
-                          {log.performed_by_name || 'Система'}
+                          {log.performed_by_name || t('admin.course_detail.system')}
                           <span style={{ color: 'var(--color-on-surface-variant)', fontWeight: 400, marginLeft: '6px' }}>
-                            ({log.performed_by_type === 'admin' ? 'Админ' : 'Препод'})
+                            ({log.performed_by_type === 'admin' ? t('admin.course_detail.admin_role') : t('admin.course_detail.teacher_role')})
                           </span>
                         </span>
                         <span style={{ color: 'var(--color-on-surface-variant)' }}>{log.performed_at}</span>
                       </div>
                       <div style={{ marginTop: '4px', fontSize: 'var(--font-xs)', color: 'var(--color-on-surface-variant)' }}>
-                        {log.entity_type === 'subject' ? 'Курс' : 'Урок'} #{log.entity_id}
-                        {' · '}{log.action === 'update' ? 'изменено' : log.action === 'create' ? 'создано' : log.action === 'toggle_active' ? 'статус' : log.action === 'enroll' ? 'запись' : log.action === 'unenroll' ? 'отписка' : log.action}
+                        {log.entity_type === 'subject' ? t('admin.course_detail.course') : t('admin.course_detail.lesson')} #{log.entity_id}
+                        {' · '}{log.action === 'update' ? t('admin.course_detail.action_update') : log.action === 'create' ? t('admin.course_detail.action_create') : log.action === 'toggle_active' ? t('admin.course_detail.action_status') : log.action === 'enroll' ? t('admin.course_detail.action_enroll') : log.action === 'unenroll' ? t('admin.course_detail.action_unenroll') : log.action}
                       </div>
                       {log.field_name && (
                         <div style={{ marginTop: '2px', fontSize: 'var(--font-xs)' }}>
@@ -414,7 +417,7 @@ export default function AdminCourseDetail() {
             <div className={styles.modal} onClick={e => e.stopPropagation()}>
               <div className={styles.modalHandle} />
               <div className={styles.modalHeader}>
-                <h3 className={styles.modalTitle}>Редактировать курс</h3>
+                <h3 className={styles.modalTitle}>{t('admin.course_detail.edit_course')}</h3>
                 <button className={styles.modalClose} onClick={() => setShowSubjectEdit(false)}>
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
                 </button>
@@ -422,35 +425,35 @@ export default function AdminCourseDetail() {
               {subjectError && <div className={styles.modalError}>{subjectError}</div>}
               <div className={styles.modalActions}>
                 <div className={styles.field}>
-                  <label className={styles.fieldLabel}>Название</label>
+                  <label className={styles.fieldLabel}>{t('admin.course_detail.course_name')}</label>
                   <input className={styles.timeInput} value={subjectForm.name} onChange={e => setSubjectForm(p => ({ ...p, name: e.target.value }))} />
                 </div>
                 <div className={styles.field}>
-                  <label className={styles.fieldLabel}>Описание</label>
+                  <label className={styles.fieldLabel}>{t('admin.course_detail.course_description')}</label>
                   <input className={styles.timeInput} value={subjectForm.description} onChange={e => setSubjectForm(p => ({ ...p, description: e.target.value }))} />
                 </div>
                 <div className={styles.field}>
-                  <label className={styles.fieldLabel}>Дата старта</label>
+                  <label className={styles.fieldLabel}>{t('admin.course_detail.start_date')}</label>
                   <input type="date" className={styles.timeInput} value={subjectForm.start_date} onChange={e => setSubjectForm(p => ({ ...p, start_date: e.target.value }))} />
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <div className={styles.field} style={{ flex: 1 }}>
-                    <label className={styles.fieldLabel}>Недель</label>
+                    <label className={styles.fieldLabel}>{t('admin.course_detail.weeks')}</label>
                     <input type="number" min="1" className={styles.timeInput} value={subjectForm.duration_weeks} onChange={e => setSubjectForm(p => ({ ...p, duration_weeks: e.target.value }))} disabled={isIndefinite} style={{ opacity: isIndefinite ? 0.5 : 1 }} />
                   </div>
                   <div className={styles.field} style={{ flex: 1 }}>
-                    <label className={styles.fieldLabel}>Минут/занятие</label>
+                    <label className={styles.fieldLabel}>{t('admin.course_detail.minutes_per_lesson')}</label>
                     <input type="number" min="1" className={styles.timeInput} value={subjectForm.duration_minutes} onChange={e => setSubjectForm(p => ({ ...p, duration_minutes: e.target.value }))} />
                   </div>
                 </div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', cursor: 'pointer' }}>
                   <input type="checkbox" checked={isIndefinite} onChange={e => setIsIndefinite(e.target.checked)} />
-                  <span style={{ fontSize: '14px' }}>Бессрочный курс</span>
+                  <span style={{ fontSize: '14px' }}>{t('admin.course_detail.indefinite_course')}</span>
                 </label>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className={styles.modalBtnSecondary} onClick={() => setShowSubjectEdit(false)} style={{ flex: 1 }}>Отмена</button>
+                  <button className={styles.modalBtnSecondary} onClick={() => setShowSubjectEdit(false)} style={{ flex: 1 }}>{t('common.cancel')}</button>
                   <button className={styles.modalBtn} onClick={handleSubjectSave} style={{ flex: 1 }} disabled={subjectSubmitting}>
-                    {subjectSubmitting ? 'Сохранение...' : 'Сохранить'}
+                    {subjectSubmitting ? t('admin.course_detail.saving') : t('common.save')}
                   </button>
                 </div>
               </div>
@@ -464,7 +467,7 @@ export default function AdminCourseDetail() {
             <div className={styles.modal} onClick={e => e.stopPropagation()}>
               <div className={styles.modalHandle} />
               <div className={styles.modalHeader}>
-                <h3 className={styles.modalTitle}>Новый урок</h3>
+                <h3 className={styles.modalTitle}>{t('admin.course_detail.new_lesson')}</h3>
                 <button className={styles.modalClose} onClick={() => setShowCreateLesson(false)}>
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
                 </button>
@@ -472,33 +475,33 @@ export default function AdminCourseDetail() {
               {lessonError && <div className={styles.modalError}>{lessonError}</div>}
               <div className={styles.modalActions}>
                 <div className={styles.field}>
-                  <label className={styles.fieldLabel}>Преподаватель</label>
+                  <label className={styles.fieldLabel}>{t('admin.course_detail.teacher')}</label>
                   <input className={styles.timeInput} value={lessonForm.teacher_name} onChange={e => setLessonForm(p => ({ ...p, teacher_name: e.target.value }))} />
                 </div>
                 <div className={styles.field}>
-                  <label className={styles.fieldLabel}>День недели</label>
+                  <label className={styles.fieldLabel}>{t('admin.course_detail.day_of_week')}</label>
                   <select className={styles.timeInput} value={lessonForm.day_of_week} onChange={e => setLessonForm(p => ({ ...p, day_of_week: e.target.value }))}>
-                    {DAY_NAMES.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                    {dayNames.map((d, i) => <option key={i} value={i}>{d}</option>)}
                   </select>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <div className={styles.field} style={{ flex: 1 }}>
-                    <label className={styles.fieldLabel}>Время</label>
+                    <label className={styles.fieldLabel}>{t('admin.course_detail.time')}</label>
                     <input type="time" className={styles.timeInput} value={lessonForm.time} onChange={e => setLessonForm(p => ({ ...p, time: e.target.value }))} />
                   </div>
                   <div className={styles.field} style={{ flex: 1 }}>
-                    <label className={styles.fieldLabel}>Кабинет</label>
+                    <label className={styles.fieldLabel}>{t('admin.course_detail.room')}</label>
                     <input className={styles.timeInput} value={lessonForm.room} onChange={e => setLessonForm(p => ({ ...p, room: e.target.value }))} />
                   </div>
                 </div>
                 <div className={styles.field}>
-                  <label className={styles.fieldLabel}>Макс. учеников</label>
+                  <label className={styles.fieldLabel}>{t('admin.course_detail.max_students')}</label>
                   <input type="number" min="1" className={styles.timeInput} value={lessonForm.max_capacity} onChange={e => setLessonForm(p => ({ ...p, max_capacity: e.target.value }))} />
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className={styles.modalBtnSecondary} onClick={() => setShowCreateLesson(false)} style={{ flex: 1 }}>Отмена</button>
+                  <button className={styles.modalBtnSecondary} onClick={() => setShowCreateLesson(false)} style={{ flex: 1 }}>{t('common.cancel')}</button>
                   <button className={styles.modalBtn} onClick={handleCreateLesson} style={{ flex: 1 }} disabled={lessonSubmitting || !lessonForm.teacher_name || !lessonForm.time || !lessonForm.room}>
-                    {lessonSubmitting ? 'Создание...' : 'Создать'}
+                    {lessonSubmitting ? t('admin.course_detail.creating') : t('admin.course_detail.create')}
                   </button>
                 </div>
               </div>
@@ -512,14 +515,14 @@ export default function AdminCourseDetail() {
             <div className={styles.modal} onClick={e => e.stopPropagation()}>
               <div className={styles.modalHandle} />
               <div className={styles.modalHeader}>
-                <h3 className={styles.modalTitle}>Записать ученика</h3>
+                <h3 className={styles.modalTitle}>{t('admin.course_detail.enroll_student')}</h3>
                 <button className={styles.modalClose} onClick={() => setShowEnrollModal(false)}>
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
                 </button>
               </div>
               <input
                 className={styles.timeInput}
-                placeholder="Поиск по имени..."
+                placeholder={t('admin.course_detail.search_by_name')}
                 value={enrollFilter}
                 onChange={e => setEnrollFilter(e.target.value)}
               />
@@ -561,7 +564,7 @@ export default function AdminCourseDetail() {
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>unarchive</span>
-              Разархивировать курс
+              {t('admin.course_detail.unarchive_course')}
             </button>
           ) : (
             <button
@@ -574,7 +577,7 @@ export default function AdminCourseDetail() {
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>archive</span>
-              Архивировать курс
+              {t('admin.course_detail.archive_course')}
             </button>
           )}
         </section>
@@ -585,17 +588,17 @@ export default function AdminCourseDetail() {
             <div className={styles.modal} onClick={e => e.stopPropagation()}>
               <div className={styles.modalHandle} />
               <div className={styles.modalHeader}>
-                <h3 className={styles.modalTitle}>Архивировать курс</h3>
+                <h3 className={styles.modalTitle}>{t('admin.course_detail.archive_course')}</h3>
                 <button className={styles.modalClose} onClick={() => setShowArchiveModal(false)}>
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
                 </button>
               </div>
               <div className={styles.modalActions}>
                 <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-on-surface-variant)', marginBottom: '12px' }}>
-                  Курс будет скрыт от учеников и преподавателей, но останется в архиве для просмотра.
+                  {t('admin.course_detail.archive_hint_1')}
                 </p>
                 <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-on-surface-variant)', marginBottom: '8px' }}>
-                  Введите название курса для подтверждения:
+                  {t('admin.course_detail.archive_hint_2')}
                 </p>
                 <p style={{ fontSize: 'var(--font-sm)', fontWeight: 600, marginBottom: '12px', color: 'var(--color-on-surface)' }}>
                   {course.name}
@@ -605,13 +608,13 @@ export default function AdminCourseDetail() {
                     className={styles.timeInput}
                     value={archiveConfirmName}
                     onChange={e => setArchiveConfirmName(e.target.value)}
-                    placeholder="Введите название..."
+                    placeholder={t('admin.course_detail.enter_name_placeholder')}
                     autoFocus
                   />
                 </div>
                 <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
                   <button className={styles.modalBtnSecondary} onClick={() => setShowArchiveModal(false)} style={{ flex: 1 }}>
-                    Отмена
+                    {t('common.cancel')}
                   </button>
                   <button
                     className={styles.modalBtnPrimary}
@@ -619,7 +622,7 @@ export default function AdminCourseDetail() {
                     disabled={archiveConfirmName.trim() !== course.name || archiveSubmitting}
                     style={{ flex: 1, opacity: archiveConfirmName.trim() !== course.name ? 0.5 : 1, background: '#d32f2f', color: '#fff' }}
                   >
-                    {archiveSubmitting ? 'Архивация...' : 'Архивировать'}
+                    {archiveSubmitting ? t('admin.course_detail.archiving') : t('admin.course_detail.archive')}
                   </button>
                 </div>
               </div>
@@ -629,7 +632,7 @@ export default function AdminCourseDetail() {
       </main>
 
       {copied && (
-        <Toast message="Код скопирован в буфер обмена" onClose={() => setCopied(false)} />
+        <Toast message={t('admin.course_detail.code_copied')} onClose={() => setCopied(false)} />
       )}
     </div>
   )

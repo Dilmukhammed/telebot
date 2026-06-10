@@ -186,7 +186,7 @@ export default function CourseDetail() {
                   style={{ cursor: 'pointer' }}
                 >
                   <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)', fontSize: '20px' }}>key</span>
-                  <span className={styles.aboutRowLabel}>Код для записи</span>
+                  <span className={styles.aboutRowLabel}>{t('courseDetail.inviteCode')}</span>
                   <span className={styles.aboutRowValue} style={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: '2px' }}>
                     {course.invite_code}
                     <span className="material-symbols-outlined" style={{ fontSize: '14px', marginLeft: '8px', verticalAlign: 'middle', opacity: 0.6 }}>content_copy</span>
@@ -271,7 +271,7 @@ export default function CourseDetail() {
                       <div className={styles.studentMeta}>
                         {student.username && <span className={styles.metaItem}>@{student.username}</span>}
                         {student.phone && <span className={styles.metaItem}>{student.phone}</span>}
-                        {student.grade && <span className={styles.metaItem}>{student.grade} класс</span>}
+                        {student.grade && <span className={styles.metaItem}>{t('profile.grade', { grade: student.grade })}</span>}
                       </div>
                     </div>
                     <span className="material-symbols-outlined" style={{ color: 'var(--color-on-surface-variant)', opacity: 0.7 }}>
@@ -295,7 +295,7 @@ export default function CourseDetail() {
       </main>
 
       {copied && (
-        <Toast message="Код скопирован в буфер обмена" onClose={() => setCopied(false)} />
+        <Toast message={t('courseDetail.copiedToClipboard')} onClose={() => setCopied(false)} />
       )}
     </div>
   )

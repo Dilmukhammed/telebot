@@ -84,7 +84,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
       await refresh()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error completing onboarding')
+      setError(err instanceof Error ? err.message : t('onboarding.error'))
     } finally {
       setLoading(false)
     }

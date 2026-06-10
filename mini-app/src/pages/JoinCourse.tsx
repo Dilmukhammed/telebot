@@ -1,10 +1,12 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { joinCourse } from '../api/client'
 import SiteHeader from '../components/SiteHeader'
 import styles from './JoinCourse.module.css'
 
 export default function JoinCourse() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
@@ -15,7 +17,7 @@ export default function JoinCourse() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (code.length !== 6) {
-      setError('Код должен содержать 6 символов')
+      setError(t('joinCourse.errorLength'))
       return
     }
 
@@ -25,10 +27,10 @@ export default function JoinCourse() {
 
     try {
       const result = await joinCourse(code.toUpperCase())
-      setSuccess(result.message || 'Заявка успешно отправлена!')
+      setSuccess(result.message || t('joinCourse.successMessage'))
       setCode('')
     } catch (e: any) {
-      setError(e.message || 'Ошибка отправки заявки')
+      setError(e.message || t('joinCourse.errorMessage'))
     } finally {
       setLoading(false)
     }
@@ -43,7 +45,7 @@ export default function JoinCourse() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title="Запись на курс" onBack={() => navigate(-1)} hideProfile />
+      <SiteHeader title={t('joinCourse.title')} onBack={() => navigate(-1)} hideProfile />
 
       <main className={styles.main}>
         <div className={styles.card}>
@@ -53,9 +55,9 @@ export default function JoinCourse() {
             </span>
           </div>
 
-          <h1 className={styles.title}>Введите код курса</h1>
+          <h1 className={styles.title}>{t('joinCourse.enterCode')}</h1>
           <p className={styles.subtitle}>
-            Получите 6-значный код у преподавателя и введите его ниже
+            {t('joinCourse.subtitle')}
           </p>
 
           <form onSubmit={handleSubmit} className={styles.form}>
@@ -115,7 +117,7 @@ export default function JoinCourse() {
               ) : (
                 <>
                   <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>send</span>
-                  Отправить заявку
+                  {t('joinCourse.submitBtn')}
                 </>
               )}
             </button>
@@ -125,7 +127,7 @@ export default function JoinCourse() {
             onClick={() => navigate('/courses')}
             className={styles.linkButton}
           >
-            Посмотреть доступные курсы
+            {t('joinCourse.viewCourses')}
           </button>
         </div>
       </main>

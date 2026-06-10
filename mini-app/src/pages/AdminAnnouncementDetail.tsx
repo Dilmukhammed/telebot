@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAdminAnnouncementDetail, useAdminAnnouncementRecipients } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
+import { langToLocale } from '../shared/utils/formatDate'
 import styles from './AnnouncementDetail.module.css'
 
-const formatDate = (isoString: string) => {
+const formatDate = (isoString: string, locale: string) => {
   try {
     const d = new Date(isoString)
     if (isNaN(d.getTime())) return ''
-    return d.toLocaleDateString('ru-RU', {
+    return d.toLocaleDateString(locale, {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
@@ -26,23 +28,25 @@ const PREVIEW_COUNT = 5
 export default function AdminAnnouncementDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
+  const currentLocale = langToLocale(i18n.language)
   const numId = Number(id)
   const { data: announcement, isLoading, error } = useAdminAnnouncementDetail(numId)
   const { data: recipients = [] } = useAdminAnnouncementRecipients(numId)
   const [showAllRecipients, setShowAllRecipients] = useState(false)
 
   if (isLoading) {
-    return <Loading fullPage message="Загрузка..." />
+    return <Loading fullPage message={t('common.loading')} />
   }
 
   if (error || !announcement) {
     return (
       <div className={styles.page}>
-        <SiteHeader title="Объявление" onBack={() => navigate(-1)} hideProfile />
+        <SiteHeader title={t('admin.announcements.detail_title')} onBack={() => navigate(-1)} hideProfile />
         <div className={styles.errorState}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#ba1a1a' }}>error</span>
-          <p>{error?.message || 'Ошибка загрузки'}</p>
-          <button onClick={() => navigate(-1)} className={styles.backButton}>Назад</button>
+          <p>{error?.message || t('common.error')}</p>
+          <button onClick={() => navigate(-1)} className={styles.backButton}>{t('common.back')}</button>
         </div>
       </div>
     )
@@ -64,7 +68,7 @@ export default function AdminAnnouncementDetail() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title="Объявление" onBack={() => navigate(-1)} hideProfile />
+      <SiteHeader title={t('admin.announcements.detail_title')} onBack={() => navigate(-1)} hideProfile />
 
       <main className={styles.main}>
         <div className={styles.card}>
@@ -73,13 +77,13 @@ export default function AdminAnnouncementDetail() {
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
                 admin_panel_settings
               </span>
-              {announcement.sender_name} · Администратор
+              {announcement.sender_name} · {t('admin.dashboard.role_admin')}
             </span>
           )}
           {announcement.title && (
             <h2 className={styles.title}>{announcement.title}</h2>
           )}
-          <span className={styles.date}>{formatDate(announcement.sent_at)}</span>
+          <span className={styles.date}>{formatDate(announcement.sent_at, currentLocale)}</span>
           <div className={styles.divider} />
           <p className={styles.message}>{announcement.message}</p>
         </div>
@@ -97,7 +101,7 @@ export default function AdminAnnouncementDetail() {
           <div className={styles.recipientsList}>
             <div className={styles.recipientChip}>
               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>people</span>
-              {announcement.recipient_count} получателей
+              {t('admin.announcements.recipients_count', { count: announcement.recipient_count })}
             </div>
           </div>
         </div>
@@ -108,7 +112,7 @@ export default function AdminAnnouncementDetail() {
             <div className={styles.recipientsHeader}>
               <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-primary)' }}>group</span>
               <span className={styles.recipientsTitle}>
-                Ученики ({recipients.length})
+                {t('admin.announcements.students_count', { count: recipients.length })}
               </span>
             </div>
             <div className={styles.recipientsList}>
@@ -124,7 +128,7 @@ export default function AdminAnnouncementDetail() {
                 className={styles.showAllButton}
                 onClick={() => setShowAllRecipients(true)}
               >
-                Показать всех ({recipients.length})
+                {t('admin.announcements.show_all_recipients', { count: recipients.length })}
               </button>
             )}
           </div>

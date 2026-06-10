@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAdminSubjects } from '../api/hooks'
 import {
   adminSearchCourses,
@@ -12,8 +13,6 @@ import SiteHeader from '../components/SiteHeader'
 import styles from './AdminCourses.module.css'
 
 type Tab = 'all' | 'search' | 'archive'
-
-const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
 const COURSE_ICONS: Record<string, string> = {
   'SAT Math': 'school',
@@ -29,6 +28,7 @@ const COURSE_BADGES: Record<string, string> = {
 
 export default function AdminCourses() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tab, setTab] = useState<Tab>((searchParams.get('tab') as Tab) || 'all')
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -46,11 +46,11 @@ export default function AdminCourses() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title="Курсы" onBack={() => navigate('/dashboard')} hideProfile />
+      <SiteHeader title={t('admin.courses.title')} onBack={() => navigate('/dashboard')} hideProfile />
 
       <main className={styles.main}>
         <div className={styles.tabs}>
-          {([['all', 'Курсы'], ['search', 'Поиск'], ['archive', 'Архив']] as [Tab, string][]).map(([t, label]) => (
+          {([['all', t('admin.courses.title')], ['search', t('admin.courses.search')], ['archive', t('admin.courses.archive')]] as [Tab, string][]).map(([t, label]) => (
             <button
               key={t}
               className={`${styles.tab} ${tab === t ? styles.activeTab : ''}`}
@@ -87,13 +87,14 @@ export default function AdminCourses() {
 }
 
 function AllCourses({ navigate, courses, loading }: { navigate: (p: string) => void; courses: any[]; loading: boolean }) {
-  if (loading) return <div className={styles.loading}>Загрузка курсов...</div>
+  const { t } = useTranslation()
+  if (loading) return <div className={styles.loading}>{t('admin.courses.loading_courses')}</div>
 
   if (courses.length === 0) {
     return (
       <div className={styles.emptyState}>
         <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>menu_book</span>
-        <p>Нет курсов</p>
+        <p>{t('admin.courses.no_courses')}</p>
       </div>
     )
   }
@@ -110,7 +111,7 @@ function AllCourses({ navigate, courses, loading }: { navigate: (p: string) => v
           <div className={styles.cardHeader}>
             <div className={styles.cardInfo}>
               <span className={styles.badge}>
-                {COURSE_BADGES[c.name] || 'Курс'}
+                {COURSE_BADGES[c.name] || t('admin.course_detail.course')}
               </span>
               <h2 className={styles.courseTitle}>{c.name}</h2>
             </div>
@@ -131,7 +132,7 @@ function AllCourses({ navigate, courses, loading }: { navigate: (p: string) => v
               person
             </span>
             <span className={styles.teacherName}>
-              {c.teacher_names.join(', ') || 'Без преподавателя'}
+              {c.teacher_names.join(', ') || t('admin.courses.no_teacher')}
             </span>
 
             <span className={styles.metaDivider}>·</span>
@@ -139,14 +140,14 @@ function AllCourses({ navigate, courses, loading }: { navigate: (p: string) => v
             <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-outline)' }}>
               menu_book
             </span>
-            <span className={styles.teacherName}>{c.lesson_count} ур.</span>
+            <span className={styles.teacherName}>{t('admin.courses.lessons_short', { count: c.lesson_count })}</span>
 
             <span className={styles.metaDivider}>·</span>
 
             <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-outline)' }}>
               groups
             </span>
-            <span className={styles.teacherName}>{c.student_count} уч.</span>
+            <span className={styles.teacherName}>{t('admin.courses.students_short', { count: c.student_count })}</span>
           </div>
         </div>
       ))}
@@ -159,6 +160,8 @@ function AllCourses({ navigate, courses, loading }: { navigate: (p: string) => v
 type Step = 'info' | 'schedule' | 'teacher' | 'students'
 
 function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: number) => void }) {
+  const { t } = useTranslation()
+  const dayNames = Array.from({ length: 7 }, (_, i) => t(`courseDetail.daysShort.${i}`))
   const [step, setStep] = useState<Step>('info')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -201,52 +204,49 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
           setTeachers(allTeachers)
           setMatchingTeacherIds(new Set(allTeachers.map(t => t.id)))
         })
-        .catch(console.error)
         .finally(() => setTeachersLoading(false))
     }
-  }, [step])
+  }, [step, selectedDays, scheduleTime, durationMinutes, teachers.length])
 
   // Load students when reaching step 4
   useEffect(() => {
     if (step === 'students' && students.length === 0) {
-      getAdminUsers({ role: 'student' }).then(setStudents).catch(console.error)
+      getAdminUsers({ role: 'student' })
+        .then(data => setStudents(data))
     }
-  }, [step])
+  }, [step, students.length])
 
-  const steps: { key: Step; label: string; icon: string }[] = [
-    { key: 'info', label: 'Инфо', icon: 'info' },
-    { key: 'schedule', label: 'Расписание', icon: 'schedule' },
-    { key: 'teacher', label: 'Учитель', icon: 'person' },
-    { key: 'students', label: 'Ученики', icon: 'groups' },
+  const steps = [
+    { key: 'info', icon: 'info' },
+    { key: 'schedule', icon: 'schedule' },
+    { key: 'teacher', icon: 'school' },
+    { key: 'students', icon: 'groups' },
   ]
-
   const currentIdx = steps.findIndex(s => s.key === step)
 
   const canNext = () => {
-    if (step === 'info') return name.trim().length > 0
-    if (step === 'schedule') return selectedDays.length > 0 && scheduleTime && scheduleRoom.trim().length > 0
-    if (step === 'teacher') return true
-    if (step === 'students') return true
-    return false
+    if (step === 'info') return name.trim() && (isIndefinite || durationWeeks) && durationMinutes && maxCapacity
+    if (step === 'schedule') return selectedDays.length > 0 && scheduleRoom.trim()
+    return true
   }
 
   const handleNext = () => {
-    if (currentIdx < steps.length - 1) {
-      setStep(steps[currentIdx + 1].key)
-    }
+    if (!canNext()) return
+    if (step === 'info') setStep('schedule')
+    else if (step === 'schedule') setStep('teacher')
+    else if (step === 'teacher') setStep('students')
   }
 
   const handleBack = () => {
-    if (currentIdx > 0) {
-      setStep(steps[currentIdx - 1].key)
-    }
+    if (step === 'schedule') setStep('info')
+    else if (step === 'teacher') setStep('schedule')
+    else if (step === 'students') setStep('teacher')
   }
 
   const handleSubmit = async () => {
     setLoading(true)
     setError(null)
     try {
-      // Build schedule from selected days
       const schedule: ScheduleSlot[] = selectedDays.map(day => ({
         day_of_week: day,
         time: scheduleTime,
@@ -265,7 +265,7 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
       })
       onCreated(result.id)
     } catch (err: any) {
-      setError(err?.message || 'Ошибка создания')
+      setError(err?.message || t('admin.people.create_error'))
     } finally {
       setLoading(false)
     }
@@ -290,7 +290,7 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
       <div className={styles.modal} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className={styles.modalHeader}>
-          <h3>Новый курс</h3>
+          <h3>{t('admin.courses.new_course')}</h3>
           <button className={styles.modalClose} onClick={onClose}>
             <span className="material-symbols-outlined">close</span>
           </button>
@@ -318,12 +318,12 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
           {step === 'info' && (
             <>
               <div className={styles.formGroup}>
-                <label>Название курса *</label>
+                <label>{t('admin.courses.course_name_label')}</label>
                 <input type="text" placeholder="SAT Math" value={name} onChange={e => setName(e.target.value)} />
               </div>
               <div className={styles.formGroup}>
-                <label>Описание</label>
-                <input type="text" placeholder="Подготовка к экзамену..." value={description} onChange={e => setDescription(e.target.value)} />
+                <label>{t('admin.courses.description_label')}</label>
+                <input type="text" placeholder={t('admin.courses.description_placeholder')} value={description} onChange={e => setDescription(e.target.value)} />
               </div>
               <label className={styles.checkboxRow}>
                 <input
@@ -331,21 +331,21 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
                   checked={isIndefinite}
                   onChange={e => setIsIndefinite(e.target.checked)}
                 />
-                <span>Бессрочный курс</span>
+                <span>{t('admin.courses.indefinite_course')}</span>
               </label>
               {!isIndefinite && (
                 <div className={styles.formGroup}>
-                  <label>Недель</label>
+                  <label>{t('admin.courses.weeks_label')}</label>
                   <input type="number" min="1" value={durationWeeks} onChange={e => setDurationWeeks(e.target.value)} />
                 </div>
               )}
               <div className={styles.formRow2}>
                 <div className={styles.formGroup}>
-                  <label>Минут/урок</label>
+                  <label>{t('admin.courses.minutes_per_lesson_label')}</label>
                   <input type="number" min="1" value={durationMinutes} onChange={e => setDurationMinutes(e.target.value)} />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Макс. учеников</label>
+                  <label>{t('admin.courses.max_students_label')}</label>
                   <input type="number" min="1" value={maxCapacity} onChange={e => setMaxCapacity(e.target.value)} />
                 </div>
               </div>
@@ -355,11 +355,11 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
           {/* Step 2: Schedule */}
           {step === 'schedule' && (
             <>
-              <p className={styles.stepHint}>Выберите дни и время занятий</p>
+              <p className={styles.stepHint}>{t('admin.courses.schedule_hint')}</p>
               <div className={styles.formGroup}>
-                <label>Дни недели</label>
+                <label>{t('admin.courses.weekdays_label')}</label>
                 <div className={styles.dayPicker}>
-                  {DAY_NAMES.map((dayName, idx) => (
+                  {dayNames.map((dayName, idx) => (
                     <button
                       key={idx}
                       type="button"
@@ -377,7 +377,7 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
               </div>
               <div className={styles.formRow2}>
                 <div className={styles.formGroup}>
-                  <label>Время</label>
+                  <label>{t('admin.courses.time_label')}</label>
                   <input
                     type="time"
                     value={scheduleTime}
@@ -385,7 +385,7 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
                   />
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Кабинет *</label>
+                  <label>{t('admin.courses.room_label')}</label>
                   <input
                     type="text"
                     placeholder="Каб. 1"
@@ -398,7 +398,11 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
                 <div className={styles.schedulePreview}>
                   <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--color-primary)' }}>event</span>
                   <span>
-                    {selectedDays.map(d => DAY_NAMES[d]).join(', ')} в {scheduleTime}, {scheduleRoom || '...'}
+                    {t('admin.courses.schedule_preview', {
+                      days: selectedDays.map(d => dayNames[d]).join(', '),
+                      time: scheduleTime,
+                      room: scheduleRoom || '...'
+                    })}
                   </span>
                 </div>
               )}
@@ -408,9 +412,9 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
           {/* Step 3: Teacher (filtered by availability) */}
           {step === 'teacher' && (
             <>
-              <p className={styles.stepHint}>Преподаватели с подходящим расписанием показаны первыми</p>
+              <p className={styles.stepHint}>{t('admin.courses.teacher_hint')}</p>
               {teachersLoading ? (
-                <div className={styles.loading}>Загрузка...</div>
+                <div className={styles.loading}>{t('common.loading')}</div>
               ) : (
                 <div className={styles.teacherList}>
                   <button
@@ -418,7 +422,7 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
                     onClick={() => setSelectedTeacherId(null)}
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>person_off</span>
-                    <span>Без преподавателя</span>
+                    <span>{t('admin.courses.no_teacher_option')}</span>
                   </button>
                   {teachers.map(t => {
                     const isMatching = matchingTeacherIds.has(t.id)
@@ -443,7 +447,7 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
                   })}
                   {teachers.length === 0 && (
                     <div className={styles.emptyState}>
-                      <p>Нет преподавателей</p>
+                      <p>{t('admin.courses.no_teachers_found')}</p>
                     </div>
                   )}
                 </div>
@@ -454,12 +458,12 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
           {/* Step 4: Students */}
           {step === 'students' && (
             <>
-              <p className={styles.stepHint}>Выберите учеников или пропустите</p>
+              <p className={styles.stepHint}>{t('admin.courses.students_hint')}</p>
               <div className={styles.searchBox}>
                 <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#7b7487' }}>search</span>
                 <input
                   type="text"
-                  placeholder="Поиск учеников..."
+                  placeholder={t('admin.courses.search_students_placeholder')}
                   value={studentSearch}
                   onChange={e => setStudentSearch(e.target.value)}
                   className={styles.searchInput}
@@ -478,20 +482,20 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
                       )}
                     </div>
                     <div className={styles.studentInfo}>
-                      <span>{s.first_name || s.username || 'Без имени'} {s.last_name || ''}</span>
+                      <span>{s.first_name || s.username || t('admin.people.no_name')} {s.last_name || ''}</span>
                       {s.username && <span className={styles.studentUsername}>@{s.username}</span>}
                     </div>
                   </button>
                 ))}
                 {filteredStudents.length === 0 && (
                   <div className={styles.emptyState}>
-                    <p>Нет учеников</p>
+                    <p>{t('admin.courses.no_students_found')}</p>
                   </div>
                 )}
               </div>
               {selectedStudentIds.length > 0 && (
                 <div className={styles.selectedCount}>
-                  Выбрано: {selectedStudentIds.length}
+                  {t('admin.courses.selected_count', { count: selectedStudentIds.length })}
                 </div>
               )}
             </>
@@ -502,21 +506,21 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
         <div className={styles.modalFooter}>
           {currentIdx > 0 && (
             <button className={styles.cancelBtn} onClick={handleBack}>
-              Назад
+              {t('common.back')}
             </button>
           )}
           {currentIdx === 0 && (
             <button className={styles.cancelBtn} onClick={onClose}>
-              Отмена
+              {t('common.cancel')}
             </button>
           )}
           {currentIdx < steps.length - 1 ? (
             <button className={styles.createBtn} onClick={handleNext} disabled={!canNext()}>
-              Далее
+              {t('common.next')}
             </button>
           ) : (
             <button className={styles.createBtn} onClick={handleSubmit} disabled={loading}>
-              {loading ? 'Создание...' : 'Создать курс'}
+              {loading ? t('admin.people.creating') : t('admin.courses.create_course')}
             </button>
           )}
         </div>
@@ -528,6 +532,8 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
 // ── Search View ──────────────────────────────────────────────────────
 
 function SearchView() {
+  const { t } = useTranslation()
+  const dayNames = Array.from({ length: 7 }, (_, i) => t(`courseDetail.daysShort.${i}`))
   const [selectedDays, setSelectedDays] = useState<number[]>([])
   const [timeFrom, setTimeFrom] = useState('09:00')
   const [timeTo, setTimeTo] = useState('21:00')
@@ -544,11 +550,11 @@ function SearchView() {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedDays.length === 0) {
-      setError('Выберите хотя бы один день')
+      setError(t('admin.courses.select_day_error'))
       return
     }
     if (timeFrom >= timeTo) {
-      setError('Время «С» должно быть раньше «По»')
+      setError(t('admin.courses.time_range_error'))
       return
     }
     setSearching(true)
@@ -557,7 +563,7 @@ function SearchView() {
       const data = await adminSearchCourses({ days: selectedDays, time_from: timeFrom, time_to: timeTo })
       setResults(data)
     } catch (e: any) {
-      setError(e.message || 'Ошибка поиска')
+      setError(e.message || t('admin.courses.search_error'))
     } finally {
       setSearching(false)
     }
@@ -567,9 +573,9 @@ function SearchView() {
     <div className={styles.searchForm}>
       <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
         <div className={styles.field}>
-          <label className={styles.fieldLabel}>Дни недели</label>
+          <label className={styles.fieldLabel}>{t('admin.courses.weekdays_label')}</label>
           <div className={styles.dayPicker}>
-            {DAY_NAMES.map((name, idx) => (
+            {dayNames.map((name, idx) => (
               <button
                 key={name}
                 type="button"
@@ -584,11 +590,11 @@ function SearchView() {
 
         <div className={styles.timeRow}>
           <div className={styles.field}>
-            <label className={styles.fieldLabel}>С</label>
+            <label className={styles.fieldLabel}>{t('admin.courses.time_from_label')}</label>
             <input type="time" className={styles.timeInput} value={timeFrom} onChange={e => setTimeFrom(e.target.value)} />
           </div>
           <div className={styles.field}>
-            <label className={styles.fieldLabel}>По</label>
+            <label className={styles.fieldLabel}>{t('admin.courses.time_to_label')}</label>
             <input type="time" className={styles.timeInput} value={timeTo} onChange={e => setTimeTo(e.target.value)} />
           </div>
         </div>
@@ -596,17 +602,17 @@ function SearchView() {
         {error && <div className={styles.modalError}>{error}</div>}
 
         <button type="submit" className={styles.searchBtn} disabled={searching}>
-          {searching ? 'Поиск...' : 'Найти свободные слоты'}
+          {searching ? t('admin.courses.searching') : t('admin.courses.find_slots')}
         </button>
       </form>
 
       {results && (
         <div className={styles.results}>
-          <h3 className={styles.resultsTitle}>Курсы со свободными местами</h3>
+          <h3 className={styles.resultsTitle}>{t('admin.courses.courses_with_spots')}</h3>
           {results.courses.length === 0 ? (
             <div className={styles.emptyState}>
               <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#7b7487' }}>search_off</span>
-              <p>Нет курсов с местами в выбранное время</p>
+              <p>{t('admin.courses.no_courses_with_spots')}</p>
             </div>
           ) : (
             results.courses.map(c => (
@@ -616,17 +622,17 @@ function SearchView() {
                   {c.teacher_name} · {c.day_name} {c.time}–{c.end_time} · {c.room}
                 </div>
                 <div className={styles.resultMeta}>
-                  Свободно {c.spots_left} из {c.max_capacity} мест
+                  {t('admin.courses.spots_left_info', { spots_left: c.spots_left, max_capacity: c.max_capacity })}
                 </div>
               </div>
             ))
           )}
 
-          <h3 className={styles.resultsTitle}>Открытые слоты учителей</h3>
+          <h3 className={styles.resultsTitle}>{t('admin.courses.teachers_open_slots')}</h3>
           {results.open_slots.length === 0 ? (
             <div className={styles.emptyState}>
               <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#7b7487' }}>event_available</span>
-              <p>Нет окон у учителей в выбранное время</p>
+              <p>{t('admin.courses.no_teachers_open_slots')}</p>
             </div>
           ) : (
             results.open_slots.map(s => (
@@ -647,17 +653,18 @@ function SearchView() {
 // ── Archive View ────────────────────────────────────────────────────
 
 function ArchiveCourses({ navigate }: { navigate: (p: string) => void }) {
+  const { t } = useTranslation()
   const { data: rawCourses = [], isLoading } = useAdminSubjects(true)
   const courses = useMemo(() => [...rawCourses].sort((a, b) => a.name.localeCompare(b.name, 'ru')), [rawCourses])
   const loading = isLoading
 
-  if (loading) return <div className={styles.loading}>Загрузка архива...</div>
+  if (loading) return <div className={styles.loading}>{t('admin.courses.loading_archive')}</div>
 
   if (courses.length === 0) {
     return (
       <div className={styles.emptyState}>
         <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>archive</span>
-        <p>Архив пуст</p>
+        <p>{t('admin.courses.archive_empty')}</p>
       </div>
     )
   }
@@ -674,7 +681,7 @@ function ArchiveCourses({ navigate }: { navigate: (p: string) => void }) {
           <div className={styles.cardHeader}>
             <div className={styles.cardInfo}>
               <span className={styles.badge} style={{ background: 'var(--color-outline)', color: 'var(--color-on-surface)' }}>
-                Архив
+                {t('admin.courses.archive')}
               </span>
               <h2 className={styles.courseTitle}>{c.name}</h2>
             </div>
@@ -689,13 +696,13 @@ function ArchiveCourses({ navigate }: { navigate: (p: string) => void }) {
               person
             </span>
             <span className={styles.teacherName}>
-              {c.teacher_names.join(', ') || 'Без преподавателя'}
+              {c.teacher_names.join(', ') || t('admin.courses.no_teacher')}
             </span>
             <span className={styles.metaDivider}>·</span>
             <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-outline)' }}>
               groups
             </span>
-            <span className={styles.teacherName}>{c.student_count} уч.</span>
+            <span className={styles.teacherName}>{t('admin.courses.students_short', { count: c.student_count })}</span>
           </div>
         </div>
       ))}

@@ -93,7 +93,7 @@ export default function Courses() {
             className={styles.joinCourseCard}
           >
             <span className="material-symbols-outlined">key</span>
-            Записаться по коду
+            {t('courses.joinByCode')}
           </button>
         )}
 

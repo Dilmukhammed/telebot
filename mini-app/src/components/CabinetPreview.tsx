@@ -1,7 +1,10 @@
+import { useTranslation } from 'react-i18next'
 import { CENTER } from '../config'
 import styles from './CabinetPreview.module.css'
 
 export default function CabinetPreview() {
+  const { t } = useTranslation()
+
   return (
     <div className={styles.page}>
       {/* TopAppBar */}
@@ -19,8 +22,8 @@ export default function CabinetPreview() {
         {/* Welcome Card */}
         <section className={styles.welcomeCard}>
           <div className={styles.welcomeContent}>
-            <h2 className={styles.welcomeTitle}>Привет, Ученик!</h2>
-            <p className={styles.welcomeSubtitle}>Добро пожаловать в {CENTER.name}</p>
+            <h2 className={styles.welcomeTitle}>{t('components.cabinetPreview.welcomeStudent')}</h2>
+            <p className={styles.welcomeSubtitle}>{t('components.cabinetPreview.welcomeTo', { name: CENTER.name })}</p>
           </div>
           <div className={styles.welcomeDecor} />
         </section>
@@ -29,44 +32,44 @@ export default function CabinetPreview() {
         <section className={styles.statsRow}>
           <div className={styles.statCard}>
             <span className={styles.statValue}>5</span>
-            <span className={styles.statLabel}>Курсов</span>
+            <span className={styles.statLabel}>{t('components.cabinetPreview.courses')}</span>
           </div>
           <div className={styles.statCard}>
             <span className={styles.statValue}>12</span>
-            <span className={styles.statLabel}>Занятий</span>
+            <span className={styles.statLabel}>{t('components.cabinetPreview.lessons')}</span>
           </div>
           <div className={styles.statCard}>
             <span className={styles.statValue}>85%</span>
-            <span className={styles.statLabel}>Прогресс</span>
+            <span className={styles.statLabel}>{t('components.cabinetPreview.progress')}</span>
           </div>
         </section>
 
         {/* Quick Actions */}
         <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Быстрые действия</h3>
+          <h3 className={styles.sectionTitle}>{t('components.cabinetPreview.quickActions')}</h3>
           <div className={styles.actionsGrid}>
             <div className={styles.actionCard}>
               <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>menu_book</span>
-              <span className={styles.actionLabel}>Мои курсы</span>
+              <span className={styles.actionLabel}>{t('components.cabinetPreview.myCourses')}</span>
             </div>
             <div className={styles.actionCard}>
               <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>calendar_today</span>
-              <span className={styles.actionLabel}>Расписание</span>
+              <span className={styles.actionLabel}>{t('components.cabinetPreview.schedule')}</span>
             </div>
             <div className={styles.actionCard}>
               <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>assignment</span>
-              <span className={styles.actionLabel}>Домашки</span>
+              <span className={styles.actionLabel}>{t('components.cabinetPreview.homeworks')}</span>
             </div>
             <div className={styles.actionCard}>
               <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>bar_chart</span>
-              <span className={styles.actionLabel}>Оценки</span>
+              <span className={styles.actionLabel}>{t('components.cabinetPreview.grades')}</span>
             </div>
           </div>
         </section>
 
         {/* Upcoming */}
         <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>Ближайшие занятия</h3>
+          <h3 className={styles.sectionTitle}>{t('components.cabinetPreview.upcomingLessons')}</h3>
           <div className={styles.placeholderCard}>
             <div className={styles.placeholderLine} style={{ width: '70%' }} />
             <div className={styles.placeholderLine} style={{ width: '50%' }} />
@@ -82,19 +85,19 @@ export default function CabinetPreview() {
       <nav className={styles.bottomNav}>
         <div className={styles.navItem}>
           <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)' }}>home</span>
-          <span className={styles.navLabel}>Главная</span>
+          <span className={styles.navLabel}>{t('components.cabinetPreview.home')}</span>
         </div>
         <div className={styles.navItem}>
           <span className="material-symbols-outlined">menu_book</span>
-          <span className={styles.navLabel}>Курсы</span>
+          <span className={styles.navLabel}>{t('components.cabinetPreview.navCourses')}</span>
         </div>
         <div className={styles.navItem}>
           <span className="material-symbols-outlined">person</span>
-          <span className={styles.navLabel}>Кабинет</span>
+          <span className={styles.navLabel}>{t('components.cabinetPreview.cabinet')}</span>
         </div>
         <div className={styles.navItem}>
           <span className="material-symbols-outlined">contact_support</span>
-          <span className={styles.navLabel}>Помощь</span>
+          <span className={styles.navLabel}>{t('components.cabinetPreview.help')}</span>
         </div>
       </nav>
     </div>

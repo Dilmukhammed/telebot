@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAdminAnnouncements, useAdminSubjects, useAdminUsers } from '../api/hooks'
 import {
   createAdminAnnouncement,
@@ -8,13 +9,14 @@ import type {
   AdminAnnouncementCreate,
 } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
+import { langToLocale } from '../shared/utils/formatDate'
 import styles from './AdminAnnouncements.module.css'
 
-const formatDate = (isoString: string) => {
+const formatDate = (isoString: string, locale: string) => {
   try {
     const d = new Date(isoString)
     if (isNaN(d.getTime())) return isoString
-    return d.toLocaleDateString('ru-RU', {
+    return d.toLocaleDateString(locale, {
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
@@ -27,6 +29,8 @@ const formatDate = (isoString: string) => {
 
 export default function AdminAnnouncements() {
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
+  const currentLocale = langToLocale(i18n.language)
   const { data: announcements = [], isLoading, refetch } = useAdminAnnouncements()
   const { data: courses = [] } = useAdminSubjects()
   const { data: students = [] } = useAdminUsers('student')
@@ -56,19 +60,19 @@ export default function AdminAnnouncements() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!message) {
-      setError('Текст объявления обязателен')
+      setError(t('admin.announcements.message_required'))
       return
     }
     if (targetType === 'course' && selectedCourseIds.length === 0) {
-      setError('Выберите хотя бы один курс')
+      setError(t('admin.announcements.course_required'))
       return
     }
     if (targetType === 'specific_students' && selectedStudentIds.length === 0) {
-      setError('Выберите хотя бы одного ученика')
+      setError(t('admin.announcements.student_required'))
       return
     }
     if (targetType === 'teacher_courses' && !targetId) {
-      setError('Выберите преподавателя')
+      setError(t('admin.announcements.teacher_required'))
       return
     }
 
@@ -86,7 +90,7 @@ export default function AdminAnnouncements() {
       setModalOpen(false)
       refetch()
     } catch (err: any) {
-      setError(err.message || 'Ошибка отправки')
+      setError(err.message || t('admin.announcements.send_error'))
     } finally {
       setSubmitting(false)
     }
@@ -102,23 +106,23 @@ export default function AdminAnnouncements() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title="Объявления" onBack={() => navigate('/dashboard')} hideProfile />
+      <SiteHeader title={t('admin.announcements.title')} onBack={() => navigate('/dashboard')} hideProfile />
 
       <main className={styles.main}>
         <div className={styles.header}>
-          <h2 className={styles.headerTitle}>Объявления</h2>
+          <h2 className={styles.headerTitle}>{t('admin.announcements.title')}</h2>
           <button className={styles.createBtn} onClick={handleCreateClick}>
             <span className="material-symbols-outlined">add</span>
-            <span>Новое</span>
+            <span>{t('admin.announcements.new')}</span>
           </button>
         </div>
 
         {isLoading ? (
-          <div className={styles.loading}>Загрузка...</div>
+          <div className={styles.loading}>{t('common.loading')}</div>
         ) : announcements.length === 0 ? (
           <div className={styles.emptyState}>
             <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>campaign</span>
-            <p>Нет объявлений</p>
+            <p>{t('admin.announcements.no_announcements')}</p>
           </div>
         ) : (
           <div className={styles.list}>
@@ -126,13 +130,13 @@ export default function AdminAnnouncements() {
               <div key={a.id} className={styles.card} onClick={() => navigate(`/admin/announcements/${a.id}`)} style={{ cursor: 'pointer' }}>
                 <div className={styles.cardHeader}>
                   <span className={styles.target}>{a.target_summary}</span>
-                  <span className={styles.date}>{formatDate(a.sent_at)}</span>
+                  <span className={styles.date}>{formatDate(a.sent_at, currentLocale)}</span>
                 </div>
                 {a.title && <h4 className={styles.cardTitle}>{a.title}</h4>}
                 <p className={styles.cardMessage}>{a.message}</p>
                 <div className={styles.cardFooter}>
-                  <span>{a.recipient_count} получателей</span>
-                  {a.sender_name && <span>от {a.sender_name}</span>}
+                  <span>{t('admin.announcements.recipients_count', { count: a.recipient_count })}</span>
+                  {a.sender_name && <span>{t('admin.announcements.sender', { name: a.sender_name })}</span>}
                 </div>
               </div>
             ))}
@@ -145,34 +149,34 @@ export default function AdminAnnouncements() {
             <div className={styles.modal} onClick={e => e.stopPropagation()}>
               <div className={styles.modalHandle} />
               <div className={styles.modalHeader}>
-                <h3 className={styles.modalTitle}>Новое объявление</h3>
+                <h3 className={styles.modalTitle}>{t('admin.announcements.new_announcement')}</h3>
                 <button className={styles.modalClose} onClick={() => setModalOpen(false)}>
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
                 </button>
               </div>
-              <p className={styles.modalSub}>Будет отправлено в Telegram</p>
+              <p className={styles.modalSub}>{t('admin.announcements.tg_hint')}</p>
 
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
                 <div className={styles.field}>
-                  <label>Тема (необязательно)</label>
-                  <input type="text" placeholder="Тема..." value={title} onChange={e => setTitle(e.target.value)} />
+                  <label>{t('admin.announcements.subject_optional')}</label>
+                  <input type="text" placeholder={t('admin.announcements.subject_placeholder')} value={title} onChange={e => setTitle(e.target.value)} />
                 </div>
 
                 <div className={styles.field}>
-                  <label>Кому</label>
+                  <label>{t('admin.announcements.recipient_label')}</label>
                   <select value={targetType} onChange={e => setTargetType(e.target.value as AdminAnnouncementCreate['target_type'])}>
-                    <option value="all">Всем</option>
-                    <option value="teachers">Преподавателям</option>
-                    <option value="students">Ученикам</option>
-                    <option value="course">Слушателям курсов</option>
-                    <option value="specific_students">Выбранным ученикам</option>
-                    <option value="teacher_courses">Курсы преподавателя</option>
+                    <option value="all">{t('admin.announcements.target_all')}</option>
+                    <option value="teachers">{t('admin.announcements.target_teachers')}</option>
+                    <option value="students">{t('admin.announcements.target_students')}</option>
+                    <option value="course">{t('admin.announcements.target_course')}</option>
+                    <option value="specific_students">{t('admin.announcements.target_specific_students')}</option>
+                    <option value="teacher_courses">{t('admin.announcements.target_teacher_courses')}</option>
                   </select>
                 </div>
 
                 {targetType === 'course' && (
                   <div className={styles.field}>
-                    <label>Курсы</label>
+                    <label>{t('admin.announcements.courses_label')}</label>
                     <div className={styles.checkboxList}>
                       {courses.map(c => (
                         <label key={c.id} className={styles.checkbox}>
@@ -186,7 +190,7 @@ export default function AdminAnnouncements() {
 
                 {targetType === 'specific_students' && (
                   <div className={styles.field}>
-                    <label>Ученики</label>
+                    <label>{t('admin.announcements.students_label')}</label>
                     <div className={styles.checkboxList}>
                       {students.map(s => (
                         <label key={s.id} className={styles.checkbox}>
@@ -200,9 +204,9 @@ export default function AdminAnnouncements() {
 
                 {targetType === 'teacher_courses' && (
                   <div className={styles.field}>
-                    <label>Преподаватель</label>
+                    <label>{t('admin.announcements.teacher_label')}</label>
                     <select value={targetId} onChange={e => setTargetId(e.target.value ? Number(e.target.value) : '')}>
-                      <option value="">Выберите преподавателя</option>
+                      <option value="">{t('admin.announcements.select_teacher_placeholder')}</option>
                       {teachers.map(t => (
                         <option key={t.id} value={t.id}>{t.first_name} {t.last_name || ''} {t.username ? `(@${t.username})` : ''}</option>
                       ))}
@@ -211,18 +215,18 @@ export default function AdminAnnouncements() {
                 )}
 
                 <div className={styles.field}>
-                  <label>Сообщение</label>
-                  <textarea placeholder="Текст сообщения..." value={message} onChange={e => setMessage(e.target.value)} />
+                  <label>{t('admin.announcements.message_label')}</label>
+                  <textarea placeholder={t('admin.announcements.message_placeholder')} value={message} onChange={e => setMessage(e.target.value)} />
                 </div>
 
                 {error && <div className={styles.error}>{error}</div>}
 
                 <div className={styles.modalActions}>
                   <button type="button" className={styles.cancelBtn} onClick={() => setModalOpen(false)}>
-                    Отмена
+                    {t('common.cancel')}
                   </button>
                   <button type="submit" className={styles.submitBtn} disabled={submitting}>
-                    {submitting ? 'Отправка...' : 'Отправить'}
+                    {submitting ? t('admin.announcements.sending') : t('admin.announcements.send')}
                   </button>
                 </div>
               </form>

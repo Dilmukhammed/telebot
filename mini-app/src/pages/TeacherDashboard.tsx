@@ -99,6 +99,7 @@ const isLessonOngoing = (dateStr?: string, timeStr?: string): boolean => {
 }
 
 function EnrollmentRequestsSection() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { data: requests = [], isLoading } = useEnrollmentRequests()
   const approveMutation = useApproveEnrollment()
@@ -109,7 +110,7 @@ function EnrollmentRequestsSection() {
   return (
     <section className={styles.section}>
       <div className={styles.sectionHeader}>
-        <h2 className={styles.sectionTitle}>Заявки на запись</h2>
+        <h2 className={styles.sectionTitle}>{t('teacher.enrollmentRequests')}</h2>
         <span style={{
           background: 'var(--color-primary)',
           color: 'var(--color-on-primary)',
@@ -179,7 +180,7 @@ function EnrollmentRequestsSection() {
                 </div>
                 <div style={{ fontSize: 'var(--font-xs)', color: 'var(--color-on-surface-variant)' }}>
                   {req.subject_name}
-                  {req.grade ? ` · ${req.grade} класс` : ''}
+                  {req.grade ? ` · ${t('dashboard.grade', { grade: req.grade })}` : ''}
                 </div>
               </div>
               <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--color-on-surface-variant)', flexShrink: 0 }}>

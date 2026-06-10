@@ -67,7 +67,7 @@ export default function TeacherOnboardingModal({ isOpen, onClose }: TeacherOnboa
       setSuccess(true)
       setTimeout(() => onClose(), 1500)
     } catch (err) {
-      setError('Ошибка сохранения')
+      setError(t('teacherOnboarding.errorSave'))
     } finally {
       setLoading(false)
     }
@@ -82,7 +82,7 @@ export default function TeacherOnboardingModal({ isOpen, onClose }: TeacherOnboa
       setSuccess(true)
       setTimeout(() => onClose(), 1500)
     } catch (err) {
-      setError('Ошибка сохранения')
+      setError(t('teacherOnboarding.errorSave'))
     } finally {
       setLoading(false)
     }
