@@ -166,7 +166,9 @@
     "minutes": "daq",
     "completed": "Tugallangan",
     "inviteCode": "Ro'yxatdan o'tish kodi",
-    "copiedToClipboard": "Kod buferga nusxalandi"
+    "copiedToClipboard": "Kod buferga nusxalandi",
+    "deleteConfirmTitle": "Materialni o'chirish",
+    "deleteConfirmText": "Haqiqatan ham ushbu materialni o'chirib tashlamoqchimisiz? Bu amalni bekor qilib bo'lmaydi."
   },
   "lessonDetail": {
     "title": "Dars tafsilotlari",

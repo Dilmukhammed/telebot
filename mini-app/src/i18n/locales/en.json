@@ -166,7 +166,9 @@
     "minutes": "min",
     "completed": "Completed",
     "inviteCode": "Invite code",
-    "copiedToClipboard": "Code copied to clipboard"
+    "copiedToClipboard": "Code copied to clipboard",
+    "deleteConfirmTitle": "Delete Material",
+    "deleteConfirmText": "Are you sure you want to delete this material? This action cannot be undone."
   },
   "lessonDetail": {
     "title": "Lesson Details",

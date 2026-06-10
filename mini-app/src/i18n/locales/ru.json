@@ -166,7 +166,9 @@
     "minutes": "мин",
     "completed": "Проведено",
     "inviteCode": "Код для записи",
-    "copiedToClipboard": "Код скопирован в буфер обмена"
+    "copiedToClipboard": "Код скопирован в буфер обмена",
+    "deleteConfirmTitle": "Удаление материала",
+    "deleteConfirmText": "Вы действительно хотите удалить этот материал? Это действие нельзя будет отменить."
   },
   "lessonDetail": {
     "title": "Детали занятия",

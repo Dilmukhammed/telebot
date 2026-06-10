@@ -7,7 +7,7 @@ import type { AttendanceRecordIn, MaterialCreate } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import MaterialCard from '../components/MaterialCard'
 import MaterialForm from '../components/MaterialForm'
-import { Loading } from '../shared/components'
+import { Loading, Modal } from '../shared/components'
 import styles from './LessonDetail.module.css'
 
 export default function LessonDetail() {
@@ -31,6 +31,7 @@ export default function LessonDetail() {
   const [editPlan, setEditPlan] = useState<{ title: string; description: string }[]>([])
   const [savingEdit, setSavingEdit] = useState(false)
   const [showMaterialForm, setShowMaterialForm] = useState(false)
+  const [materialToDelete, setMaterialToDelete] = useState<number | null>(null)
 
   const createMaterial = useCreateMaterial()
   const uploadMaterial = useUploadMaterial()
@@ -51,9 +52,7 @@ export default function LessonDetail() {
   }
 
   const handleMaterialDelete = (id: number) => {
-    if (confirm('Удалить материал?')) {
-      deleteMaterial.mutate(id)
-    }
+    setMaterialToDelete(id)
   }
   const [editError, setEditError] = useState<string | null>(null)
 
@@ -540,6 +539,57 @@ export default function LessonDetail() {
           onClose={() => setShowMaterialForm(false)}
           isPending={createMaterial.isPending || uploadMaterial.isPending}
         />
+      )}
+
+      {materialToDelete !== null && (
+        <Modal
+          isOpen={materialToDelete !== null}
+          onClose={() => setMaterialToDelete(null)}
+          title={t('courseDetail.deleteConfirmTitle')}
+        >
+          <div className={styles.deleteConfirmContent}>
+            <p className={styles.deleteConfirmText}>
+              {t('courseDetail.deleteConfirmText')}
+            </p>
+            {lesson.materials.find(m => m.id === materialToDelete) && (
+              <div className={styles.deleteConfirmItem}>
+                <span className="material-symbols-outlined" style={{ marginRight: '8px', color: 'var(--color-primary)' }}>
+                  {(() => {
+                    const material = lesson.materials.find(m => m.id === materialToDelete);
+                    if (material?.type === 'text') return 'article';
+                    if (material?.type === 'youtube') return 'smart_display';
+                    if (material?.type === 'video') return 'play_circle';
+                    if (material?.type === 'file') return 'description';
+                    return 'link';
+                  })()}
+                </span>
+                <span className={styles.deleteConfirmItemTitle}>
+                  {lesson.materials.find(m => m.id === materialToDelete)?.title}
+                </span>
+              </div>
+            )}
+            <div className={styles.deleteConfirmButtons}>
+              <button
+                className={styles.deleteCancelBtn}
+                onClick={() => setMaterialToDelete(null)}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                className={styles.deleteConfirmBtn}
+                onClick={() => {
+                  if (materialToDelete !== null) {
+                    deleteMaterial.mutate(materialToDelete, {
+                      onSuccess: () => setMaterialToDelete(null)
+                    })
+                  }
+                }}
+              >
+                {t('common.delete', { defaultValue: 'Удалить' })}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   )
