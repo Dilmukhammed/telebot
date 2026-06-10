@@ -220,7 +220,7 @@ export default function AdminCourseDetail() {
               </div>
               {course.invite_code && (
                 <div
-                  onClick={() => { navigator.clipboard.writeText(course.invite_code); alert('Код скопирован!') }}
+                  onClick={() => { navigator.clipboard.writeText(course.invite_code!); alert('Код скопирован!') }}
                   style={{ marginTop: '8px', padding: '6px 12px', background: 'rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '14px', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, letterSpacing: '2px' }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>key</span>
