@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 
 from database import get_db
-from models import User, Lesson, LessonEnrollment, Subject, Attendance, Notification, NotificationRecipient, LessonStatus
+from models import User, Lesson, LessonEnrollment, Subject, Attendance, Notification, NotificationRecipient, NotificationRead, LessonStatus
 from api.deps import require_teacher
 
 router = APIRouter(prefix="/teacher", tags=["teacher"])
@@ -400,6 +400,7 @@ class TeacherAnnouncementOut(BaseModel):
     sender_role: Optional[str] = None
     recipient_count: int = 0
     sender_id: Optional[int] = None
+    is_read: bool = False
 
 
 @router.get("/announcements", response_model=list[TeacherAnnouncementOut])
@@ -431,6 +432,7 @@ async def get_teacher_announcements(
     raw = result.all()
 
     # Get recipient counts for own announcements
+    notif_ids = [n.id for n, _ in raw]
     own_ids = [n.id for n, u in raw if n.sender_id == user.id]
     counts: dict[int, int] = {}
     if own_ids:
@@ -440,6 +442,18 @@ async def get_teacher_announcements(
             .group_by(NotificationRecipient.notification_id)
         )
         counts = {nid: cnt for nid, cnt in count_result.all()}
+
+    # Get read status for all announcements
+    read_set: set[int] = set()
+    if notif_ids:
+        read_result = await db.execute(
+            select(NotificationRead.notification_id)
+            .where(
+                NotificationRead.user_id == user.id,
+                NotificationRead.notification_id.in_(notif_ids),
+            )
+        )
+        read_set = {row[0] for row in read_result.all()}
 
     return [
         TeacherAnnouncementOut(
@@ -451,6 +465,7 @@ async def get_teacher_announcements(
             sender_role=u.role if u else None,
             recipient_count=counts.get(n.id, 0),
             sender_id=n.sender_id,
+            is_read=n.id in read_set,
         )
         for n, u in raw
     ]
@@ -498,6 +513,16 @@ async def get_teacher_announcement_detail(
         )
         recipient_count = cnt_result.scalar() or 0
 
+    # Check read status
+    read_result = await db.execute(
+        select(NotificationRead)
+        .where(
+            NotificationRead.notification_id == n.id,
+            NotificationRead.user_id == user.id,
+        )
+    )
+    is_read = read_result.scalar_one_or_none() is not None
+
     return TeacherAnnouncementOut(
         id=n.id,
         title=n.title,
@@ -507,6 +532,7 @@ async def get_teacher_announcement_detail(
         sender_role=u.role if u else None,
         recipient_count=recipient_count,
         sender_id=n.sender_id,
+        is_read=is_read,
     )
 
 

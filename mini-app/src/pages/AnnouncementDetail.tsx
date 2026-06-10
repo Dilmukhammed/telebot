@@ -22,12 +22,12 @@ export default function AnnouncementDetail() {
   const markReadMutation = useMarkAnnouncementRead()
   const [showAllRecipients, setShowAllRecipients] = useState(false)
 
-  // Mark as read for students
+  // Mark as read when viewing
   useEffect(() => {
-    if (announcement && role === 'student' && numId) {
+    if (announcement && numId && !announcement.is_read) {
       markReadMutation.mutate(numId)
     }
-  }, [announcement, role, numId])
+  }, [announcement, numId])
 
   if (isLoading) {
     return <Loading fullPage message={t('common.loading')} />
