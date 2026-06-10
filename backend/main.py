@@ -12,6 +12,7 @@ from api.router import api_router
 from bot.bot import bot_router, bot, dp
 from scheduler import start_scheduler, stop_scheduler
 from seed import seed as seed_db
+from migrations import run_migrations
 
 
 class CacheControlMiddleware(BaseHTTPMiddleware):
@@ -54,69 +55,7 @@ async def lifespan(app: FastAPI):
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-        # Migrate telegram_id from int32 to int64 (Telegram IDs exceed int32 range)
-        if "postgresql" in str(engine.url):
-            for table_name in ("users", "registrations", "admins"):
-                try:
-                    await conn.execute(text(
-                        f'ALTER TABLE "{table_name}" ALTER COLUMN telegram_id TYPE BIGINT'
-                    ))
-                except Exception:
-                    pass  # Already BIGINT or table doesn't exist yet
-
-            # Add is_archived column to subjects if missing
-            try:
-                await conn.execute(text(
-                    "ALTER TABLE subjects ADD COLUMN is_archived BOOLEAN DEFAULT FALSE"
-                ))
-            except Exception:
-                pass  # Column already exists
-
-            # Create indexes for frequently filtered columns
-            for idx_name, table, col in [
-                ("ix_lessons_is_active", "lessons", "is_active"),
-                ("ix_tests_is_active", "tests", "is_active"),
-                ("ix_subjects_is_archived", "subjects", "is_archived"),
-            ]:
-                try:
-                    await conn.execute(text(
-                        f'CREATE INDEX IF NOT EXISTS {idx_name} ON "{table}" ("{col}")'
-                    ))
-                except Exception:
-                    pass
-
-            # Add invite_code column to subjects if missing
-            try:
-                await conn.execute(text(
-                    "ALTER TABLE subjects ADD COLUMN invite_code VARCHAR(6)"
-                ))
-                await conn.execute(text(
-                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_subjects_invite_code ON subjects (invite_code)"
-                ))
-            except Exception:
-                pass  # Column already exists
-
-            # Create enrollment_requests table if missing
-            try:
-                await conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS enrollment_requests (
-                        id SERIAL PRIMARY KEY,
-                        subject_id INTEGER NOT NULL REFERENCES subjects(id),
-                        user_id INTEGER NOT NULL REFERENCES users(id),
-                        status VARCHAR DEFAULT 'pending',
-                        created_at TIMESTAMP DEFAULT NOW(),
-                        UNIQUE(subject_id, user_id)
-                    )
-                """))
-                await conn.execute(text(
-                    "CREATE INDEX IF NOT EXISTS ix_enrollment_requests_subject_id ON enrollment_requests (subject_id)"
-                ))
-                await conn.execute(text(
-                    "CREATE INDEX IF NOT EXISTS ix_enrollment_requests_user_id ON enrollment_requests (user_id)"
-                ))
-            except Exception:
-                pass  # Table already exists
+        await run_migrations(conn, engine.dialect.name)
 
         if reset_db:
             print("[startup] RESET_DB=true — wiping all tables...")
