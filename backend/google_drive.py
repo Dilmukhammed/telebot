@@ -5,7 +5,7 @@ import json
 import logging
 from typing import Optional
 
-from google.oauth2 import service_account
+from google.oauth2 import service_account, credentials as oauth2_credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
@@ -17,20 +17,36 @@ SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 
 
 def _get_drive_service():
-    """Build Google Drive API service from service account credentials."""
+    """Build Google Drive API service. Supports OAuth2 (personal Drive) or Service Account."""
+    # Priority 1: OAuth2 with refresh token (works with personal Google accounts)
+    if settings.GOOGLE_OAUTH_CLIENT_ID and settings.GOOGLE_OAUTH_REFRESH_TOKEN:
+        creds = oauth2_credentials.Credentials(
+            token=None,
+            refresh_token=settings.GOOGLE_OAUTH_REFRESH_TOKEN,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=settings.GOOGLE_OAUTH_CLIENT_ID,
+            client_secret=settings.GOOGLE_OAUTH_CLIENT_SECRET,
+            scopes=SCOPES,
+        )
+        return build("drive", "v3", credentials=creds)
+
+    # Priority 2: Service account JSON in env var (Railway)
     if settings.GOOGLE_SERVICE_ACCOUNT_JSON:
-        # Railway / production: JSON string in env var
         info = json.loads(settings.GOOGLE_SERVICE_ACCOUNT_JSON)
         creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
-    elif settings.GOOGLE_SERVICE_ACCOUNT_KEY_PATH:
-        # Local dev: JSON file on disk
+        return build("drive", "v3", credentials=creds)
+
+    # Priority 3: Service account JSON file (local dev)
+    if settings.GOOGLE_SERVICE_ACCOUNT_KEY_PATH:
         creds = service_account.Credentials.from_service_account_file(
             settings.GOOGLE_SERVICE_ACCOUNT_KEY_PATH, scopes=SCOPES,
         )
-    else:
-        raise RuntimeError("Set GOOGLE_SERVICE_ACCOUNT_JSON or GOOGLE_SERVICE_ACCOUNT_KEY_PATH")
+        return build("drive", "v3", credentials=creds)
 
-    return build("drive", "v3", credentials=creds)
+    raise RuntimeError(
+        "Set GOOGLE_OAUTH_CLIENT_ID + GOOGLE_OAUTH_REFRESH_TOKEN, "
+        "or GOOGLE_SERVICE_ACCOUNT_JSON, or GOOGLE_SERVICE_ACCOUNT_KEY_PATH"
+    )
 
 
 async def upload_file(
