@@ -234,7 +234,7 @@ function EnrollmentRequestsSection() {
 
 
 export default function TeacherDashboard() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { user } = useUser()
   const { data, isLoading, error } = useTeacherDashboard()
@@ -269,6 +269,49 @@ export default function TeacherDashboard() {
 
   const { profile, stats, lessons } = data
   const avatarUrl = telegramAvatar || profile.photo_url
+  const getGreeting = (firstName: string) => {
+    const utcHour = new Date().getUTCHours()
+    const tashkentHour = (utcHour + 5) % 24
+    if (tashkentHour >= 5 && tashkentHour < 12) return `Доброе утро, ${firstName}! ☀️`
+    if (tashkentHour >= 12 && tashkentHour < 18) return `Добрый день, ${firstName}! 🌤️`
+    if (tashkentHour >= 18 && tashkentHour < 22) return `Добрый вечер, ${firstName}! 🌙`
+    return `Доброй ночи, ${firstName}! 🌌`
+  }
+
+  const getTodayLessonsStatus = () => {
+    const tashkentDate = new Date(Date.now() + 5 * 60 * 60 * 1000)
+    const yyyy = tashkentDate.getUTCFullYear()
+    const mm = String(tashkentDate.getUTCMonth() + 1).padStart(2, '0')
+    const dd = String(tashkentDate.getUTCDate()).padStart(2, '0')
+    const todayStr = `${yyyy}-${mm}-${dd}`
+
+    const count = lessons.filter(l => l.date === todayStr).length
+    if (count === 0) return t('dashboard.motivation') || 'Сегодня занятий нет. Отличный день для подготовки! ✨'
+    
+    const lastDigit = count % 10
+    const lastTwoDigits = count % 100
+    if (lastDigit === 1 && lastTwoDigits !== 11) {
+      return `Сегодня у вас ${count} запланированное занятие`
+    }
+    if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 10 || lastTwoDigits >= 20)) {
+      return `Сегодня у вас ${count} запланированных занятия`
+    }
+    return `Сегодня у вас ${count} запланированных занятий`
+  }
+
+  // Mini-calendar widget date calculation (Tashkent Time)
+  const today = new Date(Date.now() + 5 * 60 * 60 * 1000)
+  const dayNum = today.getUTCDate()
+  const isEn = i18n.language?.startsWith('en')
+  const isUz = i18n.language?.startsWith('uz')
+  const monthsRu = ['ЯНВ', 'ФЕВ', 'МАР', 'АПР', 'МАЙ', 'ИЮН', 'ИЮЛ', 'АВГ', 'СЕН', 'ОКТ', 'НОЯ', 'ДЕК']
+  const monthsEn = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+  const monthsUz = ['YAN', 'FEV', 'MAR', 'APR', 'MAY', 'IYN', 'IYL', 'AVG', 'SEN', 'OKT', 'NOY', 'DEK']
+  const daysRu = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ']
+  const daysEn = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+  const daysUz = ['YAK', 'DUSH', 'SESH', 'CHOR', 'PAY', 'JUM', 'SHAN']
+  const calendarMonth = (isEn ? monthsEn : isUz ? monthsUz : monthsRu)[today.getUTCMonth()] || ''
+  const calendarDayName = (isEn ? daysEn : isUz ? daysUz : daysRu)[today.getUTCDay()] || ''
 
   return (
     <div className={styles.page}>
@@ -276,25 +319,30 @@ export default function TeacherDashboard() {
 
       <main className={styles.main}>
         {/* Welcome Section */}
-        <section className={styles.welcomeCard}>
-          <div className={styles.welcomeCardContent}>
-            <div className={styles.welcomeText}>
-              <h1 className={styles.welcomeTitle}>
-                {t('dashboard.greeting', { name: profile.first_name })}
-              </h1>
-              <p className={styles.motivationText}>
-                {t('dashboard.motivation')}
-              </p>
-              <span className={styles.gradeBadge}>
-                <span className="material-symbols-outlined" style={{ fontSize: '14px', fontVariationSettings: "'FILL' 1" }}>stars</span>
+        <div className={styles.welcomeCard} onClick={() => navigate('/calendar')} role="button" tabIndex={0}>
+          <div className={styles.welcomeLeft}>
+            <h1 className={styles.welcomeGreeting}>
+              {getGreeting(profile.first_name)}
+            </h1>
+            <p className={styles.welcomeStatus}>
+              <span className={styles.welcomeRoleBadge}>
+                <span className="material-symbols-outlined" style={{ fontSize: '12px', fontVariationSettings: "'FILL' 1" }}>stars</span>
                 {t('profile.teacher')}
               </span>
+              <span>{getTodayLessonsStatus()}</span>
+            </p>
+          </div>
+
+          <div className={styles.welcomeCalendarWidget}>
+            <div className={styles.widgetHeader}>
+              {calendarMonth}
             </div>
-            <div className={styles.welcomeDecoration}>
-              <span className="material-symbols-outlined">school</span>
+            <div className={styles.widgetBody}>
+              <span className={styles.widgetDayNum}>{dayNum}</span>
+              <span className={styles.widgetDayName}>{calendarDayName}</span>
             </div>
           </div>
-        </section>
+        </div>
 
         {/* Stats Section */}
         <section className={styles.section}>
