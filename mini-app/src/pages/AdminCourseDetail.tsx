@@ -10,6 +10,7 @@ import {
   unarchiveAdminSubject,
 } from '../api/client'
 import SiteHeader from '../components/SiteHeader'
+import { Toast } from '../shared/components'
 import styles from './AdminCourseDetail.module.css'
 
 const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
@@ -41,6 +42,7 @@ export default function AdminCourseDetail() {
 
   // Audit log
   const [showAudit, setShowAudit] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   // Archive
   const [showArchiveModal, setShowArchiveModal] = useState(false)
@@ -220,7 +222,7 @@ export default function AdminCourseDetail() {
               </div>
               {course.invite_code && (
                 <div
-                  onClick={() => { navigator.clipboard.writeText(course.invite_code!); alert('Код скопирован!') }}
+                  onClick={() => { navigator.clipboard.writeText(course.invite_code!); setCopied(true) }}
                   style={{ marginTop: '8px', padding: '6px 12px', background: 'rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '14px', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, letterSpacing: '2px' }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>key</span>
@@ -625,6 +627,10 @@ export default function AdminCourseDetail() {
           </div>
         )}
       </main>
+
+      {copied && (
+        <Toast message="Код скопирован в буфер обмена" onClose={() => setCopied(false)} />
+      )}
     </div>
   )
 }

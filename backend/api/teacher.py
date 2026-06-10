@@ -890,6 +890,9 @@ class EnrollmentRequestOut(BaseModel):
     subject_name: str
     user_id: int
     user_name: str
+    photo_url: str | None = None
+    username: str | None = None
+    grade: str | None = None
     status: str
     created_at: str
 
@@ -932,6 +935,9 @@ async def get_enrollment_requests(
             subject_name=subject.name,
             user_id=req.user_id,
             user_name=student.first_name or (f"@{student.username}" if student.username else "Ученик"),
+            photo_url=student.photo_url,
+            username=student.username,
+            grade=student.grade,
             status=req.status,
             created_at=req.created_at.strftime("%Y-%m-%d %H:%M") if req.created_at else "",
         )

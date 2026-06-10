@@ -99,6 +99,7 @@ const isLessonOngoing = (dateStr?: string, timeStr?: string): boolean => {
 }
 
 function EnrollmentRequestsSection() {
+  const navigate = useNavigate()
   const { data: requests = [], isLoading } = useEnrollmentRequests()
   const approveMutation = useApproveEnrollment()
   const rejectMutation = useRejectEnrollment()
@@ -133,22 +134,58 @@ function EnrollmentRequestsSection() {
               gap: '12px',
             }}
           >
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: 'var(--radius-full)',
-              background: 'var(--color-primary-container)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--color-primary)' }}>person</span>
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 'var(--font-sm)', color: 'var(--color-on-surface)' }}>{req.user_name}</div>
-              <div style={{ fontSize: 'var(--font-xs)', color: 'var(--color-on-surface-variant)' }}>{req.subject_name}</div>
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate(`/teacher/students/${req.user_id}`)}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: 0,
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <div style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: 'var(--radius-full)',
+                background: 'var(--color-primary-container)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                overflow: 'hidden',
+              }}>
+                {req.photo_url ? (
+                  <img
+                    src={req.photo_url}
+                    alt={req.user_name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <span className="material-symbols-outlined" style={{ fontSize: '22px', color: 'var(--color-primary)' }}>
+                    person
+                  </span>
+                )}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 'var(--font-sm)', color: 'var(--color-on-surface)' }}>
+                  {req.user_name}
+                </div>
+                <div style={{ fontSize: 'var(--font-xs)', color: 'var(--color-on-surface-variant)' }}>
+                  {req.subject_name}
+                  {req.grade ? ` · ${req.grade} класс` : ''}
+                </div>
+              </div>
+              <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--color-on-surface-variant)', flexShrink: 0 }}>
+                chevron_right
+              </span>
+            </button>
             <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
               <button
                 onClick={() => rejectMutation.mutate(req.id)}
@@ -284,6 +321,9 @@ export default function TeacherDashboard() {
           </div>
         </section>
 
+        {/* Enrollment Requests */}
+        <EnrollmentRequestsSection />
+
         {/* Lessons Section */}
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
@@ -345,9 +385,6 @@ export default function TeacherDashboard() {
             )}
           </div>
         </section>
-
-        {/* Enrollment Requests */}
-        <EnrollmentRequestsSection />
 
         <div className={styles.bottomSpacer} />
       </main>

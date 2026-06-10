@@ -536,5 +536,8 @@ class EnrollmentRequestOut(BaseModel):
     subject_name: str
     user_id: int
     user_name: str
+    photo_url: Optional[str] = None
+    username: Optional[str] = None
+    grade: Optional[str] = None
     status: str
     created_at: str

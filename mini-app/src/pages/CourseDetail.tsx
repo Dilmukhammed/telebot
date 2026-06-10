@@ -5,7 +5,7 @@ import { useCourseDetail, useCourseStudents } from '../api/hooks'
 import { useUser } from '../context/UserContext'
 import type { CourseLessonOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
-import { Loading } from '../shared/components'
+import { Loading, Toast } from '../shared/components'
 import styles from './CourseDetail.module.css'
 
 type Tab = 'lessons' | 'materials' | 'about' | 'students'
@@ -26,6 +26,7 @@ export default function CourseDetail() {
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin'
   const { data: students = [] } = useCourseStudents(isTeacherOrAdmin ? courseId : 0)
   const [activeTab, setActiveTab] = useState<Tab>('lessons')
+  const [copied, setCopied] = useState(false)
 
   const lang = i18n.language as 'ru' | 'en' | 'uz'
   const monthNames = MONTH_NAMES[lang] || MONTH_NAMES.ru
@@ -181,7 +182,7 @@ export default function CourseDetail() {
               {isTeacherOrAdmin && course.invite_code && (
                 <div
                   className={styles.aboutRow}
-                  onClick={() => { navigator.clipboard.writeText(course.invite_code!); alert('Код скопирован!') }}
+                  onClick={() => { navigator.clipboard.writeText(course.invite_code!); setCopied(true) }}
                   style={{ cursor: 'pointer' }}
                 >
                   <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)', fontSize: '20px' }}>key</span>
@@ -292,6 +293,10 @@ export default function CourseDetail() {
 
         <div className={styles.bottomSpacer} />
       </main>
+
+      {copied && (
+        <Toast message="Код скопирован в буфер обмена" onClose={() => setCopied(false)} />
+      )}
     </div>
   )
 }

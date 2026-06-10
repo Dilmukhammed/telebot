@@ -21,7 +21,7 @@ export default function TeacherStudentDetail() {
   if (error || !student) {
     return (
       <div className={styles.page}>
-        <SiteHeader title={t('teacher.studentDetail')} onBack={() => navigate('/teacher/students')} hideProfile />
+        <SiteHeader title={t('teacher.studentDetail')} onBack={() => navigate(-1)} hideProfile />
         <div className={styles.error}>{error?.message || t('common.error')}</div>
       </div>
     )
@@ -33,7 +33,7 @@ export default function TeacherStudentDetail() {
     <div className={styles.page}>
       <SiteHeader
         title={t('teacher.studentDetail')}
-        onBack={() => navigate('/teacher/students')}
+        onBack={() => navigate(-1)}
         hideProfile
       />
 

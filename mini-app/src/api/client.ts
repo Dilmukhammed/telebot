@@ -207,8 +207,21 @@ export function getLessonAttendance(lessonId: number, date: string): Promise<Att
   return api<AttendanceListOut>(`/api/teacher/lessons/${lessonId}/attendance?date=${date}`)
 }
 
-export function getEnrollmentRequests(): Promise<{ id: number; subject_id: number; subject_name: string; user_id: number; user_name: string; status: string; created_at: string }[]> {
-  return api('/api/teacher/enrollment-requests')
+export interface EnrollmentRequestOut {
+  id: number
+  subject_id: number
+  subject_name: string
+  user_id: number
+  user_name: string
+  photo_url?: string | null
+  username?: string | null
+  grade?: string | null
+  status: string
+  created_at: string
+}
+
+export function getEnrollmentRequests(): Promise<EnrollmentRequestOut[]> {
+  return api<EnrollmentRequestOut[]>('/api/teacher/enrollment-requests')
 }
 
 export function approveEnrollment(requestId: number): Promise<{ message: string }> {
