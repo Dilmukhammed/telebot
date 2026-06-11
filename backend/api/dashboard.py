@@ -655,6 +655,8 @@ async def get_calendar(
         ))
 
     # Add availability slots for teacher/admin
+    # Recurring slots (no specific_date) → show on matching day_of_week
+    # One-off slots (specific_date set) → show only on that exact date
     if effective_role in ("teacher", "admin"):
         avail_result = await db.execute(
             select(TeacherAvailability).where(
@@ -666,12 +668,19 @@ async def get_calendar(
         )
         avail_slots = avail_result.scalars().all()
         avail_by_day: dict[int, list[dict]] = {}
+        avail_by_date: dict[str, list[dict]] = {}
         for slot in avail_slots:
-            avail_by_day.setdefault(slot.day_of_week, []).append(
-                {"id": slot.id, "start_time": slot.start_time, "end_time": slot.end_time}
-            )
+            if slot.specific_date:
+                date_str = slot.specific_date.strftime("%Y-%m-%d")
+                avail_by_date.setdefault(date_str, []).append(
+                    {"id": slot.id, "start_time": slot.start_time, "end_time": slot.end_time}
+                )
+            else:
+                avail_by_day.setdefault(slot.day_of_week, []).append(
+                    {"id": slot.id, "start_time": slot.start_time, "end_time": slot.end_time}
+                )
         for day in days:
-            day.available_slots = avail_by_day.get(day.day_of_week, [])
+            day.available_slots = avail_by_day.get(day.day_of_week, []) + avail_by_date.get(day.date, [])
 
     return CalendarWeekOut(days=days)
 

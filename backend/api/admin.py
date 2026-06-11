@@ -291,7 +291,11 @@ async def get_admin_lessons(
     teachers_map = await _load_teachers_map(db, teacher_ids)
 
     # If teacher_id filter, load availability slots
+    # Recurring slots (no specific_date) → show on matching day_of_week
+    # One-off slots (specific_date set) → show only on that exact date
+    week_dates_list = [start_monday + timedelta(days=d) for d in range(7)]
     avail_by_day: dict[int, list] = {}
+    avail_by_date: dict[str, list] = {}
     if teacher_id:
         avail_result = await db.execute(
             select(TeacherAvailability).where(
@@ -302,9 +306,15 @@ async def get_admin_lessons(
             )
         )
         for slot in avail_result.scalars().all():
-            avail_by_day.setdefault(slot.day_of_week, []).append(
-                AdminAvailabilitySlot(id=slot.id, start_time=slot.start_time, end_time=slot.end_time)
-            )
+            if slot.specific_date:
+                date_str = slot.specific_date.strftime("%Y-%m-%d")
+                avail_by_date.setdefault(date_str, []).append(
+                    AdminAvailabilitySlot(id=slot.id, start_time=slot.start_time, end_time=slot.end_time)
+                )
+            else:
+                avail_by_day.setdefault(slot.day_of_week, []).append(
+                    AdminAvailabilitySlot(id=slot.id, start_time=slot.start_time, end_time=slot.end_time)
+                )
 
     out = []
     for lesson, subject, ls, student_count in rows:
@@ -323,6 +333,8 @@ async def get_admin_lessons(
             override_time = ls.override_time or lesson.time
             override_end = _calculate_end_time(override_time, subject.duration_minutes or 90)
             override_dow = override_date.weekday()
+            override_date_str = override_date.strftime("%Y-%m-%d")
+            slots = avail_by_day.get(override_dow, []) + avail_by_date.get(override_date_str, [])
             out.append(AdminLessonOut(
                 id=lesson.id,
                 subject_id=subject.id,
@@ -336,11 +348,13 @@ async def get_admin_lessons(
                 room=lesson.room,
                 student_count=student_count or 0,
                 lesson_status="rescheduled",
-                date=override_date.strftime("%Y-%m-%d"),
-                available_slots=avail_by_day.get(override_dow, []),
+                date=override_date_str,
+                available_slots=slots,
             ))
             continue  # Skip original date
 
+        instance_date_str = instance_date.strftime("%Y-%m-%d")
+        slots = avail_by_day.get(lesson.day_of_week, []) + avail_by_date.get(instance_date_str, [])
         out.append(AdminLessonOut(
             id=lesson.id,
             subject_id=subject.id,
@@ -354,8 +368,8 @@ async def get_admin_lessons(
             room=lesson.room,
             student_count=student_count or 0,
             lesson_status=status,
-            date=instance_date.strftime("%Y-%m-%d"),
-            available_slots=avail_by_day.get(lesson.day_of_week, []),
+            date=instance_date_str,
+            available_slots=slots,
         ))
 
     out.sort(key=lambda x: (x.date, x.time))
