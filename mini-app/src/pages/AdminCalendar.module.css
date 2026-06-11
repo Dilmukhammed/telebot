@@ -1287,7 +1287,17 @@
 }
 
 .sheetItemActive {
-  background: var(--color-primary-fixed, #eaddff) !important;
+  background: rgba(99, 14, 212, 0.05) !important;
+}
+
+.sheetItemActive .sheetItemName {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.sheetItemActive .sheetItemAvatar {
+  border: 2px solid var(--color-primary);
+  background: var(--color-primary-fixed, #eaddff);
 }
 
 .sheetItemAvatar {
