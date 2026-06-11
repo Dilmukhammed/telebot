@@ -451,6 +451,12 @@ export interface AdminStats {
   today_lessons: DashboardLessonOut[];
 }
 
+export interface AdminAvailabilitySlot {
+  id: number;
+  start_time: string;
+  end_time: string;
+}
+
 export interface AdminLessonOut {
   id: number;
   subject_id: number;
@@ -465,6 +471,7 @@ export interface AdminLessonOut {
   student_count: number;
   lesson_status: string | null;
   date: string;
+  available_slots: AdminAvailabilitySlot[];
 }
 
 export interface SearchCourseResult {

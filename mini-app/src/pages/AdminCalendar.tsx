@@ -445,6 +445,15 @@ export default function AdminCalendar() {
                       />
                     )
                   })}
+
+                  {/* Availability slots (only when filtering by teacher) */}
+                  {(dayLessons[0]?.available_slots ?? []).map(slot => (
+                    <AvailabilityBlock
+                      key={`avail-${slot.id}`}
+                      startTime={slot.start_time}
+                      endTime={slot.end_time}
+                    />
+                  ))}
                 </div>
               )
             })}
@@ -734,5 +743,19 @@ function AdminGroupBlock({ lessons, time, endTime, onClick }: { lessons: AdminLe
         {lessons.length > 3 && ` +${lessons.length - 3}`}
       </span>
     </div>
+  )
+}
+
+function AvailabilityBlock({ startTime, endTime }: { startTime: string; endTime: string }) {
+  const [startH, startM] = startTime.split(':').map(Number)
+  const [endH, endM] = endTime.split(':').map(Number)
+  const top = (startH * 80) + (startM / 60 * 80)
+  const height = ((endH - startH) * 80) + ((endM - startM) / 60 * 80)
+
+  return (
+    <div
+      className={styles.availabilityBlock}
+      style={{ top: `${top}px`, height: `${height}px` }}
+    />
   )
 }

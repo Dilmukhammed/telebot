@@ -18,7 +18,7 @@ from models import (
 )
 from api.users import user_to_dict
 from schemas import (
-    AdminStatsOut, DashboardLessonOut, AdminLessonOut,
+    AdminStatsOut, DashboardLessonOut, AdminLessonOut, AdminAvailabilitySlot,
     RescheduleIn, AdminAnnouncementCreate, AdminAnnouncementOut,
     SearchResultOut, SearchCourseResult, SearchAvailabilityResult,
     AdminSubjectOut, AdminSubjectDetailOut, LessonStatusMarkIn, UserOut,
@@ -239,9 +239,30 @@ async def get_admin_lessons(
     result = await db.execute(query)
     rows = result.all()
 
+    # If teacher_id filter, load availability slots
+    avail_by_day: dict[int, list] = {}
+    if teacher_id:
+        avail_result = await db.execute(
+            select(TeacherAvailability).where(
+                and_(
+                    TeacherAvailability.teacher_id == teacher_id,
+                    TeacherAvailability.is_active == True,
+                )
+            )
+        )
+        for slot in avail_result.scalars().all():
+            avail_by_day.setdefault(slot.day_of_week, []).append(
+                AdminAvailabilitySlot(id=slot.id, start_time=slot.start_time, end_time=slot.end_time)
+            )
+
     out = []
     for lesson, subject, ls, student_count in rows:
         instance_date = start_monday + timedelta(days=lesson.day_of_week)
+        # Skip lessons before course start_date (same logic as teacher calendar)
+        course_start = subject.start_date.date() if subject.start_date else None
+        if course_start and instance_date < course_start:
+            continue
+
         status = ls.status if ls else None
         end_time = _calculate_end_time(lesson.time, subject.duration_minutes or 90)
 
@@ -259,6 +280,7 @@ async def get_admin_lessons(
             student_count=student_count or 0,
             lesson_status=status,
             date=instance_date.strftime("%Y-%m-%d"),
+            available_slots=avail_by_day.get(lesson.day_of_week, []),
         ))
 
     out.sort(key=lambda x: (x.date, x.time))

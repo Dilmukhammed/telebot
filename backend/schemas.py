@@ -420,6 +420,12 @@ class AdminStatsOut(BaseModel):
     today_lessons: list[DashboardLessonOut]
 
 
+class AdminAvailabilitySlot(BaseModel):
+    id: int
+    start_time: str
+    end_time: str
+
+
 class AdminLessonOut(BaseModel):
     id: int
     subject_id: int
@@ -434,6 +440,7 @@ class AdminLessonOut(BaseModel):
     student_count: int
     lesson_status: Optional[str] = None
     date: str
+    available_slots: list[AdminAvailabilitySlot] = []
 
 
 class CancelLessonIn(BaseModel):
