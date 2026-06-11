@@ -637,9 +637,12 @@ async def reschedule_lesson(
             except Exception as e:
                 logger.warning("Failed to send reschedule notification to teacher %s: %s", lesson.teacher_id, e)
 
-    # Announcement + Telegram to enrolled students
+    # Announcement + Telegram to enrolled students + teacher
     enrolled = (await db.execute(select(LessonEnrollment.user_id).where(LessonEnrollment.lesson_id == lesson_id))).scalars().all()
-    if enrolled:
+    recipient_ids = list(enrolled)
+    if lesson.teacher_id and lesson.teacher_id not in recipient_ids:
+        recipient_ids.append(lesson.teacher_id)
+    if recipient_ids:
         notification = Notification(
             sender_id=admin_id,
             title=f"Перенос: {subject_name}",
@@ -648,7 +651,7 @@ async def reschedule_lesson(
         )
         db.add(notification)
         await db.flush()
-        for uid in enrolled:
+        for uid in recipient_ids:
             db.add(NotificationRecipient(notification_id=notification.id, user_id=uid))
         await db.commit()
 
@@ -872,13 +875,16 @@ async def cancel_lesson(
             except Exception as e:
                 logger.warning("Failed to send cancel notification to teacher %s: %s", lesson.teacher_id, e)
 
-    # Announcement + Telegram to enrolled students
+    # Announcement + Telegram to enrolled students + teacher
     enrolled = (await db.execute(select(LessonEnrollment.user_id).where(LessonEnrollment.lesson_id == lesson_id))).scalars().all()
-    if enrolled:
+    recipient_ids = list(enrolled)
+    if lesson.teacher_id and lesson.teacher_id not in recipient_ids:
+        recipient_ids.append(lesson.teacher_id)
+    if recipient_ids:
         notification = Notification(sender_id=admin_id, title=f"Отмена: {subject_name}", message=msg_text, target_type="course")
         db.add(notification)
         await db.flush()
-        for uid in enrolled:
+        for uid in recipient_ids:
             db.add(NotificationRecipient(notification_id=notification.id, user_id=uid))
         await db.commit()
 

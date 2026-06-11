@@ -414,7 +414,12 @@ async def get_teacher_announcements(
     user: User = Depends(require_teacher),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get announcements for teachers: from admins + own announcements."""
+    """Get announcements for teachers: from admins + own + where teacher is recipient."""
+    # IDs of notifications where this teacher is a recipient
+    recipient_notif_ids = select(NotificationRecipient.notification_id).where(
+        NotificationRecipient.user_id == user.id
+    ).scalar_subquery()
+
     result = await db.execute(
         select(Notification, User)
         .outerjoin(User, User.id == Notification.sender_id)
@@ -430,6 +435,8 @@ async def get_teacher_announcements(
                 ),
                 # Teacher's own announcements (any target_type)
                 Notification.sender_id == user.id,
+                # Notifications where teacher is a recipient (reschedule, cancel, etc.)
+                Notification.id.in_(recipient_notif_ids),
             )
         )
         .order_by(Notification.sent_at.desc())
