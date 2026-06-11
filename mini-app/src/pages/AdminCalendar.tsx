@@ -117,11 +117,29 @@ export default function AdminCalendar() {
   })
 
   const [weekOffset, setWeekOffset] = useState(0)
-  const [filterMode, setFilterMode] = useState<'teacher' | 'student'>('teacher')
-  const [selectedUserId, setSelectedUserId] = useState<number | undefined>(undefined)
+  const [filterMode, setFilterMode] = useState<'teacher' | 'student'>(() => {
+    return (localStorage.getItem('calendar_filter_mode') as 'teacher' | 'student') || 'teacher'
+  })
+  const [selectedUserId, setSelectedUserId] = useState<number | undefined>(() => {
+    const saved = localStorage.getItem('calendar_selected_user_id')
+    return saved ? Number(saved) : undefined
+  })
 
-  const { data: teachers } = useAdminUsers('teacher', { enabled: filterMode === 'teacher' })
-  const { data: students } = useAdminUsers('student', { enabled: filterMode === 'student' })
+  // Fetch both teacher and student lists to make switching tabs inside Bottom Sheet instant
+  const { data: teachers } = useAdminUsers('teacher')
+  const { data: students } = useAdminUsers('student')
+
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false)
+  const [tempFilterMode, setTempFilterMode] = useState<'teacher' | 'student'>('teacher')
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // Sync temp filter mode with actual filter mode when bottom sheet opens
+  useEffect(() => {
+    if (isBottomSheetOpen) {
+      setTempFilterMode(filterMode)
+      setSearchQuery('')
+    }
+  }, [isBottomSheetOpen, filterMode])
 
   const hasUserSelected = !!selectedUserId
   const { data: lessons, isLoading, refetch } = useAdminLessons({
@@ -142,6 +160,26 @@ export default function AdminCalendar() {
   const [actionLoading, setActionLoading] = useState(false)
   const [actionError, setActionError] = useState('')
   const [groupModal, setGroupModal] = useState<AdminLessonOut[] | null>(null)
+
+  const selectedUser = (filterMode === 'teacher' ? teachers : students)?.find(u => u.id === selectedUserId)
+  const selectedUserName = selectedUser
+    ? `${selectedUser.first_name} ${selectedUser.last_name || ''}`.trim()
+    : ''
+
+  const handleSelectUser = (id: number, mode: 'teacher' | 'student') => {
+    setSelectedUserId(id)
+    setFilterMode(mode)
+    localStorage.setItem('calendar_filter_mode', mode)
+    localStorage.setItem('calendar_selected_user_id', String(id))
+    setIsBottomSheetOpen(false)
+  }
+
+  // Filtered users for Bottom Sheet list
+  const activeUserList = tempFilterMode === 'teacher' ? (teachers ?? []) : (students ?? [])
+  const filteredUsers = activeUserList.filter(u => {
+    const fullName = `${u.first_name || ''} ${u.last_name || ''} ${u.username || ''}`.toLowerCase()
+    return fullName.includes(searchQuery.toLowerCase())
+  })
 
   // Auto-select today
   useEffect(() => {
@@ -215,118 +253,98 @@ export default function AdminCalendar() {
     <div className={styles.page}>
       <SiteHeader title={t('admin.courses.schedule')} onBack={() => navigate('/dashboard')} />
 
-      {/* User Filter Bar */}
-      <div className={styles.filterPanel}>
-        <div className={styles.filterModeToggle}>
-          {(['teacher', 'student'] as const).map(mode => (
-            <button
-              key={mode}
-              onClick={() => { setFilterMode(mode); setSelectedUserId(undefined) }}
-              className={`${styles.filterModeButton} ${filterMode === mode ? styles.filterModeButtonActive : ''}`}
-            >
-              {mode === 'teacher' ? t('admin.calendar.filter_teacher', 'Репетитор') : t('admin.calendar.filter_student', 'Ученик')}
-            </button>
-          ))}
-        </div>
-
-        <div className={styles.selectWrapper}>
-          {filterMode === 'teacher' ? (
-            <select
-              className={styles.filterSelect}
-              value={selectedUserId ?? ''}
-              onChange={e => setSelectedUserId(e.target.value ? Number(e.target.value) : undefined)}
-            >
-              <option value="">{t('admin.calendar.select_teacher', 'Выберите репетитора')}</option>
-              {(teachers ?? []).map(u => (
-                <option key={u.id} value={u.id}>{u.first_name} {u.last_name ?? ''}</option>
-              ))}
-            </select>
-          ) : (
-            <select
-              className={styles.filterSelect}
-              value={selectedUserId ?? ''}
-              onChange={e => setSelectedUserId(e.target.value ? Number(e.target.value) : undefined)}
-            >
-              <option value="">{t('admin.calendar.select_student', 'Выберите ученика')}</option>
-              {(students ?? []).map(u => (
-                <option key={u.id} value={u.id}>{u.first_name} {u.last_name ?? ''}</option>
-              ))}
-            </select>
-          )}
-          <span className={`material-symbols-outlined ${styles.selectIcon}`}>expand_more</span>
-        </div>
-      </div>
-
-      {/* Calendar Navigation */}
-      <div className={styles.calendarNav}>
-        <div className={styles.headerLeft}>
-          <button className={styles.monthTitleButton} onClick={() => { setPickerYear(year); setShowMonthPicker(!showMonthPicker) }}>
-            <h2 className={styles.headerTitle}>{monthName} {year}</h2>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>expand_more</span>
-          </button>
-        </div>
-        <div className={styles.headerRight}>
-          <div className={styles.navButtons}>
-            <button className={styles.navButton} onClick={() => setWeekOffset(w => w - 1)}>
-              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_left</span>
-            </button>
-            <button className={styles.todayButton} onClick={() => { setWeekOffset(0); setSelectedDay((getTashkentDate().getDay() + 6) % 7) }}>
-              {t('calendar.today')}
-            </button>
-            <button className={styles.navButton} onClick={() => setWeekOffset(w => w + 1)}>
-              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_right</span>
-            </button>
+      {/* Active User Header Dropdown Button */}
+      {hasUserSelected && (
+        <div className={styles.activeUserHeader} onClick={() => setIsBottomSheetOpen(true)}>
+          <div className={styles.activeUserLabel}>
+            <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--color-primary)' }}>
+              {filterMode === 'teacher' ? 'local_library' : 'person'}
+            </span>
+            <span className={styles.activeUserName}>{selectedUserName}</span>
+            <span className={styles.activeUserRole}>
+              ({filterMode === 'teacher' ? t('admin.calendar.filter_teacher', 'Репетитор') : t('admin.calendar.filter_student', 'Ученик')})
+            </span>
           </div>
-        </div>
-      </div>
-
-      {/* Month Picker */}
-      {showMonthPicker && (
-        <div className={styles.monthPickerOverlay} onClick={() => setShowMonthPicker(false)}>
-          <div className={styles.monthPicker} onClick={e => e.stopPropagation()}>
-            <div className={styles.pickerYearNav}>
-              <button className={styles.navButton} onClick={() => setPickerYear(y => y - 1)}>
-                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_left</span>
-              </button>
-              <span className={styles.pickerYear}>{pickerYear}</span>
-              <button className={styles.navButton} onClick={() => setPickerYear(y => y + 1)}>
-                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_right</span>
-              </button>
-            </div>
-            <div className={styles.monthGrid}>
-              {monthNamesShort.map((name, i) => (
-                <button
-                  key={i}
-                  className={`${styles.monthButton} ${year === pickerYear && new Date(monday + 'T00:00:00').getMonth() === i ? styles.monthButtonActive : ''}`}
-                  onClick={() => jumpToMonth(pickerYear, i)}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-          </div>
+          <span className={`material-symbols-outlined ${styles.activeUserChevron}`}>unfold_more</span>
         </div>
       )}
 
-      {/* View Toggle */}
-      <div className={styles.viewToggle}>
-        <button className={`${styles.viewButton} ${view === 'day' ? styles.viewButtonActive : ''}`} onClick={() => setView('day')}>
-          {t('calendar.dayView')}
-        </button>
-        <button className={`${styles.viewButton} ${view === 'week' ? styles.viewButtonActive : ''}`} onClick={() => setView('week')}>
-          {t('calendar.weekView')}
-        </button>
-      </div>
+      {hasUserSelected && (
+        <>
+          {/* Calendar Navigation */}
+          <div className={styles.calendarNav}>
+            <div className={styles.headerLeft}>
+              <button className={styles.monthTitleButton} onClick={() => { setPickerYear(year); setShowMonthPicker(!showMonthPicker) }}>
+                <h2 className={styles.headerTitle}>{monthName} {year}</h2>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>expand_more</span>
+              </button>
+            </div>
+            <div className={styles.headerRight}>
+              <div className={styles.navButtons}>
+                <button className={styles.navButton} onClick={() => setWeekOffset(w => w - 1)}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_left</span>
+                </button>
+                <button className={styles.todayButton} onClick={() => { setWeekOffset(0); setSelectedDay((getTashkentDate().getDay() + 6) % 7) }}>
+                  {t('calendar.today')}
+                </button>
+                <button className={styles.navButton} onClick={() => setWeekOffset(w => w + 1)}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_right</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Month Picker */}
+          {showMonthPicker && (
+            <div className={styles.monthPickerOverlay} onClick={() => setShowMonthPicker(false)}>
+              <div className={styles.monthPicker} onClick={e => e.stopPropagation()}>
+                <div className={styles.pickerYearNav}>
+                  <button className={styles.navButton} onClick={() => setPickerYear(y => y - 1)}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_left</span>
+                  </button>
+                  <span className={styles.pickerYear}>{pickerYear}</span>
+                  <button className={styles.navButton} onClick={() => setPickerYear(y => y + 1)}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_right</span>
+                  </button>
+                </div>
+                <div className={styles.monthGrid}>
+                  {monthNamesShort.map((name, i) => (
+                    <button
+                      key={i}
+                      className={`${styles.monthButton} ${year === pickerYear && new Date(monday + 'T00:00:00').getMonth() === i ? styles.monthButtonActive : ''}`}
+                      onClick={() => jumpToMonth(pickerYear, i)}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* View Toggle */}
+          <div className={styles.viewToggle}>
+            <button className={`${styles.viewButton} ${view === 'day' ? styles.viewButtonActive : ''}`} onClick={() => setView('day')}>
+              {t('calendar.dayView')}
+            </button>
+            <button className={`${styles.viewButton} ${view === 'week' ? styles.viewButtonActive : ''}`} onClick={() => setView('week')}>
+              {t('calendar.weekView')}
+            </button>
+          </div>
+        </>
+      )}
 
       {/* Prompt to select user */}
       {!hasUserSelected && (
-        <div className={styles.emptyState} style={{ padding: '48px 16px', textAlign: 'center' }}>
-          <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>person_search</span>
-          <p style={{ marginTop: 12, color: 'var(--color-on-surface-variant)', fontSize: 14 }}>
-            {filterMode === 'teacher'
-              ? t('admin.calendar.select_teacher_prompt', 'Выберите репетитора для просмотра расписания')
-              : t('admin.calendar.select_student_prompt', 'Выберите ученика для просмотра расписания')}
+        <div className={styles.emptyStateSelect} onClick={() => setIsBottomSheetOpen(true)}>
+          <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'var(--color-primary)' }}>person_search</span>
+          <h3 className={styles.emptyStateTitle}>{t('admin.calendar.select_user_title', 'Выберите пользователя')}</h3>
+          <p className={styles.emptyStateDesc}>
+            {t('admin.calendar.select_user_desc', 'Нажмите здесь, чтобы выбрать репетитора или ученика и посмотреть расписание')}
           </p>
+          <button className={styles.selectUserBtn}>
+            {t('admin.calendar.choose', 'Выбрать')}
+          </button>
         </div>
       )}
 
@@ -563,7 +581,6 @@ export default function AdminCalendar() {
         </div>
       )}
 
-      {/* Group List Modal — shows overlapping lessons */}
       {groupModal && (
         <div className={styles.slotModalOverlay} onClick={() => setGroupModal(null)}>
           <div className={styles.groupModal} onClick={e => e.stopPropagation()}>
@@ -616,6 +633,94 @@ export default function AdminCalendar() {
                   </button>
                 )
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Selection Bottom Sheet */}
+      {isBottomSheetOpen && (
+        <div className={styles.bottomSheetOverlay} onClick={() => setIsBottomSheetOpen(false)}>
+          <div className={styles.bottomSheet} onClick={e => e.stopPropagation()}>
+            <div className={styles.bottomSheetHandle} />
+            <div className={styles.bottomSheetHeader}>
+              <h3 className={styles.bottomSheetTitle}>{t('admin.calendar.select_user', 'Выбор расписания')}</h3>
+              <button className={styles.bottomSheetClose} onClick={() => setIsBottomSheetOpen(false)}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className={styles.sheetToggleWrapper}>
+              <div className={styles.sheetToggle}>
+                <button
+                  type="button"
+                  onClick={() => setTempFilterMode('teacher')}
+                  className={`${styles.sheetToggleButton} ${tempFilterMode === 'teacher' ? styles.sheetToggleButtonActive : ''}`}
+                >
+                  {t('admin.calendar.filter_teacher', 'Репетитор')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTempFilterMode('student')}
+                  className={`${styles.sheetToggleButton} ${tempFilterMode === 'student' ? styles.sheetToggleButtonActive : ''}`}
+                >
+                  {t('admin.calendar.filter_student', 'Ученик')}
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.sheetSearchWrapper}>
+              <span className={`material-symbols-outlined ${styles.searchIcon}`}>search</span>
+              <input
+                type="text"
+                placeholder={t('common.search', 'Поиск...')}
+                className={styles.sheetSearchInput}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button className={styles.clearSearchBtn} onClick={() => setSearchQuery('')}>
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              )}
+            </div>
+
+            <div className={styles.sheetList}>
+              {filteredUsers.length > 0 ? (
+                filteredUsers.map(u => {
+                  const isCurrent = selectedUserId === u.id && filterMode === tempFilterMode
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      className={`${styles.sheetItem} ${isCurrent ? styles.sheetItemActive : ''}`}
+                      onClick={() => handleSelectUser(u.id, tempFilterMode)}
+                    >
+                      <div className={styles.sheetItemAvatar}>
+                        {u.photo_url ? (
+                          <img src={u.photo_url} alt={u.first_name} className={styles.avatarImg} />
+                        ) : (
+                          <span className="material-symbols-outlined">
+                            {tempFilterMode === 'teacher' ? 'local_library' : 'person'}
+                          </span>
+                        )}
+                      </div>
+                      <div className={styles.sheetItemInfo}>
+                        <span className={styles.sheetItemName}>{u.first_name} {u.last_name || ''}</span>
+                        {u.username && <span className={styles.sheetItemUsername}>@{u.username}</span>}
+                      </div>
+                      {isCurrent && (
+                        <span className={`material-symbols-outlined ${styles.sheetItemCheck}`}>check</span>
+                      )}
+                    </button>
+                  )
+                })
+              ) : (
+                <div className={styles.sheetEmpty}>
+                  <span className="material-symbols-outlined">search_off</span>
+                  <p>{t('common.no_results', 'Ничего не найдено')}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
