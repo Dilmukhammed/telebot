@@ -220,12 +220,12 @@ async def get_admin_lessons(
     )
 
     # Build date filter: for each day_of_week (0-6), compute the instance date
-    # and collect them into a CASE expression for the JOIN condition
-    from sqlalchemy import case
+    # Cast to Date so PostgreSQL can compare with lesson_statuses.date (date type)
+    from sqlalchemy import case, cast, Date
     day_date_pairs = [(d, (start_monday + timedelta(days=d)).strftime("%Y-%m-%d")) for d in range(7)]
-    date_case = case(
-        {d: date_str for d, date_str in day_date_pairs},
-        value=Lesson.day_of_week,
+    date_case = cast(
+        case({d: date_str for d, date_str in day_date_pairs}, value=Lesson.day_of_week),
+        Date,
     )
 
     # Join with LessonStatus and enrollment count in single query
