@@ -537,33 +537,58 @@ export function createMaterial(data: MaterialCreate): Promise<MaterialOut> {
 }
 
 export async function uploadMaterial(file: File, title: string, subjectId?: number, lessonId?: number): Promise<MaterialOut> {
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('title', title)
-  if (subjectId !== undefined) formData.append('subject_id', String(subjectId))
-  if (lessonId !== undefined) formData.append('lesson_id', String(lessonId))
+  return uploadMaterialWithProgress(file, title, subjectId, lessonId)
+}
 
-  const url = `${BASE_URL}/api/materials/upload`
-  const authHeaders = getAuthHeaders()
-  // Remove Content-Type for FormData (browser sets it with boundary)
-  const { 'Content-Type': _, ...headers } = authHeaders
+export function uploadMaterialWithProgress(
+  file: File,
+  title: string,
+  subjectId?: number,
+  lessonId?: number,
+  onProgress?: (percent: number) => void,
+): Promise<MaterialOut> {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('title', title)
+    if (subjectId !== undefined) formData.append('subject_id', String(subjectId))
+    if (lessonId !== undefined) formData.append('lesson_id', String(lessonId))
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: formData,
+    const url = `${BASE_URL}/api/materials/upload`
+    const authHeaders = getAuthHeaders()
+    const { 'Content-Type': _, ...headers } = authHeaders
+
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', url)
+    Object.entries(headers).forEach(([key, value]) => xhr.setRequestHeader(key, value))
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100))
+      }
+    })
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText) as MaterialOut)
+        } catch {
+          reject(new Error('Invalid response'))
+        }
+        return
+      }
+      let message = `Error (${xhr.status})`
+      try {
+        const body = JSON.parse(xhr.responseText)
+        if (body.detail) message = body.detail
+      } catch { /* ignore */ }
+      reject(new Error(message))
+    })
+
+    xhr.addEventListener('error', () => reject(new Error('Upload failed')))
+    xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')))
+    xhr.send(formData)
   })
-
-  if (!response.ok) {
-    let message = `Error (${response.status})`
-    try {
-      const body = await response.json()
-      if (body.detail) message = body.detail
-    } catch { /* ignore */ }
-    throw new Error(message)
-  }
-
-  return response.json()
 }
 
 export function deleteMaterial(id: number): Promise<void> {

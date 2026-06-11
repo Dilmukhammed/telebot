@@ -5,8 +5,6 @@ import {
   useCourseDetail,
   useCourseStudents,
   useMaterials,
-  useCreateMaterial,
-  useUploadMaterial,
   useDeleteMaterial,
   useAdminSubjectDetail,
   useAdminAuditLog,
@@ -20,10 +18,10 @@ import {
   archiveAdminSubject,
   unarchiveAdminSubject,
 } from '../api/client'
-import type { MaterialCreate } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import MaterialCard from '../components/MaterialCard'
 import MaterialForm from '../components/MaterialForm'
+import TimePicker from '../components/TimePicker'
 import { Loading, Toast, Modal } from '../shared/components'
 import {
   TodayLessonCard,
@@ -61,8 +59,6 @@ export default function AdminCourseDetail() {
   const [showAudit, setShowAudit] = useState(false)
 
   const { data: materials = [] } = useMaterials(courseId)
-  const createMaterial = useCreateMaterial()
-  const uploadMaterial = useUploadMaterial()
   const deleteMaterial = useDeleteMaterial()
 
   // Subject edit modal
@@ -102,23 +98,6 @@ export default function AdminCourseDetail() {
     const locale = i18n.language === 'en' ? 'en-US' : i18n.language === 'uz' ? 'uz-UZ' : 'ru-RU'
     return d.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })
   }
-
-  const handleMaterialSubmit = (data: MaterialCreate & { file?: File }) => {
-    if (data.type === 'file' && data.file) {
-      uploadMaterial.mutate({ file: data.file, title: data.title, subjectId: courseId })
-    } else {
-      createMaterial.mutate({
-        title: data.title,
-        type: data.type,
-        subject_id: courseId,
-        url: data.url,
-        content: data.content,
-      })
-    }
-  }
-
-  const isMaterialPending = createMaterial.isPending || uploadMaterial.isPending
-  const isMaterialSuccess = createMaterial.isSuccess || uploadMaterial.isSuccess
 
   const openSubjectEdit = () => {
     if (!course) return
@@ -280,7 +259,7 @@ export default function AdminCourseDetail() {
           className={`${styles.tabButton} ${activeTab === 'students' ? styles.tabButtonActive : ''}`}
           onClick={() => setActiveTab('students')}
         >
-          {t('courseDetail.studentsTab', { defaultValue: 'Ученики' })}
+          {t('courseDetail.studentsTab')}
         </button>
       </nav>
 
@@ -535,7 +514,7 @@ export default function AdminCourseDetail() {
         {activeTab === 'students' && (
           <div className={styles.studentsTab}>
             <div className={styles.tabSectionHeader}>
-              <h2 className={styles.sectionTitle}>{t('courseDetail.studentsTab', { defaultValue: 'Ученики' })}</h2>
+              <h2 className={styles.sectionTitle}>{t('courseDetail.studentsTab')}</h2>
               <button className={`${styles.adminChipBtn} ${styles.adminChipBtnPrimary}`} onClick={() => { setShowEnrollModal(true); setEnrollFilter('') }}>
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>person_add</span>
                 {t('admin.course_detail.add')}
@@ -601,10 +580,8 @@ export default function AdminCourseDetail() {
 
       {showMaterialForm && (
         <MaterialForm
-          onSubmit={handleMaterialSubmit}
-          onClose={() => { setShowMaterialForm(false); createMaterial.reset(); uploadMaterial.reset() }}
-          isPending={isMaterialPending}
-          isSuccess={isMaterialSuccess}
+          subjectId={courseId}
+          onClose={() => setShowMaterialForm(false)}
         />
       )}
 
@@ -707,7 +684,7 @@ export default function AdminCourseDetail() {
               <div style={{ display: 'flex', gap: '8px' }}>
                 <div className={modalStyles.field} style={{ flex: 1 }}>
                   <label className={modalStyles.fieldLabel}>{t('admin.course_detail.time')}</label>
-                  <input type="time" className={modalStyles.timeInput} value={lessonForm.time} onChange={e => setLessonForm(p => ({ ...p, time: e.target.value }))} />
+                  <TimePicker value={lessonForm.time} onChange={val => setLessonForm(p => ({ ...p, time: val }))} />
                 </div>
                 <div className={modalStyles.field} style={{ flex: 1 }}>
                   <label className={modalStyles.fieldLabel}>{t('admin.course_detail.room')}</label>

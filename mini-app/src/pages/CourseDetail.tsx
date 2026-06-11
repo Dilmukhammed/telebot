@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useCourseDetail, useCourseStudents, useMaterials, useCreateMaterial, useUploadMaterial, useDeleteMaterial } from '../api/hooks'
+import { useCourseDetail, useCourseStudents, useMaterials, useDeleteMaterial } from '../api/hooks'
 import { useUser } from '../context/UserContext'
-import type { CourseLessonOut, MaterialCreate } from '../shared/types'
+import type { CourseLessonOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import MaterialCard from '../components/MaterialCard'
 import MaterialForm from '../components/MaterialForm'
@@ -34,24 +34,7 @@ export default function CourseDetail() {
   const [materialToDelete, setMaterialToDelete] = useState<number | null>(null)
 
   const { data: materials = [] } = useMaterials(courseId)
-  const createMaterial = useCreateMaterial()
-  const uploadMaterial = useUploadMaterial()
   const deleteMaterial = useDeleteMaterial()
-
-  const handleMaterialSubmit = (data: MaterialCreate & { file?: File }) => {
-    if (data.type === 'file' && data.file) {
-      uploadMaterial.mutate(
-        { file: data.file, title: data.title, subjectId: courseId }
-      )
-    } else {
-      createMaterial.mutate(
-        { title: data.title, type: data.type, subject_id: courseId, url: data.url, content: data.content }
-      )
-    }
-  }
-
-  const isMaterialPending = createMaterial.isPending || uploadMaterial.isPending
-  const isMaterialSuccess = createMaterial.isSuccess || uploadMaterial.isSuccess
 
   const handleMaterialDelete = (id: number) => {
     setMaterialToDelete(id)
@@ -115,7 +98,7 @@ export default function CourseDetail() {
             className={`${styles.tabButton} ${activeTab === 'students' ? styles.tabButtonActive : ''}`}
             onClick={() => setActiveTab('students')}
           >
-            {t('courseDetail.studentsTab', { defaultValue: 'Ученики' })}
+            {t('courseDetail.studentsTab')}
           </button>
         )}
       </nav>
@@ -363,10 +346,8 @@ export default function CourseDetail() {
 
       {showMaterialForm && (
         <MaterialForm
-          onSubmit={handleMaterialSubmit}
-          onClose={() => { setShowMaterialForm(false); createMaterial.reset(); uploadMaterial.reset() }}
-          isPending={isMaterialPending}
-          isSuccess={isMaterialSuccess}
+          subjectId={courseId}
+          onClose={() => setShowMaterialForm(false)}
         />
       )}
 

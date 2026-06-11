@@ -4,14 +4,12 @@ import { useTranslation } from 'react-i18next'
 import {
   useLessonDetail,
   useLessonAttendance,
-  useCreateMaterial,
-  useUploadMaterial,
   useDeleteMaterial,
   useMarkLessonStatus,
   useMarkAttendance,
   useUpdateLesson,
 } from '../api/hooks'
-import type { AttendanceRecordIn, MaterialCreate } from '../shared/types'
+import type { AttendanceRecordIn } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import MaterialCard from '../components/MaterialCard'
 import MaterialForm from '../components/MaterialForm'
@@ -41,27 +39,10 @@ export default function LessonDetail() {
   const [showMaterialForm, setShowMaterialForm] = useState(false)
   const [materialToDelete, setMaterialToDelete] = useState<number | null>(null)
 
-  const createMaterial = useCreateMaterial()
-  const uploadMaterial = useUploadMaterial()
   const deleteMaterial = useDeleteMaterial()
   const markStatusMutation = useMarkLessonStatus()
   const markAttendanceMutation = useMarkAttendance()
   const updateLessonMutation = useUpdateLesson()
-
-  const handleMaterialSubmit = (data: MaterialCreate & { file?: File }) => {
-    if (data.type === 'file' && data.file) {
-      uploadMaterial.mutate(
-        { file: data.file, title: data.title, lessonId: lesson?.id }
-      )
-    } else {
-      createMaterial.mutate(
-        { title: data.title, type: data.type, lesson_id: lesson?.id, subject_id: lesson?.subject_id, url: data.url, content: data.content }
-      )
-    }
-  }
-
-  const isMaterialPending = createMaterial.isPending || uploadMaterial.isPending
-  const isMaterialSuccess = createMaterial.isSuccess || uploadMaterial.isSuccess
 
   const handleMaterialDelete = (id: number) => {
     setMaterialToDelete(id)
@@ -541,10 +522,9 @@ export default function LessonDetail() {
 
       {showMaterialForm && lesson && (
         <MaterialForm
-          onSubmit={handleMaterialSubmit}
-          onClose={() => { setShowMaterialForm(false); createMaterial.reset(); uploadMaterial.reset() }}
-          isPending={isMaterialPending}
-          isSuccess={isMaterialSuccess}
+          subjectId={lesson.subject_id}
+          lessonId={lesson.id}
+          onClose={() => setShowMaterialForm(false)}
         />
       )}
 
