@@ -123,11 +123,15 @@ export default function MaterialCard({ material, canDelete, onDelete }: Material
   const youtubeId = material.type === 'youtube' ? getYoutubeId(material.url) : null
   const isVideo = material.type === 'video' || (material.type === 'youtube' && youtubeId)
 
-  // Google Drive webContentLink uses export=download which forces download instead of inline display.
-  // Convert to direct URL for <img src> compatibility.
-  const imageUrl = material.url?.includes('drive.google.com')
-    ? material.url.replace('&export=download', '').replace('?export=download', '')
-    : material.url
+  // Google Drive URLs don't work as <img src>. Convert to Google's image CDN.
+  function toDirectImageUrl(url?: string): string | undefined {
+    if (!url) return url
+    // Extract file ID from any Google Drive URL format
+    const match = url.match(/(?:id=|\/d\/)([a-zA-Z0-9_-]{20,})/)
+    if (match) return `https://lh3.googleusercontent.com/d/${match[1]}`
+    return url
+  }
+  const imageUrl = toDirectImageUrl(material.url)
 
   const handleCardClick = () => {
     if (material.type === 'image' && imageUrl) {

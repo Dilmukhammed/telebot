@@ -146,9 +146,9 @@ def _upload_file_sync(
     except Exception as exc:
         logger.warning("Drive public permission failed for %s: %s", file_id, exc)
 
-    # For images, use a direct URL that works as <img src> (no download redirect)
+    # For images, use Google's CDN URL that works directly as <img src>
     if mime_type.startswith("image/"):
-        direct_url = f"https://drive.google.com/uc?id={file_id}"
+        direct_url = f"https://lh3.googleusercontent.com/d/{file_id}"
         logger.info("Uploaded image to Google Drive: %s (%s)", file_name, file_id)
         return file_id, direct_url
 
