@@ -24,7 +24,7 @@ git push -u origin main
 5. Variables → добавь:
    - `BOT_TOKEN` = `<ТВОЙ_BOT_TOKEN_ИЗ_BOTFATHER>`
    - `DATABASE_URL` = `postgresql+asyncpg://<user>:<pass>@<host>:<port>/<db>`
-   - `ADMIN_JWT_SECRET` = `<СЛУЧАЙНАЯ_СТРОКА_МИНИМУМ_32_СИМВОЛА>`
+   - `ADMIN_JWT_SECRET` = случайная строка **минимум 32 символа** (обязательно, без неё бэкенд не стартует). Сгенерировать: `python -c "import secrets; print(secrets.token_urlsafe(48))"`
    - `ADMIN_PASSWORD` = `<ПАРОЛЬ_АДМИНА>`
 6. Deploy! Railway даст URL типа `https://zuhrabot-production.up.railway.app`
 
