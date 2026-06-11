@@ -82,15 +82,31 @@ async def list_courses(
         for lesson in lessons_result.scalars().all():
             all_lessons.setdefault(lesson.subject_id, []).append(lesson)
 
+    # Pre-fetch teacher names from users table (use current name, not denormalized lesson.teacher_name)
+    teacher_ids = {l.teacher_id for lessons in all_lessons.values() for l in lessons if l.teacher_id}
+    teachers_map = {}
+    if teacher_ids:
+        teachers_result = await db.execute(select(User.id, User.first_name, User.last_name, User.username).where(User.id.in_(teacher_ids)))
+        for row in teachers_result.all():
+            full_name = f"{row[1] or ''} {row[2] or ''}".strip() if row[1] or row[2] else (row[3] or "")
+            teachers_map[row[0]] = full_name
+
     courses = []
     for subject in subjects:
         lessons = all_lessons.get(subject.id, [])
         first_lesson = lessons[0] if lessons else None
 
+        teacher_name = ""
+        if first_lesson:
+            if first_lesson.teacher_id and first_lesson.teacher_id in teachers_map:
+                teacher_name = teachers_map[first_lesson.teacher_id]
+            else:
+                teacher_name = first_lesson.teacher_name
+
         courses.append(CourseOut(
             id=subject.id,
             name=subject.name,
-            teacher_name=first_lesson.teacher_name if first_lesson else "",
+            teacher_name=teacher_name,
             lesson_count=len(lessons),
         ))
 
@@ -119,16 +135,18 @@ async def get_lesson_detail(
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
 
-    # Get teacher info if available
+    # Get teacher info if available (use current name from users table, not denormalized lesson.teacher_name)
     teacher_photo_url = None
     teacher_title = None
     teacher_username = None
+    teacher_name = lesson.teacher_name  # fallback
     if lesson.teacher_id:
         teacher_result = await db.execute(select(User).where(User.id == lesson.teacher_id))
         teacher = teacher_result.scalar_one_or_none()
         if teacher:
             teacher_photo_url = teacher.photo_url
             teacher_username = teacher.username
+            teacher_name = f"{teacher.first_name or ''} {teacher.last_name or ''}".strip() or (teacher.username or lesson.teacher_name)
 
     # Calculate end time
     end_time = _calculate_end_time(lesson.time, subject.duration_minutes or 90)
@@ -223,7 +241,7 @@ async def get_lesson_detail(
         subject_id=subject.id,
         subject_name=subject.name,
         title=title,
-        teacher_name=lesson.teacher_name,
+        teacher_name=teacher_name,
         teacher_username=teacher_username,
         teacher_title=teacher_title,
         teacher_photo_url=teacher_photo_url,
@@ -306,7 +324,15 @@ async def get_course_detail(
         course_lesson_out_cls=CourseLessonOut,
     )
 
-    teacher_name = active_slots[0].teacher_name if active_slots else ""
+    # Get teacher name from users table (current name, not denormalized)
+    teacher_name = ""
+    if active_slots and active_slots[0].teacher_id:
+        teacher_result = await db.execute(select(User).where(User.id == active_slots[0].teacher_id))
+        teacher = teacher_result.scalar_one_or_none()
+        if teacher:
+            teacher_name = f"{teacher.first_name or ''} {teacher.last_name or ''}".strip() or (teacher.username or "")
+    if not teacher_name:
+        teacher_name = active_slots[0].teacher_name if active_slots else ""
     location = active_slots[0].location if active_slots else None
 
     return CourseDetailOut(

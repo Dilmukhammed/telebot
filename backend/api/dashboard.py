@@ -528,6 +528,15 @@ async def get_calendar(
         )
     all_lessons = lessons_result.all()
 
+    # Pre-fetch teacher names from users table (current name, not denormalized lesson.teacher_name)
+    teacher_ids = {l.teacher_id for l, _ in all_lessons if l.teacher_id}
+    teachers_map: dict[int, str] = {}
+    if teacher_ids:
+        teachers_result = await db.execute(select(User.id, User.first_name, User.last_name, User.username).where(User.id.in_(teacher_ids)))
+        for row in teachers_result.all():
+            full_name = f"{row[1] or ''} {row[2] or ''}".strip() if row[1] or row[2] else (row[3] or "")
+            teachers_map[row[0]] = full_name
+
     # Build 7 days with dates
     week_dates = [target_monday + timedelta(days=i) for i in range(7)]
     date_strings = [d.isoformat() for d in week_dates]
@@ -597,10 +606,11 @@ async def get_calendar(
                 status = "planned"
 
             duration = subject.duration_minutes or 90
+            t_name = teachers_map.get(lesson.teacher_id, lesson.teacher_name) if lesson.teacher_id else lesson.teacher_name
             lessons_by_day[day].append(CalendarLessonOut(
                 id=lesson.id,
                 subject_name=subject.name,
-                teacher_name=lesson.teacher_name,
+                teacher_name=t_name,
                 day_of_week=day,
                 time=lesson.time,
                 end_time=_calculate_end_time(lesson.time, duration),
