@@ -40,15 +40,15 @@ export const getGreeting = (firstName: string, t?: (key: string, opts?: Record<s
   const utcHour = new Date().getUTCHours()
   const tashkentHour = (utcHour + 5) % 24
   if (tashkentHour >= 5 && tashkentHour < 12) {
-    return t ? t('dashboard.greetingMorning', { name: firstName, defaultValue: `Доброе утро, ${firstName}! ☀️` }) : `Доброе утро, ${firstName}! ☀️`
+    return t ? t('dashboard.greetingMorning', { name: firstName }) : `Good morning, ${firstName}! ☀️`
   }
   if (tashkentHour >= 12 && tashkentHour < 18) {
-    return t ? t('dashboard.greetingAfternoon', { name: firstName, defaultValue: `Добрый день, ${firstName}! 🌤️` }) : `Добрый день, ${firstName}! 🌤️`
+    return t ? t('dashboard.greetingAfternoon', { name: firstName }) : `Good afternoon, ${firstName}! 🌤️`
   }
   if (tashkentHour >= 18 && tashkentHour < 22) {
-    return t ? t('dashboard.greetingEvening', { name: firstName, defaultValue: `Добрый вечер, ${firstName}! 🌙` }) : `Добрый вечер, ${firstName}! 🌙`
+    return t ? t('dashboard.greetingEvening', { name: firstName }) : `Good evening, ${firstName}! 🌙`
   }
-  return t ? t('dashboard.greetingNight', { name: firstName, defaultValue: `Доброй ночи, ${firstName}! 🌌` }) : `Доброй ночи, ${firstName}! 🌌`
+  return t ? t('dashboard.greetingNight', { name: firstName }) : `Good night, ${firstName}! 🌌`
 }
 
 /**
@@ -68,16 +68,8 @@ export const getTodayLessonsStatus = (
 
   const count = lessons.filter(l => l.date === todayStr).length
   if (count === 0) {
-    return t ? (t('dashboard.motivation') || 'Сегодня занятий нет. Отличный день для подготовки! ✨') : 'Сегодня занятий нет. Отличный день для подготовки! ✨'
+    return t ? t('dashboard.motivation') : 'Ready for new mathematical discoveries today?'
   }
 
-  const lastDigit = count % 10
-  const lastTwoDigits = count % 100
-  if (lastDigit === 1 && lastTwoDigits !== 11) {
-    return `Сегодня у вас ${count} запланированное занятие`
-  }
-  if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 10 || lastTwoDigits >= 20)) {
-    return `Сегодня у вас ${count} запланированных занятия`
-  }
-  return `Сегодня у вас ${count} запланированных занятий`
+  return t ? t('dashboard.lessonsToday', { count }) : `${count} lesson(s) scheduled today`
 }

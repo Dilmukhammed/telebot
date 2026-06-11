@@ -168,7 +168,7 @@ export default function TeacherDashboard() {
         <div className={styles.welcomeCard}>
           <div className={styles.welcomeLeft}>
             <h1 className={styles.welcomeGreeting}>
-              {getGreeting(profile.first_name)}
+              {getGreeting(profile.first_name, t)}
             </h1>
             <p className={styles.welcomeStatus}>
               <span className={styles.welcomeRoleBadge}>
