@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAdminStats, useAnnouncements } from '../api/hooks'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAdminStats, useAnnouncements, prefetchAdminLessons } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
 import MiniCalendar from '../components/MiniCalendar'
 import { Loading } from '../shared/components'
@@ -10,9 +11,14 @@ import styles from './AdminDashboard.module.css'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const { t, i18n } = useTranslation()
   const currentLocale = langToLocale(i18n.language)
   const { data: stats, isLoading } = useAdminStats()
+
+  useEffect(() => {
+    void prefetchAdminLessons(qc)
+  }, [qc])
   const { data: announcements = [] } = useAnnouncements('admin')
   const unreadCount = useMemo(
     () => announcements.filter(a => !a.is_read).length,

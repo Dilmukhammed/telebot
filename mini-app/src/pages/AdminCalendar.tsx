@@ -117,7 +117,8 @@ export default function AdminCalendar() {
   })
 
   const [weekOffset, setWeekOffset] = useState(0)
-  const { data: lessons = [], isLoading, refetch } = useAdminLessons({ week_offset: weekOffset })
+  const { data: lessons, isPending, refetch } = useAdminLessons({ week_offset: weekOffset })
+  const lessonList = lessons ?? []
   const [view, setView] = useState<'day' | 'week'>(searchParams.get('view') === 'week' ? 'week' : 'day')
   const [selectedDay, setSelectedDay] = useState(0)
   const [now] = useState(getTashkentDate())
@@ -148,7 +149,7 @@ export default function AdminCalendar() {
   const weekDates = getWeekDates(monday)
   const todayStr = getLocalDateString()
 
-  const byDate = groupByDate(lessons)
+  const byDate = groupByDate(lessonList)
   const currentDate = weekDates[selectedDay]
   const currentLessons = byDate[currentDate] || []
 
@@ -195,7 +196,7 @@ export default function AdminCalendar() {
     }
   }
 
-  if (isLoading) {
+  if (isPending) {
     return <Loading fullPage message={t('common.loading')} />
   }
 

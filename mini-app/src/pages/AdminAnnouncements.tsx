@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAdminAnnouncements, useAdminSubjects, useAdminUsers } from '../api/hooks'
 import {
   createAdminAnnouncement,
+  uploadAnnouncementAttachment,
+  createAnnouncementLinkAttachment,
+  deleteAnnouncementAttachment,
 } from '../api/client'
 import type {
   AdminAnnouncementCreate,
@@ -11,6 +14,16 @@ import type {
 import SiteHeader from '../components/SiteHeader'
 import { langToLocale } from '../shared/utils/formatDate'
 import styles from './AdminAnnouncements.module.css'
+
+interface PendingAttachment {
+  id: number
+  title: string
+  type: 'file' | 'link'
+  mediaType?: 'image' | 'video' | 'file'
+  url?: string
+  file_name?: string
+  file_size?: number
+}
 
 const formatDate = (isoString: string, locale: string) => {
   try {
@@ -46,6 +59,14 @@ export default function AdminAnnouncements() {
   const [teachers] = useState<any[]>([])
   const [targetId, setTargetId] = useState<number | ''>('')
 
+  // Attachment state
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([])
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [showLinkInput, setShowLinkInput] = useState(false)
+  const [linkTitle, setLinkTitle] = useState('')
+  const [linkUrl, setLinkUrl] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const handleCreateClick = () => {
     setTitle('')
     setMessage('')
@@ -53,8 +74,49 @@ export default function AdminAnnouncements() {
     setSelectedCourseIds([])
     setSelectedStudentIds([])
     setTargetId('')
+    setAttachments([])
+    setShowLinkInput(false)
+    setLinkTitle('')
+    setLinkUrl('')
     setError('')
     setModalOpen(true)
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingFile(true)
+    try {
+      const result = await uploadAnnouncementAttachment(file, file.name)
+      const mime = file.type || ''
+      const mediaType: 'image' | 'video' | 'file' = mime.startsWith('image/') ? 'image' : mime.startsWith('video/') ? 'video' : 'file'
+      setAttachments(prev => [...prev, { id: result.id, title: result.title, type: 'file', mediaType, url: result.url, file_name: result.file_name, file_size: result.file_size }])
+    } catch (err: any) {
+      setError(err.message || t('common.error'))
+    } finally {
+      setUploadingFile(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleAddLink = async () => {
+    if (!linkTitle.trim() || !linkUrl.trim()) return
+    try {
+      const result = await createAnnouncementLinkAttachment(linkTitle.trim(), linkUrl.trim())
+      setAttachments(prev => [...prev, { id: result.id, title: result.title, type: 'link', url: result.url }])
+      setLinkTitle('')
+      setLinkUrl('')
+      setShowLinkInput(false)
+    } catch (err: any) {
+      setError(err.message || t('common.error'))
+    }
+  }
+
+  const handleRemoveAttachment = async (id: number) => {
+    try {
+      await deleteAnnouncementAttachment(id)
+    } catch { /* ignore */ }
+    setAttachments(prev => prev.filter(a => a.id !== id))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -86,6 +148,7 @@ export default function AdminAnnouncements() {
         course_ids: targetType === 'course' ? selectedCourseIds : undefined,
         student_ids: targetType === 'specific_students' ? selectedStudentIds : undefined,
         target_id: targetType === 'teacher_courses' ? Number(targetId) : undefined,
+        attachment_ids: attachments.length > 0 ? attachments.map(a => a.id) : undefined,
       })
       setModalOpen(false)
       refetch()
@@ -217,6 +280,112 @@ export default function AdminAnnouncements() {
                 <div className={styles.field}>
                   <label>{t('admin.announcements.message_label')}</label>
                   <textarea placeholder={t('admin.announcements.message_placeholder')} value={message} onChange={e => setMessage(e.target.value)} />
+                </div>
+
+                {/* Attachments */}
+                <div className={styles.field}>
+                  <label>{t('createAnnouncement.attachments', { defaultValue: 'Вложения' })}</label>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      style={{ display: 'none' }}
+                      onChange={handleFileUpload}
+                    />
+                    <button
+                      type="button"
+                      className={styles.cancelBtn}
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingFile}
+                      style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>upload_file</span>
+                      {uploadingFile ? t('common.loading') : t('createAnnouncement.attachFile', { defaultValue: 'Файл' })}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.cancelBtn}
+                      onClick={() => setShowLinkInput(!showLinkInput)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>link</span>
+                      {t('createAnnouncement.attachLink', { defaultValue: 'Ссылка' })}
+                    </button>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--color-on-surface-variant)', marginTop: 2 }}>
+                    {t('createAnnouncement.uploadHint', { defaultValue: 'Фото, видео или файл (до 50 МБ)' })}
+                  </div>
+
+                  {showLinkInput && (
+                    <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <input
+                        type="text"
+                        placeholder={t('createAnnouncement.linkTitle', { defaultValue: 'Название ссылки' })}
+                        value={linkTitle}
+                        onChange={(e) => setLinkTitle(e.target.value)}
+                      />
+                      <input
+                        type="url"
+                        placeholder="https://..."
+                        value={linkUrl}
+                        onChange={(e) => setLinkUrl(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className={styles.cancelBtn}
+                        onClick={handleAddLink}
+                        disabled={!linkTitle.trim() || !linkUrl.trim()}
+                        style={{ alignSelf: 'flex-start' }}
+                      >
+                        {t('common.add', { defaultValue: 'Добавить' })}
+                      </button>
+                    </div>
+                  )}
+
+                  {attachments.length > 0 && (
+                    <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {attachments.map((att) => (
+                        <div
+                          key={att.id}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            padding: '6px 10px', borderRadius: '6px',
+                            background: 'var(--color-surface-container-low, #f0f0f0)',
+                            fontSize: '13px',
+                          }}
+                        >
+                          {att.mediaType === 'image' && att.url ? (
+                            <img
+                              src={att.url}
+                              alt={att.title}
+                              style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                            />
+                          ) : att.mediaType === 'video' ? (
+                            <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--color-primary)', flexShrink: 0 }}>videocam</span>
+                          ) : (
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--color-primary)', flexShrink: 0 }}>
+                              {att.type === 'link' ? 'link' : 'description'}
+                            </span>
+                          )}
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {att.title}
+                          </span>
+                          {att.file_size && (
+                            <span style={{ fontSize: '11px', color: 'var(--color-on-surface-variant)', whiteSpace: 'nowrap' }}>
+                              {(att.file_size / 1024).toFixed(0)} KB
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAttachment(att.id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--color-error, #ba1a1a)' }}>close</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {error && <div className={styles.error}>{error}</div>}

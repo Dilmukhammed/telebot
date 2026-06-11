@@ -45,6 +45,7 @@ export { useMaterials, useCreateMaterial, useUploadMaterial, useDeleteMaterial }
 export {
   useAdminStats,
   useAdminLessons,
+  prefetchAdminLessons,
   useToggleLessonActive,
   useRescheduleLesson,
   useCancelAdminLesson,

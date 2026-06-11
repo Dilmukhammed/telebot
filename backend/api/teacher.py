@@ -850,6 +850,18 @@ async def create_announcement(
             att.notification_id = notification.id
         await db.commit()
 
+    # Load actual attachment objects for sending
+    if data.attachment_ids:
+        att_result = await db.execute(
+            select(NotificationAttachment).where(
+                NotificationAttachment.id.in_(data.attachment_ids),
+                NotificationAttachment.notification_id == notification.id
+            )
+        )
+        attachments = att_result.scalars().all()
+    else:
+        attachments = []
+
     # Store individual recipients
     recipient_ids = []
     if data.target_type == "course":
@@ -883,13 +895,44 @@ async def create_announcement(
         if data.title:
             parts.append(f"\n<b>{escape(data.title)}</b>")
         parts.append(f"\n{escape(data.message)}")
-        text = "\n".join(parts)
+        caption = "\n".join(parts)
+
+        # Collect media attachments
+        media_attachments = [a for a in attachments if a.type in ('image', 'video')]
+        other_attachments = [a for a in attachments if a.type not in ('image', 'video')]
 
         for tg_id in telegram_ids:
             try:
-                await bot.send_message(chat_id=tg_id, text=text, parse_mode="HTML")
+                if media_attachments:
+                    # Send first media with caption
+                    first = media_attachments[0]
+                    if first.type == 'image':
+                        await bot.send_photo(chat_id=tg_id, photo=first.url, caption=caption, parse_mode="HTML")
+                    elif first.type == 'video':
+                        await bot.send_video(chat_id=tg_id, video=first.url, caption=caption, parse_mode="HTML")
+
+                    # Send remaining media without caption
+                    for att in media_attachments[1:]:
+                        try:
+                            if att.type == 'image':
+                                await bot.send_photo(chat_id=tg_id, photo=att.url)
+                            elif att.type == 'video':
+                                await bot.send_video(chat_id=tg_id, video=att.url)
+                        except Exception as e:
+                            logger.warning("Failed to send media to %s: %s", tg_id, e)
+                else:
+                    # No media — send text only
+                    await bot.send_message(chat_id=tg_id, text=caption, parse_mode="HTML")
+
+                # Send other file attachments as documents
+                for att in other_attachments:
+                    try:
+                        await bot.send_document(chat_id=tg_id, document=att.url, caption=att.title)
+                    except Exception as e:
+                        logger.warning("Failed to send attachment to %s: %s", tg_id, e)
+
             except Exception as e:
-                logger.warning(f"Failed to send Telegram message to {tg_id}: {e}")
+                logger.warning("Failed to send announcement to %s: %s", tg_id, e)
 
     return TeacherAnnouncementOut(
         id=notification.id,

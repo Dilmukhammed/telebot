@@ -122,6 +122,49 @@ async def _ensure_materials_image_type(conn: AsyncConnection, dialect: str) -> N
         logger.error("CRITICAL: materials image type constraint fix FAILED: %s", exc, exc_info=True)
 
 
+async def _ensure_notification_attachment_type(conn: AsyncConnection, dialect: str) -> None:
+    """Update notification_attachments type constraint to include 'image' and 'video'."""
+    if dialect != "postgresql" or not await _table_exists(conn, "notification_attachments", dialect):
+        return
+    try:
+        # Find ALL check constraints on notification_attachments table that mention 'type'
+        check = await conn.execute(text("""
+            SELECT conname, pg_get_constraintdef(oid) AS def
+            FROM pg_constraint
+            WHERE conrelid = 'notification_attachments'::regclass
+              AND contype = 'c'
+        """))
+        rows = check.fetchall()
+
+        has_image = False
+        type_constraints = []
+        for conname, condef in rows:
+            if condef and "type" in condef.lower():
+                type_constraints.append(conname)
+                if "'image'" in condef:
+                    has_image = True
+
+        if has_image:
+            logger.debug("notification_attachments type constraint already includes 'image'")
+            return
+
+        # Drop ALL check constraints that mention 'type' (handles any format)
+        for conname in type_constraints:
+            await conn.execute(text(
+                f'ALTER TABLE notification_attachments DROP CONSTRAINT {conname}'
+            ))
+            logger.info("Dropped stale notification_attachments constraint: %s", conname)
+
+        # Recreate with correct values
+        await conn.execute(text("""
+            ALTER TABLE notification_attachments ADD CONSTRAINT ck_attachment_type
+            CHECK (type IN ('file', 'link', 'image', 'video'))
+        """))
+        logger.info("Created notification_attachments ck_attachment_type with 'image' and 'video' support")
+    except Exception as exc:
+        logger.error("CRITICAL: notification_attachments type constraint fix FAILED: %s", exc, exc_info=True)
+
+
 async def ensure_critical_schema(conn: AsyncConnection, dialect: str) -> None:
     """Idempotent columns required by current models. Safe to run every startup."""
     if await _table_exists(conn, "subjects", dialect):
@@ -130,6 +173,7 @@ async def ensure_critical_schema(conn: AsyncConnection, dialect: str) -> None:
             await conn.execute(text("ALTER TABLE subjects ADD COLUMN google_drive_folder_id VARCHAR"))
 
     await _ensure_materials_image_type(conn, dialect)
+    await _ensure_notification_attachment_type(conn, dialect)
 
     if await _table_exists(conn, "users", dialect):
         if not await _column_exists(conn, "users", "profile_theme", dialect):
@@ -402,5 +446,6 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
 
     # Also ensure image type in run_migrations (same logic as ensure_critical_schema)
     await _ensure_materials_image_type(conn, dialect)
+    await _ensure_notification_attachment_type(conn, dialect)
 
     logger.info("Schema migrations complete")

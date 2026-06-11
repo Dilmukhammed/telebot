@@ -661,12 +661,21 @@ async def upload_announcement_attachment(
         logging.getLogger(__name__).error("Google Drive upload failed: %s", exc)
         raise HTTPException(status_code=500, detail="File upload failed")
 
+    # Determine attachment type from MIME
+    mime_type = file.content_type or "application/octet-stream"
+    if mime_type.startswith("image/"):
+        att_type = "image"
+    elif mime_type.startswith("video/"):
+        att_type = "video"
+    else:
+        att_type = "file"
+
     # Create attachment record (notification_id will be set later when announcement is created)
     # Use a temporary notification_id of 0 — we'll update it during announcement creation
     attachment = NotificationAttachment(
         notification_id=0,  # Placeholder — updated during announcement creation
         title=title,
-        type="file",
+        type=att_type,
         url=download_url,
         file_name=file_name,
         file_size=len(file_bytes),
@@ -676,7 +685,7 @@ async def upload_announcement_attachment(
     await db.commit()
     await db.refresh(attachment)
 
-    return {"id": attachment.id, "title": title, "type": "file", "url": download_url, "file_name": file_name, "file_size": len(file_bytes)}
+    return {"id": attachment.id, "title": title, "type": att_type, "url": download_url, "file_name": file_name, "file_size": len(file_bytes)}
 
 
 class LinkAttachmentIn(BaseModel):

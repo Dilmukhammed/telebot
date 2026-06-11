@@ -1,4 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import type { QueryClient } from '@tanstack/react-query'
 import {
   getAdminStats,
   getAdminLessons,
@@ -42,11 +43,33 @@ export function useAdminStats() {
 }
 
 // ── Lessons ──
-export function useAdminLessons(filters: { week_offset?: number; teacher_id?: number; subject_id?: number }) {
-  return useQuery({
-    queryKey: ['admin-lessons', filters],
+export type AdminLessonsFilters = { week_offset?: number; teacher_id?: number; subject_id?: number }
+
+export function adminLessonsQueryKey(filters: AdminLessonsFilters) {
+  return [
+    'admin-lessons',
+    {
+      week_offset: filters.week_offset ?? 0,
+      ...(filters.teacher_id != null ? { teacher_id: filters.teacher_id } : {}),
+      ...(filters.subject_id != null ? { subject_id: filters.subject_id } : {}),
+    },
+  ] as const
+}
+
+export function prefetchAdminLessons(qc: QueryClient, filters: AdminLessonsFilters = { week_offset: 0 }) {
+  return qc.prefetchQuery({
+    queryKey: adminLessonsQueryKey(filters),
     queryFn: () => getAdminLessons(filters),
-    staleTime: 30_000,
+    staleTime: 60_000,
+  })
+}
+
+export function useAdminLessons(filters: AdminLessonsFilters) {
+  return useQuery({
+    queryKey: adminLessonsQueryKey(filters),
+    queryFn: () => getAdminLessons(filters),
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
   })
 }
 

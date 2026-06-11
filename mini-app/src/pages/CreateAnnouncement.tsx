@@ -17,7 +17,7 @@ interface Student {
 interface PendingAttachment {
   id: number
   title: string
-  type: 'file' | 'link'
+  type: 'file' | 'link' | 'image' | 'video'
   url?: string
   file_name?: string
   file_size?: number
@@ -79,7 +79,8 @@ export default function CreateAnnouncement() {
     setUploadingFile(true)
     try {
       const result = await uploadAnnouncementAttachment(file, file.name)
-      setAttachments(prev => [...prev, { id: result.id, title: result.title, type: 'file', url: result.url, file_name: result.file_name, file_size: result.file_size }])
+      const attType = (result.type === 'image' || result.type === 'video') ? result.type : 'file'
+      setAttachments(prev => [...prev, { id: result.id, title: result.title, type: attType, url: result.url, file_name: result.file_name, file_size: result.file_size }])
     } catch (err: any) {
       setError(err.message || t('common.error'))
     } finally {
@@ -281,6 +282,9 @@ export default function CreateAnnouncement() {
               {t('createAnnouncement.attachLink', { defaultValue: 'Ссылка' })}
             </button>
           </div>
+          <div style={{ fontSize: '12px', color: 'var(--tg-theme-hint-color, #999)', marginTop: 4 }}>
+            {t('createAnnouncement.uploadHint', { defaultValue: 'Фото, видео или файл (до 50 МБ)' })}
+          </div>
 
           {showLinkInput && (
             <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -321,9 +325,19 @@ export default function CreateAnnouncement() {
                     background: 'var(--color-surface-variant, #f5f5f5)',
                   }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-primary)' }}>
-                    {att.type === 'file' ? 'description' : 'link'}
-                  </span>
+                  {att.type === 'image' && att.url ? (
+                    <img
+                      src={att.url}
+                      alt={att.title}
+                      style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }}
+                    />
+                  ) : att.type === 'video' ? (
+                    <span className="material-symbols-outlined" style={{ fontSize: '22px', color: 'var(--color-primary)', flexShrink: 0 }}>videocam</span>
+                  ) : (
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-primary)', flexShrink: 0 }}>
+                      {att.type === 'link' ? 'link' : 'description'}
+                    </span>
+                  )}
                   <span style={{ flex: 1, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {att.title}
                   </span>
