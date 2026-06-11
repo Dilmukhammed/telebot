@@ -43,7 +43,7 @@ export function useAdminStats() {
 }
 
 // ── Lessons ──
-export type AdminLessonsFilters = { week_offset?: number; teacher_id?: number; subject_id?: number }
+export type AdminLessonsFilters = { week_offset?: number; teacher_id?: number; subject_id?: number; student_id?: number }
 
 export function adminLessonsQueryKey(filters: AdminLessonsFilters) {
   return [
@@ -52,6 +52,7 @@ export function adminLessonsQueryKey(filters: AdminLessonsFilters) {
       week_offset: filters.week_offset ?? 0,
       ...(filters.teacher_id != null ? { teacher_id: filters.teacher_id } : {}),
       ...(filters.subject_id != null ? { subject_id: filters.subject_id } : {}),
+      ...(filters.student_id != null ? { student_id: filters.student_id } : {}),
     },
   ] as const
 }

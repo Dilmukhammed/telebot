@@ -147,8 +147,10 @@ export function getDashboard(): Promise<DashboardOut> {
   return api<DashboardOut>('/api/dashboard')
 }
 
-export function getCalendar(weekOffset: number = 0): Promise<CalendarWeekOut> {
-  return api<CalendarWeekOut>(`/api/dashboard/calendar?week_offset=${weekOffset}`)
+export function getCalendar(weekOffset: number = 0, userId?: number): Promise<CalendarWeekOut> {
+  let url = `/api/dashboard/calendar?week_offset=${weekOffset}`
+  if (userId) url += `&user_id=${userId}`
+  return api<CalendarWeekOut>(url)
 }
 
 export function getCourses(): Promise<CourseOut[]> {
@@ -368,11 +370,12 @@ export function getAdminStats(): Promise<AdminStats> {
   return api<AdminStats>('/api/admin/stats')
 }
 
-export function getAdminLessons(params: { week_offset?: number; teacher_id?: number; subject_id?: number } = {}): Promise<AdminLessonOut[]> {
+export function getAdminLessons(params: { week_offset?: number; teacher_id?: number; subject_id?: number; student_id?: number } = {}): Promise<AdminLessonOut[]> {
   const searchParams = new URLSearchParams()
   if (params.week_offset !== undefined) searchParams.append('week_offset', String(params.week_offset))
   if (params.teacher_id !== undefined) searchParams.append('teacher_id', String(params.teacher_id))
   if (params.subject_id !== undefined) searchParams.append('subject_id', String(params.subject_id))
+  if (params.student_id !== undefined) searchParams.append('student_id', String(params.student_id))
   const query = searchParams.toString()
   return api<AdminLessonOut[]>(`/api/admin/lessons${query ? '?' + query : ''}`)
 }

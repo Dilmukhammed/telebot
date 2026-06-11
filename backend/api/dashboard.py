@@ -452,6 +452,7 @@ class CalendarWeekOut(BaseModel):
 @router.get("/calendar", response_model=CalendarWeekOut)
 async def get_calendar(
     week_offset: int = Query(0, description="Week offset from current week"),
+    user_id: Optional[int] = Query(None, description="Admin only: view calendar as this user"),
     user: User = Depends(get_telegram_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -462,21 +463,35 @@ async def get_calendar(
     # Apply offset
     target_monday = current_monday + timedelta(weeks=week_offset)
 
+    # Admin can view calendar as another user
+    if user_id and user.role == "admin":
+        target_result = await db.execute(select(User).where(User.id == user_id))
+        target_user = target_result.scalar_one_or_none()
+        if target_user:
+            effective_role = target_user.role
+            effective_user_id = target_user.id
+        else:
+            effective_role = user.role
+            effective_user_id = user.id
+    else:
+        effective_role = user.role
+        effective_user_id = user.id
+
     # Get lessons: only teacher's own if teacher, or enrolled if student
-    if user.role == "teacher":
+    if effective_role == "teacher":
         lessons_result = await db.execute(
             select(Lesson, Subject)
             .join(Subject, Subject.id == Lesson.subject_id)
             .where(
                 and_(
                     Lesson.is_active == True,
-                    Lesson.teacher_id == user.id,
+                    Lesson.teacher_id == effective_user_id,
                     Subject.is_archived == False,
                 )
             )
             .order_by(Lesson.day_of_week, Lesson.time)
         )
-    elif user.role == "admin":
+    elif effective_role == "admin":
         lessons_result = await db.execute(
             select(Lesson, Subject)
             .join(Subject, Subject.id == Lesson.subject_id)
@@ -492,7 +507,7 @@ async def get_calendar(
             .where(
                 and_(
                     Lesson.is_active == True,
-                    LessonEnrollment.user_id == user.id,
+                    LessonEnrollment.user_id == effective_user_id,
                     Subject.is_archived == False,
                 )
             )
@@ -563,7 +578,7 @@ async def get_calendar(
             date_str = date.isoformat()
             ls = lesson_statuses.get((lesson.id, date_str))
             if ls == "happened":
-                if user.role in ("teacher", "admin"):
+                if effective_role in ("teacher", "admin"):
                     status = "completed"
                 else:
                     # Student: completed only if marked present
@@ -602,11 +617,11 @@ async def get_calendar(
         ))
 
     # Add availability slots for teacher/admin
-    if user.role in ("teacher", "admin"):
+    if effective_role in ("teacher", "admin"):
         avail_result = await db.execute(
             select(TeacherAvailability).where(
                 and_(
-                    TeacherAvailability.teacher_id == user.id,
+                    TeacherAvailability.teacher_id == effective_user_id,
                     TeacherAvailability.is_active == True,
                 )
             )

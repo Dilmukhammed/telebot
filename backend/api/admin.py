@@ -181,6 +181,7 @@ async def get_admin_lessons(
     week_offset: int = Query(0, ge=-52, le=52),
     teacher_id: int | None = None,
     subject_id: int | None = None,
+    student_id: int | None = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     admin=Depends(require_admin),
@@ -201,6 +202,12 @@ async def get_admin_lessons(
         query = query.where(Lesson.teacher_id == teacher_id)
     if subject_id:
         query = query.where(Lesson.subject_id == subject_id)
+    if student_id:
+        # Subquery: lesson IDs where this student is enrolled
+        enrolled_lesson_ids = select(LessonEnrollment.lesson_id).where(
+            LessonEnrollment.user_id == student_id
+        )
+        query = query.where(Lesson.id.in_(enrolled_lesson_ids))
     query = query.order_by(Lesson.day_of_week, Lesson.time)
 
     # Subquery for enrollment count

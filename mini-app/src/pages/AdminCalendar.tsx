@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAdminLessons } from '../api/hooks'
+import { useAdminLessons, useAdminUsers } from '../api/hooks'
 import { rescheduleLesson, cancelAdminLesson, markAdminLessonStatus } from '../api/client'
 import type { AdminLessonOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
@@ -117,7 +117,17 @@ export default function AdminCalendar() {
   })
 
   const [weekOffset, setWeekOffset] = useState(0)
-  const { data: lessons, isPending, refetch } = useAdminLessons({ week_offset: weekOffset })
+  const [filterMode, setFilterMode] = useState<'all' | 'teacher' | 'student'>('all')
+  const [selectedUserId, setSelectedUserId] = useState<number | undefined>(undefined)
+
+  const { data: teachers } = useAdminUsers(filterMode === 'teacher' ? 'teacher' : undefined)
+  const { data: students } = useAdminUsers(filterMode === 'student' ? 'student' : undefined)
+
+  const { data: lessons, isPending, refetch } = useAdminLessons({
+    week_offset: weekOffset,
+    ...(filterMode === 'teacher' && selectedUserId ? { teacher_id: selectedUserId } : {}),
+    ...(filterMode === 'student' && selectedUserId ? { student_id: selectedUserId } : {}),
+  })
   const lessonList = lessons ?? []
   const [view, setView] = useState<'day' | 'week'>(searchParams.get('view') === 'week' ? 'week' : 'day')
   const [selectedDay, setSelectedDay] = useState(0)
@@ -203,6 +213,73 @@ export default function AdminCalendar() {
   return (
     <div className={styles.page}>
       <SiteHeader title={t('admin.courses.schedule')} onBack={() => navigate('/dashboard')} />
+
+      {/* User Filter Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', background: 'var(--color-surface-container-high, #e8e0ec)', borderRadius: 20, overflow: 'hidden' }}>
+          {(['all', 'teacher', 'student'] as const).map(mode => (
+            <button
+              key={mode}
+              onClick={() => { setFilterMode(mode); setSelectedUserId(undefined) }}
+              style={{
+                padding: '6px 14px',
+                border: 'none',
+                borderRadius: 20,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                background: filterMode === mode ? 'var(--color-primary)' : 'transparent',
+                color: filterMode === mode ? 'var(--color-on-primary)' : 'var(--color-on-surface-variant)',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+            >
+              {mode === 'all' ? t('admin.calendar.filter_all', 'Все') : mode === 'teacher' ? t('admin.calendar.filter_teacher', 'Репетитор') : t('admin.calendar.filter_student', 'Ученик')}
+            </button>
+          ))}
+        </div>
+
+        {filterMode === 'teacher' && (
+          <select
+            value={selectedUserId ?? ''}
+            onChange={e => setSelectedUserId(e.target.value ? Number(e.target.value) : undefined)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 12,
+              border: '1px solid var(--color-outline-variant, #c9c0d0)',
+              background: 'var(--color-surface, #fdf8ff)',
+              color: 'var(--color-on-surface)',
+              fontSize: 13,
+              minWidth: 140,
+            }}
+          >
+            <option value="">{t('admin.calendar.select_teacher', 'Выберите репетитора')}</option>
+            {(teachers ?? []).map(u => (
+              <option key={u.id} value={u.id}>{u.first_name} {u.last_name ?? ''}</option>
+            ))}
+          </select>
+        )}
+
+        {filterMode === 'student' && (
+          <select
+            value={selectedUserId ?? ''}
+            onChange={e => setSelectedUserId(e.target.value ? Number(e.target.value) : undefined)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 12,
+              border: '1px solid var(--color-outline-variant, #c9c0d0)',
+              background: 'var(--color-surface, #fdf8ff)',
+              color: 'var(--color-on-surface)',
+              fontSize: 13,
+              minWidth: 140,
+            }}
+          >
+            <option value="">{t('admin.calendar.select_student', 'Выберите ученика')}</option>
+            {(students ?? []).map(u => (
+              <option key={u.id} value={u.id}>{u.first_name} {u.last_name ?? ''}</option>
+            ))}
+          </select>
+        )}
+      </div>
 
       {/* Calendar Navigation */}
       <div className={styles.calendarNav}>
