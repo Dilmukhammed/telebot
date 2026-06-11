@@ -102,6 +102,26 @@ def _times_overlap(start1: str, end1: str, start2: str, end2: str) -> bool:
     return s1 < e2 and e1 > s2
 
 
+async def _load_teachers_map(db: AsyncSession, teacher_ids: set[int]) -> dict[int, str]:
+    """Current teacher display names from users table (not denormalized lesson.teacher_name)."""
+    if not teacher_ids:
+        return {}
+    result = await db.execute(
+        select(User.id, User.first_name, User.last_name, User.username).where(User.id.in_(teacher_ids))
+    )
+    teachers_map: dict[int, str] = {}
+    for row in result.all():
+        full_name = f"{row[1] or ''} {row[2] or ''}".strip() if row[1] or row[2] else (row[3] or "")
+        teachers_map[row[0]] = full_name
+    return teachers_map
+
+
+def _lesson_teacher_name(lesson: Lesson, teachers_map: dict[int, str]) -> str:
+    if lesson.teacher_id and lesson.teacher_id in teachers_map:
+        return teachers_map[lesson.teacher_id]
+    return lesson.teacher_name or ""
+
+
 # ── Stats ─────────────────────────────────────────────────────────────
 
 @router.get("/stats", response_model=AdminStatsOut)
@@ -149,13 +169,16 @@ async def get_stats(
     )
     lessons = lessons_result.all()
 
+    teacher_ids = {lesson.teacher_id for lesson, _, _ in lessons if lesson.teacher_id}
+    teachers_map = await _load_teachers_map(db, teacher_ids)
+
     today_lessons = []
     for lesson, subject, ls in lessons:
         today_lessons.append(DashboardLessonOut(
             id=lesson.id,
             subject_id=subject.id,
             subject_name=subject.name,
-            teacher_name=lesson.teacher_name,
+            teacher_name=_lesson_teacher_name(lesson, teachers_map),
             day_label="Сегодня",
             time=lesson.time,
             room=lesson.room,
@@ -239,6 +262,9 @@ async def get_admin_lessons(
     result = await db.execute(query)
     rows = result.all()
 
+    teacher_ids = {lesson.teacher_id for lesson, _, _, _ in rows if lesson.teacher_id}
+    teachers_map = await _load_teachers_map(db, teacher_ids)
+
     # If teacher_id filter, load availability slots
     avail_by_day: dict[int, list] = {}
     if teacher_id:
@@ -270,7 +296,7 @@ async def get_admin_lessons(
             id=lesson.id,
             subject_id=subject.id,
             subject_name=subject.name,
-            teacher_name=lesson.teacher_name,
+            teacher_name=_lesson_teacher_name(lesson, teachers_map),
             teacher_id=lesson.teacher_id,
             day_of_week=lesson.day_of_week,
             day_name=DAY_NAMES_SHORT_RU[lesson.day_of_week],
@@ -328,6 +354,8 @@ async def search_courses(
     lessons = result.all()
 
     lesson_ids = [lesson.id for lesson, _ in lessons]
+    teacher_ids = {lesson.teacher_id for lesson, _ in lessons if lesson.teacher_id}
+    teachers_map = await _load_teachers_map(db, teacher_ids)
     enrollment_counts: dict[int, int] = {}
     if lesson_ids:
         counts_result = await db.execute(
@@ -353,7 +381,7 @@ async def search_courses(
             id=subject.id,
             lesson_id=lesson.id,
             name=subject.name,
-            teacher_name=lesson.teacher_name,
+            teacher_name=_lesson_teacher_name(lesson, teachers_map),
             day_of_week=lesson.day_of_week,
             day_name=DAY_NAMES_SHORT_RU[lesson.day_of_week],
             time=lesson.time,
@@ -886,10 +914,22 @@ async def get_admin_subjects(
         )
         student_counts = dict(counts_result.all())
 
+    teacher_ids = {
+        lesson.teacher_id
+        for lessons in lessons_by_subject.values()
+        for lesson in lessons
+        if lesson.teacher_id
+    }
+    teachers_map = await _load_teachers_map(db, teacher_ids)
+
     out = []
     for subj in subjects:
         lessons = lessons_by_subject.get(subj.id, [])
-        teacher_names = list({l.teacher_name for l in lessons if l.teacher_name})
+        teacher_names = list({
+            _lesson_teacher_name(l, teachers_map)
+            for l in lessons
+            if _lesson_teacher_name(l, teachers_map)
+        })
 
         out.append(AdminSubjectOut(
             id=subj.id,
@@ -1107,6 +1147,9 @@ async def get_admin_subject_detail(
         statuses_map = {}
         enrollment_counts = {}
 
+    teacher_ids = {lesson.teacher_id for lesson, _ in lessons if lesson.teacher_id}
+    teachers_map = await _load_teachers_map(db, teacher_ids)
+
     admin_lessons = []
     for lesson, subj in lessons:
         instance_date = start_monday + timedelta(days=lesson.day_of_week)
@@ -1121,7 +1164,7 @@ async def get_admin_subject_detail(
             id=lesson.id,
             subject_id=subj.id,
             subject_name=subj.name,
-            teacher_name=lesson.teacher_name,
+            teacher_name=_lesson_teacher_name(lesson, teachers_map),
             teacher_id=lesson.teacher_id,
             day_of_week=lesson.day_of_week,
             day_name=DAY_NAMES_SHORT_RU[lesson.day_of_week],
@@ -1214,6 +1257,8 @@ async def update_admin_subject(
         .order_by(Lesson.day_of_week, Lesson.time)
     )
     lessons = lessons_result.all()
+    teacher_ids = {lesson.teacher_id for lesson, _ in lessons if lesson.teacher_id}
+    teachers_map = await _load_teachers_map(db, teacher_ids)
     now = _get_tashkent_now()
     today = now.date()
     start_monday = today - timedelta(days=today.weekday())
@@ -1230,7 +1275,7 @@ async def update_admin_subject(
             end_time=end_time,
             room=lesson.room,
             location=lesson.location,
-            teacher_name=lesson.teacher_name,
+            teacher_name=_lesson_teacher_name(lesson, teachers_map),
             teacher_id=lesson.teacher_id,
             max_capacity=lesson.max_capacity,
             is_active=lesson.is_active,
