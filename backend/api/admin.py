@@ -602,15 +602,22 @@ async def create_availability_request(
         select(User).where(User.id == lesson.teacher_id)
     )).scalar_one_or_none()
     if teacher and teacher.telegram_id:
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
         from bot.bot import bot
+        from config import settings
         from utils.constants import DAY_NAMES_RU
-        day_name = DAY_NAMES_RU[data.date.weekday()] if hasattr(data, 'date') else ""
+        day_name = DAY_NAMES_RU[data.date.weekday()]
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(text="✅ Согласовать", callback_data=f"avail_approve:{req.id}"),
                 InlineKeyboardButton(text="❌ Отклонить", callback_data=f"avail_reject:{req.id}"),
-            ]
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📅 Открыть календарь",
+                    web_app=WebAppInfo(url=f"{settings.WEBAPP_URL}/dashboard"),
+                ),
+            ],
         ])
         try:
             await bot.send_message(
@@ -620,7 +627,8 @@ async def create_availability_request(
                     f"Предмет: <b>{subject_name}</b>\n"
                     f"Дата: <b>{data.date}</b> ({day_name})\n"
                     f"Время: <b>{data.start_time} — {data.end_time}</b>\n\n"
-                    f"Админ запросил открытие слота для переноса урока."
+                    f"Админ просит открыть слот для переноса урока.\n"
+                    f"Нажмите «Согласовать», чтобы открыть слот на это время."
                 ),
                 reply_markup=kb,
                 parse_mode="HTML",
