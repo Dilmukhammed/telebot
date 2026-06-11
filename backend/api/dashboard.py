@@ -578,24 +578,23 @@ async def get_calendar(
             if day not in lessons_by_day:
                 lessons_by_day[day] = []
 
-            # Determine status using LessonStatus
+            # Determine status: check stored status FIRST, then fall back to date-based logic
             date_str = date.isoformat()
-            if date == today:
-                status = "today"
-            else:
-                ls = lesson_statuses.get((lesson.id, date_str))
-                if ls == "happened":
-                    if user.role in ("teacher", "admin"):
-                        status = "completed"
-                    else:
-                        # Student: completed only if marked present
-                        status = "completed" if (lesson.id, date_str) in attended_set else "absent"
-                elif ls == "cancelled":
-                    status = "cancelled"
-                elif date < today:
-                    status = "unmarked"
+            ls = lesson_statuses.get((lesson.id, date_str))
+            if ls == "happened":
+                if user.role in ("teacher", "admin"):
+                    status = "completed"
                 else:
-                    status = "planned"
+                    # Student: completed only if marked present
+                    status = "completed" if (lesson.id, date_str) in attended_set else "absent"
+            elif ls == "cancelled":
+                status = "cancelled"
+            elif date == today:
+                status = "today"
+            elif date < today:
+                status = "unmarked"
+            else:
+                status = "planned"
 
             duration = subject.duration_minutes or 90
             lessons_by_day[day].append(CalendarLessonOut(
