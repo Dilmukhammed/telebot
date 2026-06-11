@@ -606,7 +606,7 @@ async def create_availability_request(
         from bot.bot import bot
         from config import settings
         from utils.constants import DAY_NAMES_RU
-        day_name = DAY_NAMES_RU[data.date.weekday()]
+        day_name = DAY_NAMES_RU[datetime.strptime(data.date, "%Y-%m-%d").weekday()]
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(text="✅ Согласовать", callback_data=f"avail_approve:{req.id}"),
