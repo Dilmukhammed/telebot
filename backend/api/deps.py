@@ -141,12 +141,23 @@ async def get_telegram_user(
     if not telegram_data:
         raise HTTPException(status_code=401, detail="Missing init data")
 
-    # Find or create user in database by telegram_id only
+    # Find or create user in database by telegram_id
     result = await db.execute(select(User).where(User.telegram_id == telegram_data["telegram_id"]))
     user = result.scalar_one_or_none()
 
-    # Username-based account linking removed — it allowed account takeover
-    # when two users shared the same Telegram @username.
+    # Link seed-created placeholder accounts (telegram_id=-1) on first real login
+    if not user and telegram_data.get("username"):
+        result = await db.execute(
+            select(User).where(User.username == telegram_data["username"], User.telegram_id == -1)
+        )
+        placeholder = result.scalar_one_or_none()
+        if placeholder:
+            placeholder.telegram_id = telegram_data["telegram_id"]
+            if telegram_data.get("photo_url"):
+                placeholder.photo_url = telegram_data["photo_url"]
+            await db.commit()
+            await db.refresh(placeholder)
+            user = placeholder
 
     if not user:
         user = User(
