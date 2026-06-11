@@ -35,6 +35,7 @@ class Subject(Base):
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)  # Soft-deleted courses hidden from everyone
     deleted_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)  # When the course was deleted
     invite_code: Mapped[str | None] = mapped_column(String(6), unique=True, nullable=True, index=True)  # Short code for student enrollment
+    google_drive_folder_id: Mapped[str | None] = mapped_column(String, nullable=True)  # Per-course materials folder on Drive
 
     tests: Mapped[list["Test"]] = relationship("Test", back_populates="subject")
     lessons: Mapped[list["Lesson"]] = relationship("Lesson", back_populates="subject")
@@ -333,7 +334,7 @@ class Material(Base):
             name="ck_material_parent",
         ),
         CheckConstraint(
-            "type IN ('file', 'video', 'youtube', 'link', 'text')",
+            "type IN ('file', 'image', 'video', 'youtube', 'link', 'text')",
             name="ck_material_type",
         ),
     )

@@ -63,17 +63,65 @@ def _get_drive_service():
     )
 
 
+def _escape_drive_query(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("'", "\\'")
+
+
+def _create_folder_sync(parent_id: str, name: str) -> str:
+    service = _get_drive_service()
+    created = (
+        service.files()
+        .create(
+            body={
+                "name": name,
+                "mimeType": "application/vnd.google-apps.folder",
+                "parents": [parent_id],
+            },
+            fields="id",
+        )
+        .execute()
+    )
+    folder_id = created["id"]
+    logger.info("Created Google Drive folder: %s (%s)", name, folder_id)
+    return folder_id
+
+
+def _find_folder_in_parent_sync(parent_id: str, name: str) -> Optional[str]:
+    service = _get_drive_service()
+    query = (
+        f"name = '{_escape_drive_query(name)}' "
+        f"and '{parent_id}' in parents "
+        "and mimeType = 'application/vnd.google-apps.folder' "
+        "and trashed = false"
+    )
+    result = (
+        service.files()
+        .list(q=query, fields="files(id)", pageSize=1)
+        .execute()
+    )
+    files = result.get("files", [])
+    return files[0]["id"] if files else None
+
+
+def _rename_folder_sync(folder_id: str, new_name: str) -> None:
+    service = _get_drive_service()
+    service.files().update(fileId=folder_id, body={"name": new_name}).execute()
+    logger.info("Renamed Google Drive folder %s to %s", folder_id, new_name)
+
+
 def _upload_file_sync(
     file_bytes: bytes,
     file_name: str,
     mime_type: str,
+    parent_folder_id: Optional[str] = None,
 ) -> tuple[str, str]:
     """Synchronous upload — called via asyncio.to_thread()."""
     service = _get_drive_service()
+    parent_id = parent_folder_id or settings.GOOGLE_DRIVE_FOLDER_ID
 
     file_metadata = {
         "name": file_name,
-        "parents": [settings.GOOGLE_DRIVE_FOLDER_ID],
+        "parents": [parent_id],
     }
     media = MediaIoBaseUpload(
         io.BytesIO(file_bytes),
@@ -108,6 +156,7 @@ async def upload_file(
     file_bytes: bytes,
     file_name: str,
     mime_type: str = "application/octet-stream",
+    parent_folder_id: Optional[str] = None,
 ) -> tuple[str, str]:
     """Upload a file to Google Drive and make it publicly accessible.
 
@@ -117,7 +166,21 @@ async def upload_file(
     Returns:
         (google_file_id, web_view_link)
     """
-    return await asyncio.to_thread(_upload_file_sync, file_bytes, file_name, mime_type)
+    return await asyncio.to_thread(
+        _upload_file_sync, file_bytes, file_name, mime_type, parent_folder_id
+    )
+
+
+async def create_folder(parent_id: str, name: str) -> str:
+    return await asyncio.to_thread(_create_folder_sync, parent_id, name)
+
+
+async def find_folder_in_parent(parent_id: str, name: str) -> Optional[str]:
+    return await asyncio.to_thread(_find_folder_in_parent_sync, parent_id, name)
+
+
+async def rename_folder(folder_id: str, new_name: str) -> None:
+    await asyncio.to_thread(_rename_folder_sync, folder_id, new_name)
 
 
 def _delete_file_sync(google_file_id: str) -> bool:

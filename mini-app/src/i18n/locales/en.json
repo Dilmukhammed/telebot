@@ -171,12 +171,19 @@
     "deleteConfirmTitle": "Delete Material",
     "deleteConfirmText": "Are you sure you want to delete this material? This action cannot be undone."
   },
+  "materialCard": {
+    "photo": "Photo"
+  },
   "materialForm": {
     "title": "Add material",
     "namePlaceholder": "Title",
     "selectFile": "Choose file",
     "textPlaceholder": "Content (markdown)...",
     "typeFile": "File",
+    "typePhoto": "Photo",
+    "selectPhoto": "Choose photo",
+    "photoUploading": "Uploading photo...",
+    "photoUploadComplete": "Photo uploaded",
     "typeYoutube": "YouTube",
     "typeVideo": "Video",
     "typeLink": "Link",
@@ -189,7 +196,12 @@
     "uploadError": "Upload failed",
     "retry": "Retry",
     "added": "Material added",
-    "kb": "KB"
+    "kb": "KB",
+    "checkingDuplicate": "Checking for duplicates...",
+    "duplicateFile": "File \"{{name}}\" is already uploaded as \"{{title}}\"",
+    "duplicateUrl": "This link is already added: \"{{title}}\"",
+    "uploadAnyway": "Upload again",
+    "chooseAnotherFile": "Choose another file"
   },
   "lessonDetail": {
     "title": "Lesson Details",

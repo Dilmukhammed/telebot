@@ -269,7 +269,7 @@ export interface CourseDetailOut {
 export interface MaterialOut {
   id: number;
   title: string;
-  type: 'file' | 'video' | 'youtube' | 'link' | 'text';
+  type: 'file' | 'image' | 'video' | 'youtube' | 'link' | 'text';
   url?: string;
   content?: string;
   file_name?: string;
@@ -280,7 +280,7 @@ export interface MaterialOut {
 
 export interface MaterialCreate {
   title: string;
-  type: 'file' | 'video' | 'youtube' | 'link' | 'text';
+  type: 'file' | 'image' | 'video' | 'youtube' | 'link' | 'text';
   subject_id?: number;
   lesson_id?: number;
   url?: string;

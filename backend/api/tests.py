@@ -7,6 +7,7 @@ from typing import Optional
 from database import get_db
 from models import Test, Subject, Registration
 from schemas import TestOut, TestCreate, TestUpdate, SubjectUpdate
+from subject_drive_folder import sync_subject_drive_folder
 from api.deps import get_current_admin
 
 router = APIRouter(prefix="", tags=["tests"])
@@ -276,6 +277,8 @@ async def update_subject(
 
     await db.commit()
     await db.refresh(subject)
+    await sync_subject_drive_folder(db, subject)
+    await db.commit()
 
     return {
         "id": subject.id,

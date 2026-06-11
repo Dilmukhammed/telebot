@@ -123,6 +123,10 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
             logger.info("Adding subjects.deleted_at")
             await conn.execute(text("ALTER TABLE subjects ADD COLUMN deleted_at TIMESTAMP"))
 
+        if not await _column_exists(conn, "subjects", "google_drive_folder_id", dialect):
+            logger.info("Adding subjects.google_drive_folder_id")
+            await conn.execute(text("ALTER TABLE subjects ADD COLUMN google_drive_folder_id VARCHAR"))
+
         if dialect == "postgresql":
             await conn.execute(
                 text("CREATE UNIQUE INDEX IF NOT EXISTS ix_subjects_invite_code ON subjects (invite_code)")
@@ -202,7 +206,7 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
                     created_by INTEGER NOT NULL REFERENCES users(id),
                     created_at TIMESTAMP DEFAULT NOW(),
                     CHECK (subject_id IS NOT NULL OR lesson_id IS NOT NULL),
-                    CHECK (type IN ('file', 'video', 'youtube', 'link', 'text'))
+                    CHECK (type IN ('file', 'image', 'video', 'youtube', 'link', 'text'))
                 )
             """))
             await conn.execute(
@@ -230,7 +234,7 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
                     created_by INTEGER NOT NULL REFERENCES users(id),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     CHECK (subject_id IS NOT NULL OR lesson_id IS NOT NULL),
-                    CHECK (type IN ('file', 'video', 'youtube', 'link', 'text'))
+                    CHECK (type IN ('file', 'image', 'video', 'youtube', 'link', 'text'))
                 )
             """))
             await conn.execute(
@@ -313,5 +317,27 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
                 SET effective_from = date(created_at)
                 WHERE effective_from IS NULL
             """))
+
+    if await _table_exists(conn, "materials", dialect) and dialect == "postgresql":
+        try:
+            await conn.execute(text("""
+                DO $$ DECLARE r record;
+                BEGIN
+                  FOR r IN (
+                    SELECT conname FROM pg_constraint
+                    WHERE conrelid = 'materials'::regclass AND contype = 'c'
+                      AND pg_get_constraintdef(oid) LIKE '%type IN%'
+                  ) LOOP
+                    EXECUTE 'ALTER TABLE materials DROP CONSTRAINT ' || quote_ident(r.conname);
+                  END LOOP;
+                END $$;
+            """))
+            await conn.execute(text("""
+                ALTER TABLE materials ADD CONSTRAINT ck_material_type
+                CHECK (type IN ('file', 'image', 'video', 'youtube', 'link', 'text'))
+            """))
+            logger.info("Updated materials type check constraint (added image)")
+        except Exception as exc:
+            logger.debug("materials type constraint migration skipped: %s", exc)
 
     logger.info("Schema migrations complete")

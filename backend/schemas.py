@@ -185,7 +185,7 @@ class MaterialOut(BaseModel):
 
 class MaterialCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
-    type: str = Field(pattern="^(file|video|youtube|link|text)$")
+    type: str = Field(pattern="^(file|image|video|youtube|link|text)$")
     subject_id: Optional[int] = None
     lesson_id: Optional[int] = None
     url: Optional[str] = None
@@ -196,6 +196,11 @@ class MaterialUpdate(BaseModel):
     title: Optional[str] = None
     url: Optional[str] = None
     content: Optional[str] = None
+
+
+class MaterialDuplicateOut(BaseModel):
+    duplicate: bool
+    material: Optional[MaterialOut] = None
 
 
 # Legacy alias for backward compatibility

@@ -29,10 +29,19 @@ from schemas import (
     AdminLessonScheduleUpdate,
 )
 from api.deps import require_admin
+from subject_drive_folder import sync_subject_drive_folder
 
 router = APIRouter(prefix="/admin", tags=["admin-panel"])
 
 _DAY_NAMES = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+
+
+async def _sync_subject_drive_folder_after_update(db: AsyncSession, subject_id: int) -> None:
+    subject = (await db.execute(select(Subject).where(Subject.id == subject_id))).scalar_one_or_none()
+    if not subject:
+        return
+    await sync_subject_drive_folder(db, subject)
+    await db.commit()
 
 DAY_NAMES_RU = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
 DAY_NAMES_SHORT_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
@@ -1082,6 +1091,7 @@ async def update_admin_subject(
                      None, None, str(update_data), admin_id)
     await db.commit()
     await db.refresh(subject)
+    await _sync_subject_drive_folder_after_update(db, subject_id)
 
     # Return full subject detail (reuse get logic)
     lessons_result = await db.execute(
@@ -1485,6 +1495,7 @@ async def admin_create_lesson(
                      f"{data.teacher_name} {DAY_NAMES_SHORT_RU[data.day_of_week]} {data.time}", admin_id)
     await db.commit()
     await db.refresh(lesson)
+    await _sync_subject_drive_folder_after_update(db, subject_id)
 
     end_time = _calculate_end_time(lesson.time, subject.duration_minutes or 90)
 
@@ -1603,6 +1614,7 @@ async def admin_update_lesson_schedule(
     )
     await db.commit()
     await db.refresh(new_lesson)
+    await _sync_subject_drive_folder_after_update(db, subject.id)
 
     end_time = _calculate_end_time(new_lesson.time, subject.duration_minutes or 90)
     return AdminLessonOut(

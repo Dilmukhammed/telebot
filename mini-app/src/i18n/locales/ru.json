@@ -171,12 +171,19 @@
     "deleteConfirmTitle": "Удаление материала",
     "deleteConfirmText": "Вы действительно хотите удалить этот материал? Это действие нельзя будет отменить."
   },
+  "materialCard": {
+    "photo": "Фото"
+  },
   "materialForm": {
     "title": "Добавить материал",
     "namePlaceholder": "Название",
     "selectFile": "Выбрать файл",
     "textPlaceholder": "Содержимое (markdown)...",
     "typeFile": "Файл",
+    "typePhoto": "Фото",
+    "selectPhoto": "Выбрать фото",
+    "photoUploading": "Загрузка фото...",
+    "photoUploadComplete": "Фото загружено",
     "typeYoutube": "YouTube",
     "typeVideo": "Видео",
     "typeLink": "Ссылка",
@@ -189,7 +196,12 @@
     "uploadError": "Ошибка загрузки",
     "retry": "Повторить",
     "added": "Материал добавлен",
-    "kb": "КБ"
+    "kb": "КБ",
+    "checkingDuplicate": "Проверяем, нет ли дубликата...",
+    "duplicateFile": "Файл «{{name}}» уже загружен как «{{title}}»",
+    "duplicateUrl": "Такая ссылка уже добавлена: «{{title}}»",
+    "uploadAnyway": "Загрузить снова",
+    "chooseAnotherFile": "Другой файл"
   },
   "lessonDetail": {
     "title": "Детали занятия",

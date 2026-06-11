@@ -547,6 +547,26 @@ export function getMaterials(subjectId?: number, lessonId?: number): Promise<Mat
   return api<MaterialOut[]>(`/api/materials?${params.toString()}`)
 }
 
+export function checkMaterialDuplicate(params: {
+  subjectId?: number
+  lessonId?: number
+  fileName?: string
+  fileSize?: number
+  url?: string
+  type?: string
+  title?: string
+}): Promise<{ duplicate: boolean; material?: MaterialOut }> {
+  const search = new URLSearchParams()
+  if (params.subjectId !== undefined) search.append('subject_id', String(params.subjectId))
+  if (params.lessonId !== undefined) search.append('lesson_id', String(params.lessonId))
+  if (params.fileName) search.append('file_name', params.fileName)
+  if (params.fileSize !== undefined) search.append('file_size', String(params.fileSize))
+  if (params.url) search.append('url', params.url)
+  if (params.type) search.append('type', params.type)
+  if (params.title) search.append('title', params.title)
+  return api(`/api/materials/check-duplicate?${search.toString()}`)
+}
+
 export function createMaterial(data: MaterialCreate): Promise<MaterialOut> {
   return api<MaterialOut>('/api/materials', {
     method: 'POST',
@@ -554,8 +574,14 @@ export function createMaterial(data: MaterialCreate): Promise<MaterialOut> {
   })
 }
 
-export async function uploadMaterial(file: File, title: string, subjectId?: number, lessonId?: number): Promise<MaterialOut> {
-  return uploadMaterialWithProgress(file, title, subjectId, lessonId)
+export async function uploadMaterial(
+  file: File,
+  title: string,
+  subjectId?: number,
+  lessonId?: number,
+  materialType: 'file' | 'image' = 'file',
+): Promise<MaterialOut> {
+  return uploadMaterialWithProgress(file, title, subjectId, lessonId, undefined, materialType)
 }
 
 export function uploadMaterialWithProgress(
@@ -564,11 +590,13 @@ export function uploadMaterialWithProgress(
   subjectId?: number,
   lessonId?: number,
   onProgress?: (percent: number) => void,
+  materialType: 'file' | 'image' = 'file',
 ): Promise<MaterialOut> {
   return new Promise((resolve, reject) => {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('title', title)
+    formData.append('material_type', materialType)
     if (subjectId !== undefined) formData.append('subject_id', String(subjectId))
     if (lessonId !== undefined) formData.append('lesson_id', String(lessonId))
 

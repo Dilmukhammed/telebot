@@ -544,6 +544,7 @@ export default function LessonDetail() {
                   {(() => {
                     const material = lesson.materials.find(m => m.id === materialToDelete);
                     if (material?.type === 'text') return 'article';
+                    if (material?.type === 'image') return 'photo_camera';
                     if (material?.type === 'youtube') return 'smart_display';
                     if (material?.type === 'video') return 'play_circle';
                     if (material?.type === 'file') return 'description';

@@ -1,17 +1,20 @@
 """Materials API — CRUD + file upload for course/lesson materials."""
 
 import logging
+import re
+from urllib.parse import parse_qs, urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from typing import Optional
 
 from database import get_db
-from models import Material, User, Lesson
-from schemas import MaterialOut, MaterialCreate, MaterialUpdate
+from models import Material, User, Lesson, Subject
+from schemas import MaterialOut, MaterialCreate, MaterialUpdate, MaterialDuplicateOut
 from api.deps import get_telegram_user, require_teacher
 import google_drive
+from subject_drive_folder import sync_subject_drive_folder
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +50,34 @@ async def _user_can_manage_material(user: User, material: Material, db: AsyncSes
         .limit(1)
     )
     return result.scalar_one_or_none() is not None
+
+
+def _apply_material_scope(query, subject_id: Optional[int], lesson_id: Optional[int]):
+    if lesson_id is not None:
+        return query.where(Material.lesson_id == lesson_id)
+    if subject_id is not None:
+        return query.where(Material.subject_id == subject_id, Material.lesson_id.is_(None))
+    return query
+
+
+def _youtube_video_id(url: str) -> Optional[str]:
+    match = re.search(
+        r"(?:youtu\.be/|youtube\.com/(?:embed/|v/|watch\?v=|shorts/))([A-Za-z0-9_-]{11})",
+        url,
+    )
+    return match.group(1) if match else None
+
+
+def _normalize_material_url(url: str, material_type: str) -> str:
+    cleaned = url.strip()
+    if material_type == "youtube":
+        video_id = _youtube_video_id(cleaned)
+        if video_id:
+            return f"youtube:{video_id}"
+    parsed = urlparse(cleaned.lower())
+    host = (parsed.netloc or "").removeprefix("www.")
+    path = parsed.path.rstrip("/")
+    return f"{host}{path}{('?' + parsed.query) if parsed.query else ''}"
 
 
 def _material_to_out(m: Material) -> MaterialOut:
@@ -110,6 +141,58 @@ async def list_materials(
     return [_material_to_out(m) for m in materials]
 
 
+@router.get("/check-duplicate", response_model=MaterialDuplicateOut)
+async def check_material_duplicate(
+    subject_id: Optional[int] = None,
+    lesson_id: Optional[int] = None,
+    file_name: Optional[str] = None,
+    file_size: Optional[int] = None,
+    url: Optional[str] = None,
+    material_type: Optional[str] = Query(None, alias="type"),
+    title: Optional[str] = None,
+    user: User = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """Check if an identical file or URL already exists in the course/lesson materials."""
+    if subject_id is None and lesson_id is None:
+        raise HTTPException(status_code=400, detail="Provide subject_id or lesson_id")
+
+    existing: Material | None = None
+
+    if file_name is not None and file_size is not None:
+        query = select(Material).where(
+            Material.type.in_(("file", "image")),
+            func.lower(Material.file_name) == file_name.strip().lower(),
+            Material.file_size == file_size,
+        )
+        query = _apply_material_scope(query, subject_id, lesson_id)
+        existing = (await db.execute(query.limit(1))).scalar_one_or_none()
+    elif url and material_type in ("link", "youtube", "video"):
+        normalized = _normalize_material_url(url, material_type)
+        scoped = _apply_material_scope(select(Material), subject_id, lesson_id)
+        candidates = (await db.execute(
+            scoped.where(Material.type.in_(("link", "youtube", "video")), Material.url.isnot(None))
+        )).scalars().all()
+        for candidate in candidates:
+            if _normalize_material_url(candidate.url or "", candidate.type) == normalized:
+                existing = candidate
+                break
+    elif material_type == "text" and title:
+        query = _apply_material_scope(
+            select(Material).where(
+                Material.type == "text",
+                func.lower(Material.title) == title.strip().lower(),
+            ),
+            subject_id,
+            lesson_id,
+        )
+        existing = (await db.execute(query.limit(1))).scalar_one_or_none()
+
+    if existing:
+        return MaterialDuplicateOut(duplicate=True, material=_material_to_out(existing))
+    return MaterialDuplicateOut(duplicate=False)
+
+
 @router.post("", response_model=MaterialOut)
 async def create_material(
     data: MaterialCreate,
@@ -158,10 +241,13 @@ async def upload_material(
     title: str = Form(...),
     subject_id: Optional[int] = Form(None),
     lesson_id: Optional[int] = Form(None),
+    material_type: str = Form("file"),
     user: User = Depends(require_teacher),
     db: AsyncSession = Depends(get_db),
 ):
-    """Upload a file material to Google Drive."""
+    """Upload a file or image material to Google Drive."""
+    if material_type not in ("file", "image"):
+        raise HTTPException(status_code=400, detail="material_type must be file or image")
     if subject_id is None and lesson_id is None:
         raise HTTPException(status_code=400, detail="Provide subject_id or lesson_id")
 
@@ -180,13 +266,27 @@ async def upload_material(
         raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)} MB")
     file_size = len(file_bytes)
     file_name = file.filename or "upload"
+    mime_type = file.content_type or "application/octet-stream"
+
+    if material_type == "image":
+        if not mime_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="File must be an image")
+    elif mime_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Use image material type for photos")
+
+    parent_folder_id = None
+    subject = await db.get(Subject, subject_id)
+    if subject:
+        parent_folder_id = await sync_subject_drive_folder(db, subject)
+        await db.flush()
 
     # Upload to Google Drive
     try:
         google_file_id, download_url = await google_drive.upload_file(
             file_bytes=file_bytes,
             file_name=file_name,
-            mime_type=file.content_type or "application/octet-stream",
+            mime_type=mime_type,
+            parent_folder_id=parent_folder_id,
         )
     except Exception as exc:
         logger.error("Google Drive upload failed: %s", exc)
@@ -196,7 +296,7 @@ async def upload_material(
         subject_id=subject_id,
         lesson_id=lesson_id,
         title=title,
-        type="file",
+        type=material_type,
         url=download_url,
         file_name=file_name,
         file_size=file_size,

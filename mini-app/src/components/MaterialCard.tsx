@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { MaterialOut } from '../shared/types'
 import styles from './MaterialCard.module.css'
 
@@ -115,6 +116,7 @@ function renderMarkdown(content?: string) {
 }
 
 export default function MaterialCard({ material, canDelete, onDelete }: MaterialCardProps) {
+  const { t } = useTranslation()
   const [isPlayerOpen, setIsPlayerOpen] = useState(false)
   const [isTextCollapsed, setIsTextCollapsed] = useState(true)
 
@@ -122,13 +124,55 @@ export default function MaterialCard({ material, canDelete, onDelete }: Material
   const isVideo = material.type === 'video' || (material.type === 'youtube' && youtubeId)
 
   const handleCardClick = () => {
-    if (isVideo) {
+    if (material.type === 'image' && material.url) {
+      setIsPlayerOpen(true)
+    } else if (isVideo) {
       setIsPlayerOpen(true)
     } else if (material.type === 'text') {
       setIsTextCollapsed(!isTextCollapsed)
     } else if (material.url) {
       window.open(material.url, '_blank')
     }
+  }
+
+  if (material.type === 'image' && material.url) {
+    return (
+      <>
+        <div className={`${styles.card} ${styles.imageCard}`} onClick={handleCardClick}>
+          <div className={styles.imageThumbnailWrap}>
+            <img src={material.url} alt={material.title} className={styles.imageThumbnail} loading="lazy" />
+            <div className={styles.imageBadge}>
+              <span className="material-symbols-outlined">photo_camera</span>
+              {t('materialCard.photo', { defaultValue: 'Фото' })}
+            </div>
+          </div>
+          <div className={styles.imageInfo}>
+            <h3 className={styles.imageTitle}>{material.title}</h3>
+            {canDelete && onDelete && (
+              <button
+                className={styles.cardDeleteBtn}
+                onClick={(e) => { e.stopPropagation(); onDelete(material.id) }}
+                title="Удалить"
+              >
+                <span className="material-symbols-outlined">delete</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {isPlayerOpen && (
+          <div className={styles.modalOverlay} onClick={() => setIsPlayerOpen(false)}>
+            <div className={styles.imageModalContent} onClick={(e) => e.stopPropagation()}>
+              <button className={styles.modalClose} onClick={() => setIsPlayerOpen(false)}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+              <img src={material.url} alt={material.title} className={styles.imageModalImg} />
+              <p className={styles.imageModalCaption}>{material.title}</p>
+            </div>
+          </div>
+        )}
+      </>
+    )
   }
 
   // Render YouTube or Direct Video Card

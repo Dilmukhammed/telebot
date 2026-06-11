@@ -171,12 +171,19 @@
     "deleteConfirmTitle": "Materialni o'chirish",
     "deleteConfirmText": "Haqiqatan ham ushbu materialni o'chirib tashlamoqchimisiz? Bu amalni bekor qilib bo'lmaydi."
   },
+  "materialCard": {
+    "photo": "Foto"
+  },
   "materialForm": {
     "title": "Material qo'shish",
     "namePlaceholder": "Nomi",
     "selectFile": "Fayl tanlash",
     "textPlaceholder": "Tarkib (markdown)...",
     "typeFile": "Fayl",
+    "typePhoto": "Foto",
+    "selectPhoto": "Foto tanlash",
+    "photoUploading": "Foto yuklanmoqda...",
+    "photoUploadComplete": "Foto yuklandi",
     "typeYoutube": "YouTube",
     "typeVideo": "Video",
     "typeLink": "Havola",
@@ -189,7 +196,12 @@
     "uploadError": "Yuklash xatosi",
     "retry": "Qayta urinish",
     "added": "Material qo'shildi",
-    "kb": "KB"
+    "kb": "KB",
+    "checkingDuplicate": "Dublikat tekshirilmoqda...",
+    "duplicateFile": "«{{name}}» fayli allaqachon «{{title}}» sifatida yuklangan",
+    "duplicateUrl": "Bu havola allaqachon qo'shilgan: «{{title}}»",
+    "uploadAnyway": "Yana yuklash",
+    "chooseAnotherFile": "Boshqa fayl"
   },
   "lessonDetail": {
     "title": "Dars tafsilotlari",
