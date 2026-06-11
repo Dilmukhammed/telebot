@@ -122,6 +122,31 @@ def _lesson_teacher_name(lesson: Lesson, teachers_map: dict[int, str]) -> str:
     return lesson.teacher_name or ""
 
 
+async def _teacher_course_name_taken(
+    db: AsyncSession,
+    name: str,
+    teacher_id: int | None,
+    *,
+    exclude_subject_id: int | None = None,
+) -> bool:
+    """True if this teacher already has a non-deleted course with the same name (incl. archived)."""
+    if not teacher_id:
+        return False
+    query = (
+        select(Subject.id)
+        .join(Lesson, Lesson.subject_id == Subject.id)
+        .where(
+            Subject.name == name,
+            Subject.is_deleted == False,
+            Lesson.teacher_id == teacher_id,
+        )
+        .limit(1)
+    )
+    if exclude_subject_id is not None:
+        query = query.where(Subject.id != exclude_subject_id)
+    return (await db.execute(query)).scalar_one_or_none() is not None
+
+
 # ── Stats ─────────────────────────────────────────────────────────────
 
 @router.get("/stats", response_model=AdminStatsOut)
@@ -469,6 +494,31 @@ async def reschedule_lesson(
     if existing and existing.status == "happened":
         raise HTTPException(status_code=400, detail="Cannot reschedule a completed lesson")
 
+    # Check teacher availability at new date/time
+    warning = None
+    if lesson.teacher_id:
+        new_day_of_week = new_date.weekday()  # 0=Monday
+        avail_q = select(TeacherAvailability).where(
+            and_(
+                TeacherAvailability.teacher_id == lesson.teacher_id,
+                TeacherAvailability.day_of_week == new_day_of_week,
+                TeacherAvailability.is_active == True,
+            )
+        )
+        avail_slots = (await db.execute(avail_q)).scalars().all()
+
+        if not avail_slots:
+            warning = "У репетитора нет открытых слотов на этот день"
+        elif data.new_time:
+            # Check if new_time falls within any slot
+            new_time_str = data.new_time[:5]  # "HH:MM"
+            in_slot = any(
+                slot.start_time <= new_time_str < slot.end_time
+                for slot in avail_slots
+            )
+            if not in_slot:
+                warning = "Время не попадает в открытый слот репетитора"
+
     # Cancel the original date
     if existing:
         existing.status = "rescheduled"
@@ -492,7 +542,7 @@ async def reschedule_lesson(
     admin_id = admin.id if hasattr(admin, 'id') else None
     await _log_audit(db, "lesson", lesson_id, "reschedule", "lesson_status", None, f"to {data.new_date}", admin_id)
     await db.commit()
-    return {"ok": True, "original_date": original_date.strftime("%Y-%m-%d"), "new_date": data.new_date}
+    return {"ok": True, "original_date": original_date.strftime("%Y-%m-%d"), "new_date": data.new_date, "warning": warning}
 
 
 # ── Cancel Lesson ─────────────────────────────────────────────────────
@@ -896,8 +946,11 @@ async def get_admin_subjects(
     lessons_by_subject: dict[int, list] = {}
     all_lesson_ids: list[int] = []
     if subject_ids:
+        lesson_filters = [Lesson.subject_id.in_(subject_ids)]
+        if not archived:
+            lesson_filters.append(Lesson.is_active == True)
         lessons_result = await db.execute(
-            select(Lesson).where(and_(Lesson.subject_id.in_(subject_ids), Lesson.is_active == True))
+            select(Lesson).where(and_(*lesson_filters))
         )
         for lesson in lessons_result.scalars().all():
             lessons_by_subject.setdefault(lesson.subject_id, []).append(lesson)
@@ -953,10 +1006,8 @@ async def create_admin_subject(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a course with lessons, teacher, and enrolled students."""
-    # Check name uniqueness
-    existing = await db.execute(select(Subject).where(Subject.name == data.name, Subject.is_deleted == False))
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Course name already exists")
+    if await _teacher_course_name_taken(db, data.name, data.teacher_id):
+        raise HTTPException(status_code=400, detail="This teacher already has a course with this name")
 
     # Get teacher name if teacher_id provided
     teacher_name = ""
@@ -1114,10 +1165,13 @@ async def get_admin_subject_detail(
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
 
+    lesson_filters = [Lesson.subject_id == subject_id]
+    if not subject.is_archived:
+        lesson_filters.append(Lesson.is_active == True)
     lessons_result = await db.execute(
         select(Lesson, Subject)
         .join(Subject, Lesson.subject_id == Subject.id)
-        .where(and_(Lesson.subject_id == subject_id, Lesson.is_active == True))
+        .where(and_(*lesson_filters))
         .order_by(Lesson.day_of_week, Lesson.time)
     )
     lessons = lessons_result.all()
@@ -1194,6 +1248,7 @@ async def get_admin_subject_detail(
         duration_weeks=subject.duration_weeks,
         start_date=subject.start_date.strftime("%Y-%m-%d") if subject.start_date else None,
         is_archived=subject.is_archived or False,
+        archived_at=subject.archived_at.strftime("%Y-%m-%d %H:%M:%S") if subject.archived_at else None,
         invite_code=subject.invite_code,
         lessons=admin_lessons,
         students=[
@@ -1236,6 +1291,21 @@ async def update_admin_subject(
     old_name = subject.name
 
     update_data = data.model_dump(exclude_unset=True)
+    new_name = update_data.get("name")
+    if new_name is not None and new_name != subject.name:
+        teacher_ids_result = await db.execute(
+            select(Lesson.teacher_id)
+            .where(
+                Lesson.subject_id == subject_id,
+                Lesson.is_active == True,
+                Lesson.teacher_id.isnot(None),
+            )
+            .distinct()
+        )
+        for (teacher_id,) in teacher_ids_result.all():
+            if await _teacher_course_name_taken(db, new_name, teacher_id, exclude_subject_id=subject_id):
+                raise HTTPException(status_code=400, detail="This teacher already has a course with this name")
+
     for field, value in update_data.items():
         setattr(subject, field, value)
 
@@ -1250,10 +1320,13 @@ async def update_admin_subject(
     invalidate_admin_stats()
 
     # Return full subject detail (reuse get logic)
+    lesson_filters = [Lesson.subject_id == subject_id]
+    if not subject.is_archived:
+        lesson_filters.append(Lesson.is_active == True)
     lessons_result = await db.execute(
         select(Lesson, Subject)
         .join(Subject, Lesson.subject_id == Subject.id)
-        .where(and_(Lesson.subject_id == subject_id, Lesson.is_active == True))
+        .where(and_(*lesson_filters))
         .order_by(Lesson.day_of_week, Lesson.time)
     )
     lessons = lessons_result.all()
@@ -1312,13 +1385,7 @@ async def archive_subject(
         raise HTTPException(status_code=400, detail="Already archived")
 
     subject.is_archived = True
-
-    # Deactivate all lessons in this subject
-    lessons_result = await db.execute(
-        select(Lesson).where(Lesson.subject_id == subject_id)
-    )
-    for lesson in lessons_result.scalars().all():
-        lesson.is_active = False
+    subject.archived_at = _get_tashkent_now().replace(tzinfo=None)
 
     admin_id = admin.id if hasattr(admin, "id") else None
     await _log_audit(db, "subject", subject_id, "archive",
@@ -1346,13 +1413,7 @@ async def unarchive_subject(
         raise HTTPException(status_code=400, detail="Not archived")
 
     subject.is_archived = False
-
-    # Reactivate all lessons in this subject
-    lessons_result = await db.execute(
-        select(Lesson).where(Lesson.subject_id == subject_id)
-    )
-    for lesson in lessons_result.scalars().all():
-        lesson.is_active = True
+    subject.archived_at = None
 
     admin_id = admin.id if hasattr(admin, "id") else None
     await _log_audit(db, "subject", subject_id, "unarchive",

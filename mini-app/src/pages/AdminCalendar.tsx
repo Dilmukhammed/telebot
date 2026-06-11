@@ -181,25 +181,33 @@ export default function AdminCalendar() {
     setShowMonthPicker(false)
   }
 
+  const [actionWarning, setActionWarning] = useState('')
+
   const handleAction = async () => {
     if (!selectedLesson) return
     setActionLoading(true)
     setActionError('')
+    setActionWarning('')
     try {
       if (modalType === 'reschedule' && newDate) {
         const data: { date: string; new_date: string; new_time?: string } = { date: selectedLesson.date, new_date: newDate }
         if (newTime) data.new_time = newTime
-        await rescheduleLesson(selectedLesson.id, data)
+        const result = await rescheduleLesson(selectedLesson.id, data)
+        if (result.warning) {
+          setActionWarning(result.warning)
+        }
       } else if (modalType === 'cancel') {
         await cancelAdminLesson(selectedLesson.id, { date: selectedLesson.date })
       } else if (modalType === 'status') {
         await markAdminLessonStatus(selectedLesson.id, { date: selectedLesson.date, status: 'happened' })
       }
       await refetch()
-      setSelectedLesson(null)
-      setModalType('options')
-      setNewDate('')
-      setNewTime('')
+      if (!actionWarning) {
+        setSelectedLesson(null)
+        setModalType('options')
+        setNewDate('')
+        setNewTime('')
+      }
     } catch (err: any) {
       setActionError(err.message || t('admin.calendar.error'))
     } finally {
@@ -476,7 +484,7 @@ export default function AdminCalendar() {
 
       {/* Lesson Action Modal */}
       {selectedLesson && (
-        <div className={styles.slotModalOverlay} onClick={() => { setSelectedLesson(null); setModalType('options') }}>
+        <div className={styles.slotModalOverlay} onClick={() => { setSelectedLesson(null); setModalType('options'); setActionWarning('') }}>
           <div className={styles.slotModal} onClick={e => e.stopPropagation()}>
             {modalType === 'options' && (() => {
               const modalStatus = getLessonStatus(selectedLesson, todayStr)
@@ -501,7 +509,7 @@ export default function AdminCalendar() {
                         </button>
                       </div>
                       <div className={styles.slotModalActions} style={{ marginTop: 8 }}>
-                        <button className={styles.slotModalCancel} onClick={() => { setModalType('reschedule'); setActionError(''); setNewDate(selectedLesson?.date || ''); setNewTime(selectedLesson?.time || '') }}>
+                        <button className={styles.slotModalCancel} onClick={() => { setModalType('reschedule'); setActionError(''); setActionWarning(''); setNewDate(selectedLesson?.date || ''); setNewTime(selectedLesson?.time || '') }}>
                           <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>schedule</span>
                           {t('admin.calendar.reschedule')}
                         </button>
@@ -575,9 +583,10 @@ export default function AdminCalendar() {
                     onChange={val => setNewTime(val)}
                   />
                 </div>
+                {actionWarning && <p style={{ color: '#d97706', fontSize: 13, margin: '8px 0 0', display: 'flex', alignItems: 'center', gap: 4 }}><span className="material-symbols-outlined" style={{ fontSize: '16px' }}>warning</span> {actionWarning}</p>}
                 {actionError && <p className={styles.modalError}>{actionError}</p>}
                 <div className={styles.slotModalActions}>
-                  <button className={styles.slotModalCancel} onClick={() => setModalType('options')}>{t('common.back')}</button>
+                  <button className={styles.slotModalCancel} onClick={() => { setModalType('options'); setActionWarning('') }}>{t('common.back')}</button>
                   <button className={styles.slotModalConfirm} onClick={handleAction} disabled={actionLoading || !newDate}>
                     {actionLoading ? '...' : t('admin.calendar.reschedule')}
                   </button>
