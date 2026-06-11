@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAdminLessons, useAdminUsers } from '../api/hooks'
-import { rescheduleLesson, cancelAdminLesson, markAdminLessonStatus } from '../api/client'
+import { rescheduleLesson, cancelAdminLesson, markAdminLessonStatus, createAvailabilityRequest } from '../api/client'
 import type { AdminLessonOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import TimePicker from '../components/TimePicker'
@@ -219,10 +219,15 @@ export default function AdminCalendar() {
     setShowMonthPicker(false)
   }
 
+  const [showRequestSlot, setShowRequestSlot] = useState(false)
+  const [requestSent, setRequestSent] = useState(false)
+
   const handleAction = async () => {
     if (!selectedLesson) return
     setActionLoading(true)
     setActionError('')
+    setShowRequestSlot(false)
+    setRequestSent(false)
     try {
       if (modalType === 'reschedule' && newDate) {
         const data: { date: string; new_date: string; new_time?: string } = { date: selectedLesson.date, new_date: newDate }
@@ -239,7 +244,31 @@ export default function AdminCalendar() {
       setNewDate('')
       setNewTime('')
     } catch (err: any) {
-      setActionError(err.message || t('admin.calendar.error'))
+      const msg = err.message || t('admin.calendar.error')
+      setActionError(msg)
+      if (modalType === 'reschedule' && (msg.includes('слот') || msg.includes('slot'))) {
+        setShowRequestSlot(true)
+      }
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleRequestSlot = async () => {
+    if (!selectedLesson || !newDate) return
+    setActionLoading(true)
+    setActionError('')
+    try {
+      await createAvailabilityRequest({
+        lesson_id: selectedLesson.id,
+        date: newDate,
+        start_time: newTime || selectedLesson.time,
+        end_time: selectedLesson.end_time,
+      })
+      setRequestSent(true)
+      setShowRequestSlot(false)
+    } catch (err: any) {
+      setActionError(err.message || 'Ошибка отправки запроса')
     } finally {
       setActionLoading(false)
     }
@@ -504,7 +533,7 @@ export default function AdminCalendar() {
                         </button>
                       </div>
                       <div className={styles.slotModalActions} style={{ marginTop: 8 }}>
-                        <button className={styles.slotModalCancel} onClick={() => { setModalType('reschedule'); setActionError(''); setNewDate(selectedLesson?.date || ''); setNewTime(selectedLesson?.time || '') }}>
+                        <button className={styles.slotModalCancel} onClick={() => { setModalType('reschedule'); setActionError(''); setShowRequestSlot(false); setRequestSent(false); setNewDate(selectedLesson?.date || ''); setNewTime(selectedLesson?.time || '') }}>
                           <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>schedule</span>
                           {t('admin.calendar.reschedule')}
                         </button>
@@ -578,9 +607,28 @@ export default function AdminCalendar() {
                     onChange={val => setNewTime(val)}
                   />
                 </div>
+                {requestSent && (
+                  <p style={{ color: 'var(--color-success, #43a047)', fontSize: 13, margin: '8px 0 0', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check_circle</span>
+                    {t('admin.calendar.request_sent', 'Запрос отправлен репетитору')}
+                  </p>
+                )}
                 {actionError && <p className={styles.modalError}>{actionError}</p>}
+                {showRequestSlot && !requestSent && (
+                  <div className={styles.slotModalActions} style={{ marginTop: 8 }}>
+                    <button
+                      className={styles.slotModalConfirm}
+                      onClick={handleRequestSlot}
+                      disabled={actionLoading}
+                      style={{ background: '#d97706', width: '100%' }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>send</span>
+                      {actionLoading ? '...' : t('admin.calendar.request_slot', 'Запросить слот у репетитора')}
+                    </button>
+                  </div>
+                )}
                 <div className={styles.slotModalActions}>
-                  <button className={styles.slotModalCancel} onClick={() => setModalType('options')}>{t('common.back')}</button>
+                  <button className={styles.slotModalCancel} onClick={() => { setModalType('options'); setShowRequestSlot(false); setRequestSent(false) }}>{t('common.back')}</button>
                   <button className={styles.slotModalConfirm} onClick={handleAction} disabled={actionLoading || !newDate}>
                     {actionLoading ? '...' : t('admin.calendar.reschedule')}
                   </button>

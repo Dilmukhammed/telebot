@@ -8,6 +8,7 @@ from config import settings
 from bot.handlers.start import router as start_router
 from bot.handlers.admin import router as admin_router
 from bot.handlers.attendance import router as attendance_router
+from bot.handlers.availability import router as availability_router
 
 # Direct Telegram API (no proxy)
 bot = Bot(
@@ -18,6 +19,7 @@ dp = Dispatcher()
 dp.include_router(start_router)
 dp.include_router(admin_router)
 dp.include_router(attendance_router)
+dp.include_router(availability_router)
 
 bot_router = APIRouter(prefix="/bot", tags=["bot"])
 

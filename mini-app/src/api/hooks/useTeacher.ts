@@ -15,6 +15,9 @@ import {
   getEnrollmentRequests,
   approveEnrollment,
   rejectEnrollment,
+  getTeacherAvailabilityRequests,
+  approveAvailabilityRequest,
+  rejectAvailabilityRequest,
 } from '../client'
 
 export function useTeacherDashboard() {
@@ -82,6 +85,36 @@ export function useDeleteAvailability() {
     mutationFn: (id: number) => deleteAvailability(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['availability'] })
+    },
+  })
+}
+
+export function useAvailabilityRequests() {
+  return useQuery({
+    queryKey: ['availability-requests'],
+    queryFn: getTeacherAvailabilityRequests,
+    staleTime: 30_000,
+  })
+}
+
+export function useApproveAvailabilityRequest() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => approveAvailabilityRequest(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['availability-requests'] })
+      queryClient.invalidateQueries({ queryKey: ['availability'] })
+      queryClient.invalidateQueries({ queryKey: ['teacher-dashboard'] })
+    },
+  })
+}
+
+export function useRejectAvailabilityRequest() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => rejectAvailabilityRequest(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['availability-requests'] })
     },
   })
 }

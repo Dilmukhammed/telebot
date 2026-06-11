@@ -27,12 +27,13 @@ class Subject(Base):
     __tablename__ = "subjects"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(String, nullable=True)
     duration_weeks: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)  # Course duration in weeks (None = indefinite)
     duration_minutes: Mapped[int] = mapped_column(Integer, default=90)  # Lesson duration in minutes
     start_date: Mapped[dt.datetime | None] = mapped_column(DateTime, default=utcnow, nullable=True)  # Course start date
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, index=True)  # Archived courses hidden from students/teachers
+    archived_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)  # When archived — future lessons frozen from this moment
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)  # Soft-deleted courses hidden from everyone
     deleted_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)  # When the course was deleted
     invite_code: Mapped[str | None] = mapped_column(String(6), unique=True, nullable=True, index=True)  # Short code for student enrollment
@@ -127,7 +128,7 @@ class LessonStatus(Base):
 
 
 class TeacherAvailability(Base):
-    """Recurring weekly availability slots for teachers."""
+    """Availability slots for teachers — recurring (day_of_week) or one-off (specific_date)."""
     __tablename__ = "teacher_availability"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -135,12 +136,33 @@ class TeacherAvailability(Base):
     day_of_week: Mapped[int] = mapped_column(Integer, nullable=False)  # 0=Mon..6=Sun
     start_time: Mapped[str] = mapped_column(String, nullable=False)  # "HH:MM"
     end_time: Mapped[str] = mapped_column(String, nullable=False)  # "HH:MM"
+    specific_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True, index=True)  # NULL=recurring, set=one-off
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
 
     teacher: Mapped["User"] = relationship("User", foreign_keys=[teacher_id], back_populates="availabilities")
 
-    __table_args__ = (UniqueConstraint("teacher_id", "day_of_week", "start_time", name="uq_teacher_day_start"),)
+    __table_args__ = (UniqueConstraint("teacher_id", "day_of_week", "start_time", "specific_date", name="uq_teacher_day_start_date"),)
+
+
+class AvailabilityRequest(Base):
+    """Admin requests a teacher to open a specific time slot for rescheduling."""
+    __tablename__ = "availability_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    lesson_id: Mapped[int] = mapped_column(Integer, ForeignKey("lessons.id"), nullable=False, index=True)
+    teacher_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    requested_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    date: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    start_time: Mapped[str] = mapped_column(String, nullable=False)  # "HH:MM"
+    end_time: Mapped[str] = mapped_column(String, nullable=False)  # "HH:MM"
+    status: Mapped[str] = mapped_column(String, default="pending")  # pending/approved/rejected
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
+    resolved_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+
+    lesson: Mapped["Lesson"] = relationship("Lesson", foreign_keys=[lesson_id])
+    teacher: Mapped["User"] = relationship("User", foreign_keys=[teacher_id])
+    requester: Mapped["User"] = relationship("User", foreign_keys=[requested_by])
 
 
 class Notification(Base):

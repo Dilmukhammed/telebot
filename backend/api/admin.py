@@ -14,7 +14,7 @@ from database import get_db
 from models import (
     User, Lesson, LessonEnrollment, Subject, LessonStatus,
     Notification, NotificationRecipient, NotificationAttachment, TeacherAvailability, Test,
-    Attendance, AuditLog, utcnow,
+    Attendance, AuditLog, AvailabilityRequest, utcnow,
 )
 from api.users import user_to_dict
 from schemas import (
@@ -26,7 +26,7 @@ from schemas import (
     AttendanceBulkIn, AttendanceListOut, AttendanceRecordOut,
     AdminLessonCreate, EnrollStudentIn, AuditLogOut, CancelLessonIn,
     AdminSubjectCreate, AdminSubjectUpdate, ScheduleTimeSlot,
-    AdminLessonScheduleUpdate,
+    AdminLessonScheduleUpdate, AvailabilityRequestIn, AvailabilityRequestOut,
 )
 from api.deps import require_admin
 from subject_drive_folder import sync_subject_drive_folder
@@ -500,8 +500,11 @@ async def reschedule_lesson(
         avail_q = select(TeacherAvailability).where(
             and_(
                 TeacherAvailability.teacher_id == lesson.teacher_id,
-                TeacherAvailability.day_of_week == new_day_of_week,
                 TeacherAvailability.is_active == True,
+                or_(
+                    and_(TeacherAvailability.specific_date == None, TeacherAvailability.day_of_week == new_day_of_week),
+                    TeacherAvailability.specific_date == new_date,
+                ),
             )
         )
         avail_slots = (await db.execute(avail_q)).scalars().all()
@@ -541,6 +544,136 @@ async def reschedule_lesson(
     await _log_audit(db, "lesson", lesson_id, "reschedule", "lesson_status", None, f"to {data.new_date}", admin_id)
     await db.commit()
     return {"ok": True, "original_date": original_date.strftime("%Y-%m-%d"), "new_date": data.new_date}
+
+
+# ── Availability Requests ─────────────────────────────────────────────
+
+@router.post("/availability-requests", response_model=AvailabilityRequestOut)
+async def create_availability_request(
+    data: AvailabilityRequestIn,
+    admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin requests teacher to open a slot for rescheduling."""
+    # Verify lesson exists
+    lesson = (await db.execute(
+        select(Lesson).where(and_(Lesson.id == data.lesson_id, Lesson.is_active == True))
+    )).scalar_one_or_none()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    if not lesson.teacher_id:
+        raise HTTPException(status_code=400, detail="Lesson has no teacher assigned")
+
+    # Check for existing pending request
+    existing = (await db.execute(
+        select(AvailabilityRequest).where(
+            and_(
+                AvailabilityRequest.lesson_id == data.lesson_id,
+                AvailabilityRequest.date == data.date,
+                AvailabilityRequest.start_time == data.start_time,
+                AvailabilityRequest.status == "pending",
+            )
+        )
+    )).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=400, detail="Запрос уже отправлен и ожидает ответа")
+
+    admin_id = admin.id if hasattr(admin, 'id') else None
+    req = AvailabilityRequest(
+        lesson_id=data.lesson_id,
+        teacher_id=lesson.teacher_id,
+        requested_by=admin_id,
+        date=data.date,
+        start_time=data.start_time,
+        end_time=data.end_time,
+    )
+    db.add(req)
+    await db.commit()
+    await db.refresh(req)
+
+    # Get subject name for notification
+    subject = (await db.execute(
+        select(Subject).where(Subject.id == lesson.subject_id)
+    )).scalar_one_or_none()
+    subject_name = subject.name if subject else "занятие"
+
+    # Send Telegram notification to teacher
+    teacher = (await db.execute(
+        select(User).where(User.id == lesson.teacher_id)
+    )).scalar_one_or_none()
+    if teacher and teacher.telegram_id:
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        from bot.bot import bot
+        from utils.constants import DAY_NAMES_RU
+        day_name = DAY_NAMES_RU[data.date.weekday()] if hasattr(data, 'date') else ""
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Согласовать", callback_data=f"avail_approve:{req.id}"),
+                InlineKeyboardButton(text="❌ Отклонить", callback_data=f"avail_reject:{req.id}"),
+            ]
+        ])
+        try:
+            await bot.send_message(
+                chat_id=teacher.telegram_id,
+                text=(
+                    f"📅 <b>Запрос на открытие слота</b>\n\n"
+                    f"Предмет: <b>{subject_name}</b>\n"
+                    f"Дата: <b>{data.date}</b> ({day_name})\n"
+                    f"Время: <b>{data.start_time} — {data.end_time}</b>\n\n"
+                    f"Админ запросил открытие слота для переноса урока."
+                ),
+                reply_markup=kb,
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning("Failed to send availability request to teacher %s: %s", lesson.teacher_id, e)
+
+    return AvailabilityRequestOut(
+        id=req.id,
+        lesson_id=req.lesson_id,
+        teacher_id=req.teacher_id,
+        date=req.date.strftime("%Y-%m-%d"),
+        start_time=req.start_time,
+        end_time=req.end_time,
+        status=req.status,
+        created_at=req.created_at.isoformat() if req.created_at else "",
+    )
+
+
+@router.get("/availability-requests", response_model=list[AvailabilityRequestOut])
+async def list_availability_requests(
+    status: str | None = None,
+    admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin views availability requests."""
+    query = select(AvailabilityRequest, Lesson, User).join(
+        Lesson, AvailabilityRequest.lesson_id == Lesson.id
+    ).join(
+        User, AvailabilityRequest.teacher_id == User.id
+    ).order_by(AvailabilityRequest.created_at.desc())
+    if status:
+        query = query.where(AvailabilityRequest.status == status)
+
+    rows = (await db.execute(query)).all()
+    out = []
+    for req, lesson, teacher in rows:
+        subject = (await db.execute(
+            select(Subject).where(Subject.id == lesson.subject_id)
+        )).scalar_one_or_none()
+        out.append(AvailabilityRequestOut(
+            id=req.id,
+            lesson_id=req.lesson_id,
+            teacher_id=req.teacher_id,
+            date=req.date.strftime("%Y-%m-%d"),
+            start_time=req.start_time,
+            end_time=req.end_time,
+            status=req.status,
+            created_at=req.created_at.isoformat() if req.created_at else "",
+            subject_name=subject.name if subject else None,
+            teacher_name=teacher.first_name,
+        ))
+    return out
 
 
 # ── Cancel Lesson ─────────────────────────────────────────────────────

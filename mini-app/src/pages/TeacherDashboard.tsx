@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useTeacherDashboard, useAnnouncements, useEnrollmentRequests, useApproveEnrollment, useRejectEnrollment } from '../api/hooks'
+import { useTeacherDashboard, useAnnouncements, useEnrollmentRequests, useApproveEnrollment, useRejectEnrollment, useAvailabilityRequests, useApproveAvailabilityRequest, useRejectAvailabilityRequest } from '../api/hooks'
 
 import Avatar from '../components/Avatar'
 import SiteHeader from '../components/SiteHeader'
@@ -79,6 +79,96 @@ function EnrollmentRequestsSection() {
                 chevron_right
               </span>
             </button>
+            <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+              <button
+                onClick={() => rejectMutation.mutate(req.id)}
+                disabled={rejectMutation.isPending}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: 'var(--radius-full)',
+                  border: '1px solid var(--color-error, #dc2626)',
+                  background: 'transparent',
+                  color: 'var(--color-error, #dc2626)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+              <button
+                onClick={() => approveMutation.mutate(req.id)}
+                disabled={approveMutation.isPending}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: 'var(--radius-full)',
+                  border: 'none',
+                  background: 'var(--color-success, #16a34a)',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>check</span>
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+
+function AvailabilityRequestsSection() {
+  const { t } = useTranslation()
+  const { data: requests = [], isLoading } = useAvailabilityRequests()
+  const approveMutation = useApproveAvailabilityRequest()
+  const rejectMutation = useRejectAvailabilityRequest()
+
+  if (isLoading || requests.length === 0) return null
+
+  return (
+    <section className={styles.section}>
+      <div className={styles.sectionHeader}>
+        <h2 className={styles.sectionTitle}>{t('teacher.availabilityRequests', 'Запросы на слоты')}</h2>
+        <span style={{
+          background: '#d97706',
+          color: '#fff',
+          borderRadius: 'var(--radius-full)',
+          padding: '2px 10px',
+          fontSize: 'var(--font-xs)',
+          fontWeight: 600,
+        }}>
+          {requests.length}
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {requests.map((req) => (
+          <div
+            key={req.id}
+            style={{
+              background: 'var(--color-surface)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '12px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600, fontSize: 'var(--font-sm)', color: 'var(--color-on-surface)' }}>
+                {req.subject_name || `Урок #${req.lesson_id}`}
+              </div>
+              <div style={{ fontSize: 'var(--font-xs)', color: 'var(--color-on-surface-variant)' }}>
+                📅 {req.date} · 🕐 {req.start_time} — {req.end_time}
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
               <button
                 onClick={() => rejectMutation.mutate(req.id)}
@@ -212,6 +302,7 @@ export default function TeacherDashboard() {
 
         {/* Enrollment Requests */}
         <EnrollmentRequestsSection />
+        <AvailabilityRequestsSection />
 
         {/* Lessons Section */}
         <section className={styles.section}>

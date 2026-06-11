@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 
 from database import get_db
-from models import User, Lesson, LessonEnrollment, Subject, Attendance, Notification, NotificationRecipient, NotificationRead, NotificationAttachment, LessonStatus, EnrollmentRequest
+from models import User, Lesson, LessonEnrollment, Subject, Attendance, Notification, NotificationRecipient, NotificationRead, NotificationAttachment, LessonStatus, EnrollmentRequest, AvailabilityRequest, TeacherAvailability
 from api.deps import require_teacher
 from utils.time import _get_tashkent_now, _to_tashkent_iso
 from utils.constants import DAY_NAMES_RU
@@ -663,16 +663,17 @@ async def get_course_students(
     from fastapi import HTTPException
 
     if user.role == "admin":
-        # Get all active lesson IDs for this course
-        lessons_result = await db.execute(
-            select(Lesson.id)
-            .where(
-                and_(
-                    Lesson.subject_id == course_id,
-                    Lesson.is_active == True,
-                )
-            )
-        )
+        subject = (await db.execute(
+            select(Subject).where(Subject.id == course_id, Subject.is_deleted == False)
+        )).scalar_one_or_none()
+        if not subject:
+            raise HTTPException(status_code=404, detail="Course not found")
+
+        # Archived courses keep enrollments visible — include all lessons, not only active slots
+        lesson_filter = [Lesson.subject_id == course_id]
+        if not subject.is_archived:
+            lesson_filter.append(Lesson.is_active == True)
+        lessons_result = await db.execute(select(Lesson.id).where(and_(*lesson_filter)))
         lesson_ids = [row[0] for row in lessons_result.fetchall()]
     else:
         # Verify teacher teaches this course
@@ -1447,3 +1448,106 @@ async def delete_availability(
     await db.commit()
 
     return {"ok": True}
+
+
+# ── Availability Requests ─────────────────────────────────────────────
+
+@router.get("/availability-requests")
+async def list_my_availability_requests(
+    user=Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """Teacher views pending availability requests."""
+    from schemas import AvailabilityRequestOut
+    query = (
+        select(AvailabilityRequest, Lesson)
+        .join(Lesson, AvailabilityRequest.lesson_id == Lesson.id)
+        .where(
+            and_(
+                AvailabilityRequest.teacher_id == user.id,
+                AvailabilityRequest.status == "pending",
+            )
+        )
+        .order_by(AvailabilityRequest.created_at.desc())
+    )
+    rows = (await db.execute(query)).all()
+    out = []
+    for req, lesson in rows:
+        subject = (await db.execute(
+            select(Subject).where(Subject.id == lesson.subject_id)
+        )).scalar_one_or_none()
+        out.append(AvailabilityRequestOut(
+            id=req.id,
+            lesson_id=req.lesson_id,
+            teacher_id=req.teacher_id,
+            date=req.date.strftime("%Y-%m-%d"),
+            start_time=req.start_time,
+            end_time=req.end_time,
+            status=req.status,
+            created_at=req.created_at.isoformat() if req.created_at else "",
+            subject_name=subject.name if subject else None,
+        ))
+    return out
+
+
+@router.post("/availability-requests/{request_id}/approve")
+async def approve_availability_request(
+    request_id: int,
+    user=Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """Teacher approves availability request — creates a one-off slot."""
+    req = (await db.execute(
+        select(AvailabilityRequest).where(
+            and_(
+                AvailabilityRequest.id == request_id,
+                AvailabilityRequest.teacher_id == user.id,
+                AvailabilityRequest.status == "pending",
+            )
+        )
+    )).scalar_one_or_none()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    # Create one-off availability slot
+    new_slot = TeacherAvailability(
+        teacher_id=user.id,
+        day_of_week=req.date.weekday(),
+        start_time=req.start_time,
+        end_time=req.end_time,
+        specific_date=req.date,
+        is_active=True,
+    )
+    db.add(new_slot)
+
+    req.status = "approved"
+    req.resolved_at = _get_tashkent_now()
+    await db.commit()
+
+    return {"ok": True, "message": "Слот открыт"}
+
+
+@router.post("/availability-requests/{request_id}/reject")
+async def reject_availability_request(
+    request_id: int,
+    user=Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """Teacher rejects availability request."""
+    req = (await db.execute(
+        select(AvailabilityRequest).where(
+            and_(
+                AvailabilityRequest.id == request_id,
+                AvailabilityRequest.teacher_id == user.id,
+                AvailabilityRequest.status == "pending",
+            )
+        )
+    )).scalar_one_or_none()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    req.status = "rejected"
+    req.resolved_at = _get_tashkent_now()
+    await db.commit()
+
+    return {"ok": True, "message": "Запрос отклонён"}

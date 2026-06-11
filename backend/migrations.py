@@ -165,12 +165,50 @@ async def _ensure_notification_attachment_type(conn: AsyncConnection, dialect: s
         logger.error("CRITICAL: notification_attachments type constraint fix FAILED: %s", exc, exc_info=True)
 
 
+async def _drop_subjects_name_unique(conn: AsyncConnection, dialect: str) -> None:
+    """Course names are unique per teacher, not globally — drop legacy UNIQUE(name)."""
+    if dialect != "postgresql" or not await _table_exists(conn, "subjects", dialect):
+        return
+    try:
+        check = await conn.execute(text("""
+            SELECT conname, pg_get_constraintdef(oid) AS def
+            FROM pg_constraint
+            WHERE conrelid = 'subjects'::regclass AND contype = 'u'
+        """))
+        for conname, condef in check.fetchall():
+            if not condef:
+                continue
+            def_lower = condef.lower()
+            if "name" in def_lower and "invite_code" not in def_lower:
+                await conn.execute(text(f'ALTER TABLE subjects DROP CONSTRAINT IF EXISTS "{conname}"'))
+                logger.info("Dropped subjects unique constraint on name: %s", conname)
+    except Exception as exc:
+        logger.error("CRITICAL: drop subjects.name unique constraint FAILED: %s", exc, exc_info=True)
+
+
 async def ensure_critical_schema(conn: AsyncConnection, dialect: str) -> None:
     """Idempotent columns required by current models. Safe to run every startup."""
+    await _drop_subjects_name_unique(conn, dialect)
+
     if await _table_exists(conn, "subjects", dialect):
         if not await _column_exists(conn, "subjects", "google_drive_folder_id", dialect):
             logger.info("Adding subjects.google_drive_folder_id (critical)")
             await conn.execute(text("ALTER TABLE subjects ADD COLUMN google_drive_folder_id VARCHAR"))
+
+        if not await _column_exists(conn, "subjects", "archived_at", dialect):
+            logger.info("Adding subjects.archived_at (critical)")
+            await conn.execute(text("ALTER TABLE subjects ADD COLUMN archived_at TIMESTAMP"))
+
+        # Legacy archive deactivated lessons — reactivate so enrollments/staff remain visible
+        try:
+            await conn.execute(text("""
+                UPDATE lessons SET is_active = TRUE
+                WHERE subject_id IN (
+                    SELECT id FROM subjects WHERE is_archived = TRUE AND is_deleted = FALSE
+                )
+            """))
+        except Exception as exc:
+            logger.debug("Reactivate archived lessons skipped: %s", exc)
 
     await _ensure_materials_image_type(conn, dialect)
     await _ensure_notification_attachment_type(conn, dialect)
@@ -447,5 +485,62 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
     # Also ensure image type in run_migrations (same logic as ensure_critical_schema)
     await _ensure_materials_image_type(conn, dialect)
     await _ensure_notification_attachment_type(conn, dialect)
+
+    # Add specific_date to teacher_availability
+    if await _table_exists(conn, "teacher_availability", dialect):
+        if not await _column_exists(conn, "teacher_availability", "specific_date", dialect):
+            logger.info("Adding teacher_availability.specific_date")
+            await conn.execute(text("ALTER TABLE teacher_availability ADD COLUMN specific_date DATE"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_teacher_availability_specific_date ON teacher_availability (specific_date)"))
+        # Update unique constraint (drop old, add new)
+        try:
+            if dialect == "postgresql":
+                await conn.execute(text("ALTER TABLE teacher_availability DROP CONSTRAINT IF EXISTS uq_teacher_day_start"))
+                await conn.execute(text("""
+                    DO $$ BEGIN
+                        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_teacher_day_start_date') THEN
+                            ALTER TABLE teacher_availability ADD CONSTRAINT uq_teacher_day_start_date UNIQUE (teacher_id, day_of_week, start_time, specific_date);
+                        END IF;
+                    END $$;
+                """))
+        except Exception as exc:
+            logger.debug("teacher_availability constraint migration skipped: %s", exc)
+
+    # Create availability_requests table
+    if not await _table_exists(conn, "availability_requests", dialect):
+        logger.info("Creating availability_requests table")
+        if dialect == "postgresql":
+            await conn.execute(text("""
+                CREATE TABLE availability_requests (
+                    id SERIAL PRIMARY KEY,
+                    lesson_id INTEGER NOT NULL REFERENCES lessons(id),
+                    teacher_id INTEGER NOT NULL REFERENCES users(id),
+                    requested_by INTEGER NOT NULL REFERENCES users(id),
+                    date DATE NOT NULL,
+                    start_time VARCHAR NOT NULL,
+                    end_time VARCHAR NOT NULL,
+                    status VARCHAR DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    resolved_at TIMESTAMP
+                )
+            """))
+        else:
+            await conn.execute(text("""
+                CREATE TABLE availability_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    lesson_id INTEGER NOT NULL REFERENCES lessons(id),
+                    teacher_id INTEGER NOT NULL REFERENCES users(id),
+                    requested_by INTEGER NOT NULL REFERENCES users(id),
+                    date DATE NOT NULL,
+                    start_time VARCHAR NOT NULL,
+                    end_time VARCHAR NOT NULL,
+                    status VARCHAR DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    resolved_at TIMESTAMP
+                )
+            """))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_availability_requests_lesson_id ON availability_requests (lesson_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_availability_requests_teacher_id ON availability_requests (teacher_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_availability_requests_status ON availability_requests (status)"))
 
     logger.info("Schema migrations complete")

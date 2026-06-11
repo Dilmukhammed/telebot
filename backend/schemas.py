@@ -160,6 +160,7 @@ class CourseLessonOut(BaseModel):
     teacher_name: str
     status: str  # "today", "upcoming", "past"
     date: str
+    is_frozen: bool = False  # Archived course: future lesson instances are frozen
 
 
 class CourseDetailOut(BaseModel):
@@ -173,6 +174,8 @@ class CourseDetailOut(BaseModel):
     duration_minutes: int = 90  # Lesson duration in minutes
     start_date: Optional[str] = None  # Course start date ("YYYY-MM-DD")
     invite_code: Optional[str] = None
+    is_archived: bool = False
+    archived_at: Optional[str] = None
     lessons: list[CourseLessonOut]
 
 
@@ -407,7 +410,28 @@ class TeacherAvailabilityOut(BaseModel):
     day_of_week: int
     start_time: str
     end_time: str
+    specific_date: Optional[str] = None
     is_active: bool
+
+
+class AvailabilityRequestIn(BaseModel):
+    lesson_id: int
+    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    start_time: str = Field(pattern=r"^\d{2}:\d{2}$")
+    end_time: str = Field(pattern=r"^\d{2}:\d{2}$")
+
+
+class AvailabilityRequestOut(BaseModel):
+    id: int
+    lesson_id: int
+    teacher_id: int
+    date: str
+    start_time: str
+    end_time: str
+    status: str
+    created_at: str
+    subject_name: Optional[str] = None
+    teacher_name: Optional[str] = None
 
 
 # --- Admin Panel Schemas ---
@@ -527,6 +551,7 @@ class AdminSubjectDetailOut(BaseModel):
     start_date: Optional[str] = None
     is_archived: bool = False
     is_deleted: bool = False
+    archived_at: Optional[str] = None
     invite_code: Optional[str] = None
     lessons: list[AdminLessonOut] = []
     students: list[UserOut] = []

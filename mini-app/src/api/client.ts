@@ -364,6 +364,18 @@ export function deleteAvailability(id: number): Promise<void> {
   return api<void>(`/api/teacher/availability/${id}`, { method: 'DELETE' })
 }
 
+export function getTeacherAvailabilityRequests(): Promise<{ id: number; lesson_id: number; date: string; start_time: string; end_time: string; status: string; subject_name?: string }[]> {
+  return api('/api/teacher/availability-requests')
+}
+
+export function approveAvailabilityRequest(id: number): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/teacher/availability-requests/${id}/approve`, { method: 'POST' })
+}
+
+export function rejectAvailabilityRequest(id: number): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/teacher/availability-requests/${id}/reject`, { method: 'POST' })
+}
+
 // ── Admin API ──────────────────────────────────────────────────────
 
 export function getAdminStats(): Promise<AdminStats> {
@@ -406,6 +418,13 @@ export function cancelAdminLesson(lessonId: number, data: { date: string }): Pro
 
 export function markAdminLessonStatus(lessonId: number, data: { date: string; status: string }): Promise<{ ok: boolean }> {
   return api<{ ok: boolean }>(`/api/admin/lessons/${lessonId}/status`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export function createAvailabilityRequest(data: { lesson_id: number; date: string; start_time: string; end_time: string }): Promise<{ id: number; status: string }> {
+  return api<{ id: number; status: string }>('/api/admin/availability-requests', {
     method: 'POST',
     body: JSON.stringify(data),
   })
