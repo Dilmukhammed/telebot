@@ -52,7 +52,7 @@ export default function Profile() {
   const [showThemeSheet, setShowThemeSheet] = useState(false)
   const [themeSaving, setThemeSaving] = useState(false)
   const [localTheme, setLocalTheme] = useState<ProfileThemeOut | null>(null)
-  const themeSaveTimer = useRef<ReturnType<typeof setTimeout>>()
+  const themeSaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const handleSelectLang = (code: string) => {
     setSelectedLang(code)
