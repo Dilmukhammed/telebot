@@ -793,7 +793,7 @@ function AdminLessonCard({ lesson, todayStr, onClick }: { lesson: AdminLessonOut
   const isUnmarked = status === 'unmarked'
   const isCancelled = status === 'cancelled'
   const isRescheduled = status === 'rescheduled'
-  const isActionable = isUnmarked || status === 'today'
+  const isActionable = !isCancelled && !isCompleted
 
   const borderColor = isCancelled ? 'var(--color-error, #ba1a1a)'
     : isRescheduled ? '#d97706'
@@ -849,7 +849,7 @@ function AdminLessonBlock({ lesson, todayStr, onClick }: { lesson: AdminLessonOu
   const isUnmarked = status === 'unmarked'
   const isCancelled = status === 'cancelled'
   const isRescheduled = status === 'rescheduled'
-  const isActionable = isUnmarked || status === 'today'
+  const isActionable = !isCancelled && !isCompleted
 
   const bgVar = isCancelled
     ? 'var(--color-surface-container-high)'
