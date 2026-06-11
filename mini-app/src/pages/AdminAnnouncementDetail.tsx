@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAdminAnnouncementDetail, useAdminAnnouncementRecipients } from '../api/hooks'
+import { useAdminAnnouncementDetail, useAdminAnnouncementRecipients, useMarkAnnouncementRead } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import { langToLocale } from '../shared/utils/formatDate'
@@ -33,7 +33,16 @@ export default function AdminAnnouncementDetail() {
   const numId = Number(id)
   const { data: announcement, isLoading, error } = useAdminAnnouncementDetail(numId)
   const { data: recipients = [] } = useAdminAnnouncementRecipients(numId)
+  const markReadMutation = useMarkAnnouncementRead()
+  const hasMarkedRead = useRef(false)
   const [showAllRecipients, setShowAllRecipients] = useState(false)
+
+  useEffect(() => {
+    if (announcement && numId && !hasMarkedRead.current && !markReadMutation.isPending) {
+      hasMarkedRead.current = true
+      markReadMutation.mutate(numId)
+    }
+  }, [announcement, numId])
 
   if (isLoading) {
     return <Loading fullPage message={t('common.loading')} />

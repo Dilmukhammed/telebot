@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAdminStats, useAnnouncements, prefetchAdminLessons } from '../api/hooks'
+import { useUser } from '../context/UserContext'
 import SiteHeader from '../components/SiteHeader'
 import MiniCalendar from '../components/MiniCalendar'
 import { Loading } from '../shared/components'
@@ -14,15 +15,16 @@ export default function AdminDashboard() {
   const qc = useQueryClient()
   const { t, i18n } = useTranslation()
   const currentLocale = langToLocale(i18n.language)
+  const { user } = useUser()
   const { data: stats, isLoading } = useAdminStats()
 
   useEffect(() => {
     void prefetchAdminLessons(qc)
   }, [qc])
-  const { data: announcements = [] } = useAnnouncements('admin')
+  const { data: announcements = [] } = useAnnouncements('teacher')
   const unreadCount = useMemo(
-    () => announcements.filter(a => !a.is_read).length,
-    [announcements]
+    () => announcements.filter(a => !a.is_read && a.sender_id !== user?.id).length,
+    [announcements, user?.id]
   )
 
   if (isLoading) {
@@ -39,7 +41,7 @@ export default function AdminDashboard() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader announcementCount={unreadCount} announcementPath="/admin/announcements" />
+      <SiteHeader announcementCount={unreadCount} />
 
       <main>
         {/* Welcome Card */}

@@ -9,9 +9,12 @@ import {
 import type { AnnouncementOut } from '../../shared/types'
 
 export function useAnnouncements(role: string) {
+  const isStudent = role === 'student'
+  // Admin uses the same inbox API as teacher; share one cache key.
+  const cacheRole = isStudent ? 'student' : 'teacher'
   return useQuery({
-    queryKey: ['announcements', role],
-    queryFn: role === 'student' ? getAnnouncements : getTeacherAnnouncements,
+    queryKey: ['announcements', cacheRole],
+    queryFn: isStudent ? getAnnouncements : getTeacherAnnouncements,
     staleTime: 30_000,
   })
 }
