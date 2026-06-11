@@ -41,6 +41,9 @@ async def list_materials(
 ):
     """List materials filtered by subject_id and/or lesson_id.
 
+    subject_id alone returns course-level materials only (lesson_id IS NULL).
+    lesson_id returns materials attached to that lesson.
+
     Students can only see materials for courses they are enrolled in.
     Teachers and admins can see all materials.
     """
@@ -67,6 +70,8 @@ async def list_materials(
         query = query.where(Material.subject_id == subject_id)
     if lesson_id is not None:
         query = query.where(Material.lesson_id == lesson_id)
+    elif subject_id is not None:
+        query = query.where(Material.lesson_id.is_(None))
 
     query = query.order_by(Material.created_at.desc())
     result = await db.execute(query)

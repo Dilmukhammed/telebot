@@ -6,6 +6,7 @@ interface MaterialFormProps {
   onSubmit: (data: MaterialCreate & { file?: File }) => void
   onClose: () => void
   isPending?: boolean
+  isSuccess?: boolean
 }
 
 const MATERIAL_TYPES: { value: MaterialCreate['type']; label: string; icon: string }[] = [
@@ -16,7 +17,7 @@ const MATERIAL_TYPES: { value: MaterialCreate['type']; label: string; icon: stri
   { value: 'text', label: 'Текст', icon: 'article' },
 ]
 
-export default function MaterialForm({ onSubmit, onClose, isPending }: MaterialFormProps) {
+export default function MaterialForm({ onSubmit, onClose, isPending, isSuccess }: MaterialFormProps) {
   const [type, setType] = useState<MaterialCreate['type']>('link')
   const [title, setTitle] = useState('')
   const [url, setUrl] = useState('')
@@ -26,7 +27,7 @@ export default function MaterialForm({ onSubmit, onClose, isPending }: MaterialF
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim()) return
+    if (!title.trim() || isPending) return
 
     const data: MaterialCreate & { file?: File } = {
       title: title.trim(),
@@ -52,6 +53,35 @@ export default function MaterialForm({ onSubmit, onClose, isPending }: MaterialF
     if (type === 'file') return !!file
     if (type === 'text') return !!content.trim()
     return !!url.trim()
+  }
+
+  // Loading overlay
+  if (isPending) {
+    return (
+      <div className={styles.overlay}>
+        <div className={styles.loadingBox}>
+          <div className={styles.spinner} />
+          <p className={styles.loadingText}>
+            {type === 'file' ? 'Загрузка файла...' : 'Сохранение...'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Success state
+  if (isSuccess) {
+    return (
+      <div className={styles.overlay}>
+        <div className={styles.successBox}>
+          <span className={`material-symbols-outlined ${styles.successIcon}`}>check_circle</span>
+          <p className={styles.successText}>Материал добавлен!</p>
+          <button className={styles.doneBtn} onClick={onClose}>
+            Продолжить
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -134,9 +164,9 @@ export default function MaterialForm({ onSubmit, onClose, isPending }: MaterialF
             <button
               type="submit"
               className={styles.submitBtn}
-              disabled={!isValid() || isPending}
+              disabled={!isValid()}
             >
-              {isPending ? 'Загрузка...' : 'Добавить'}
+              Добавить
             </button>
           </div>
         </form>

@@ -41,16 +41,17 @@ export default function CourseDetail() {
   const handleMaterialSubmit = (data: MaterialCreate & { file?: File }) => {
     if (data.type === 'file' && data.file) {
       uploadMaterial.mutate(
-        { file: data.file, title: data.title, subjectId: courseId },
-        { onSuccess: () => setShowMaterialForm(false) }
+        { file: data.file, title: data.title, subjectId: courseId }
       )
     } else {
       createMaterial.mutate(
-        { title: data.title, type: data.type, subject_id: courseId, url: data.url, content: data.content },
-        { onSuccess: () => setShowMaterialForm(false) }
+        { title: data.title, type: data.type, subject_id: courseId, url: data.url, content: data.content }
       )
     }
   }
+
+  const isMaterialPending = createMaterial.isPending || uploadMaterial.isPending
+  const isMaterialSuccess = createMaterial.isSuccess || uploadMaterial.isSuccess
 
   const handleMaterialDelete = (id: number) => {
     setMaterialToDelete(id)
@@ -363,8 +364,9 @@ export default function CourseDetail() {
       {showMaterialForm && (
         <MaterialForm
           onSubmit={handleMaterialSubmit}
-          onClose={() => setShowMaterialForm(false)}
-          isPending={createMaterial.isPending || uploadMaterial.isPending}
+          onClose={() => { setShowMaterialForm(false); createMaterial.reset(); uploadMaterial.reset() }}
+          isPending={isMaterialPending}
+          isSuccess={isMaterialSuccess}
         />
       )}
 
