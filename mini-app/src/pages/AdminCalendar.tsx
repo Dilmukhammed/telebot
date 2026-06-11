@@ -512,7 +512,12 @@ export default function AdminCalendar() {
           <div className={styles.slotModal} onClick={e => e.stopPropagation()}>
             {modalType === 'options' && (() => {
               const modalStatus = getLessonStatus(selectedLesson, todayStr)
-              const canMarkStatus = modalStatus === 'unmarked' || modalStatus === 'today'
+              const canMarkHappened = modalStatus === 'unmarked' || (modalStatus === 'today' && (() => {
+                const [eh, em] = selectedLesson.end_time.split(':').map(Number)
+                const now = getTashkentDate()
+                return now.getHours() > eh || (now.getHours() === eh && now.getMinutes() >= em)
+              })())
+              const isCancelledOrCompleted = modalStatus === 'cancelled' || modalStatus === 'completed'
               return (
                 <>
                   <span className="material-symbols-outlined" style={{ fontSize: '40px', color: 'var(--color-primary)' }}>event_note</span>
@@ -520,13 +525,17 @@ export default function AdminCalendar() {
                   <p className={styles.slotModalText}>
                     {selectedLesson.teacher_name} · {selectedLesson.time} — {selectedLesson.end_time}
                   </p>
-                  {canMarkStatus && (
+                  {!isCancelledOrCompleted && (
                     <>
+                      {canMarkHappened && (
+                        <div className={styles.slotModalActions}>
+                          <button className={styles.slotModalConfirm} onClick={() => { setModalType('status'); setActionError('') }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>check_circle</span>
+                            {t('admin.calendar.status_happened')}
+                          </button>
+                        </div>
+                      )}
                       <div className={styles.slotModalActions}>
-                        <button className={styles.slotModalConfirm} onClick={() => { setModalType('status'); setActionError('') }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>check_circle</span>
-                          {t('admin.calendar.status_happened')}
-                        </button>
                         <button className={styles.slotModalDelete} onClick={() => { setModalType('cancel'); setActionError('') }}>
                           <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>cancel</span>
                           {t('admin.calendar.cancel')}
