@@ -265,6 +265,7 @@ async def search_courses(
             and_(
                 Lesson.is_active == True,
                 Subject.is_archived == False,
+                Subject.is_deleted == False,
                 Lesson.day_of_week.in_(days),
             )
         )

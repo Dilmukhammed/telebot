@@ -101,6 +101,10 @@ export default function AdminCourseDetail() {
   const [showEnrollModal, setShowEnrollModal] = useState(false)
   const [enrollFilter, setEnrollFilter] = useState('')
 
+  // Unenroll confirm
+  const [studentToUnenroll, setStudentToUnenroll] = useState<{ id: number; name: string } | null>(null)
+  const [unenrollSubmitting, setUnenrollSubmitting] = useState(false)
+
   // Archive
   const [showArchiveModal, setShowArchiveModal] = useState(false)
   const [archiveConfirmName, setArchiveConfirmName] = useState('')
@@ -249,14 +253,17 @@ export default function AdminCourseDetail() {
     }
   }
 
-  const handleUnenroll = async (userId: number) => {
-    if (lessonSlotIds.length === 0) return
-    if (!confirm(t('admin.course_detail.unenroll_confirm'))) return
+  const confirmUnenroll = async () => {
+    if (!studentToUnenroll || lessonSlotIds.length === 0) return
+    setUnenrollSubmitting(true)
     try {
-      await Promise.all(lessonSlotIds.map(lid => adminUnenrollStudent(lid, userId)))
+      await Promise.all(lessonSlotIds.map(lid => adminUnenrollStudent(lid, studentToUnenroll.id)))
+      setStudentToUnenroll(null)
       await refetchAll()
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : t('admin.course_detail.unenroll_error'))
+    } finally {
+      setUnenrollSubmitting(false)
     }
   }
 
@@ -640,7 +647,13 @@ export default function AdminCourseDetail() {
                     <div className={styles.studentCardActions}>
                       <button
                         className={styles.iconBtn}
-                        onClick={(e) => { e.stopPropagation(); handleUnenroll(student.id) }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setStudentToUnenroll({
+                            id: student.id,
+                            name: student.first_name || (student.username ? `@${student.username}` : `#${student.id}`),
+                          })
+                        }}
                         title={t('admin.course_detail.unenroll')}
                       >
                         <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person_remove</span>
@@ -673,6 +686,40 @@ export default function AdminCourseDetail() {
           subjectId={courseId}
           onClose={() => setShowMaterialForm(false)}
         />
+      )}
+
+      {studentToUnenroll !== null && (
+        <Modal
+          isOpen={studentToUnenroll !== null}
+          onClose={() => !unenrollSubmitting && setStudentToUnenroll(null)}
+          title={t('admin.course_detail.unenroll_confirm_title')}
+        >
+          <div className={styles.deleteConfirmContent}>
+            <p className={styles.deleteConfirmText}>{t('admin.course_detail.unenroll_confirm')}</p>
+            <div className={styles.deleteConfirmItem}>
+              <span className="material-symbols-outlined" style={{ marginRight: '8px', color: 'var(--color-primary)' }}>
+                person
+              </span>
+              <span className={styles.deleteConfirmItemTitle}>{studentToUnenroll.name}</span>
+            </div>
+            <div className={styles.deleteConfirmButtons}>
+              <button
+                className={styles.deleteCancelBtn}
+                onClick={() => setStudentToUnenroll(null)}
+                disabled={unenrollSubmitting}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                className={styles.deleteConfirmBtn}
+                onClick={confirmUnenroll}
+                disabled={unenrollSubmitting}
+              >
+                {unenrollSubmitting ? '...' : t('admin.course_detail.unenroll')}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {materialToDelete !== null && (
