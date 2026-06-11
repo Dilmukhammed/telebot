@@ -295,14 +295,16 @@ async def upload_material(
             folder_id = await get_subject_upload_folder(db, subject)
             if folder_id:
                 parent_folder_id = folder_id
-            await db.flush()
+            # Commit before slow Drive API — don't hold a DB transaction open during upload.
+            await db.commit()
         except Exception as exc:
+            await db.rollback()
             logger.warning("Drive folder resolve failed for subject %s: %s", subject_id, exc)
 
     if not parent_folder_id:
         raise HTTPException(status_code=500, detail="Google Drive upload is not configured")
 
-    # Upload to Google Drive
+    # Upload to Google Drive (no open DB transaction)
     google_file_id: str | None = None
     try:
         google_file_id, download_url = await google_drive.upload_file(
@@ -328,14 +330,24 @@ async def upload_material(
     )
     db.add(material)
     try:
-        await db.commit()
+        await db.flush()
         await db.refresh(material)
     except IntegrityError as exc:
         await db.rollback()
         if google_file_id:
             await google_drive.delete_file(google_file_id)
-        logger.error("Material save failed: %s", exc)
-        raise HTTPException(status_code=400, detail="Could not save material. Try again or contact support.")
+        logger.error(
+            "Material save failed: %s | subject_id=%s lesson_id=%s type=%s user=%s title=%r",
+            exc.orig if hasattr(exc, 'orig') else exc,
+            subject_id, lesson_id, material_type, user.id, title,
+        )
+        raise HTTPException(status_code=400, detail=f"Could not save material: {exc.orig if hasattr(exc, 'orig') else exc}")
+    except Exception as exc:
+        await db.rollback()
+        if google_file_id:
+            await google_drive.delete_file(google_file_id)
+        logger.error("Material save unexpected error: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Save failed: {exc}")
 
     logger.info("File material uploaded: id=%d file=%s by user=%d", material.id, file_name, user.id)
     return _material_to_out(material)
