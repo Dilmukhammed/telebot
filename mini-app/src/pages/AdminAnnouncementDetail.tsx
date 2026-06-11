@@ -94,7 +94,7 @@ export default function AdminAnnouncementDetail() {
           )}
           <span className={styles.date}>{formatDate(announcement.sent_at, currentLocale)}</span>
           <div className={styles.divider} />
-          <p className={styles.message}>{announcement.message}</p>
+          <p className={styles.message} dangerouslySetInnerHTML={{ __html: announcement.message }} />
         </div>
 
         {/* Target info */}

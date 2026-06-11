@@ -490,8 +490,12 @@ async def get_teacher_announcement_detail(
     user: User = Depends(require_teacher),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get announcement detail for teachers: from admins + own."""
+    """Get announcement detail for teachers: from admins + own + where teacher is recipient."""
     from fastapi import HTTPException
+    recipient_notif_ids = select(NotificationRecipient.notification_id).where(
+        NotificationRecipient.user_id == user.id
+    ).scalar_subquery()
+
     result = await db.execute(
         select(Notification, User)
         .outerjoin(User, User.id == Notification.sender_id)
@@ -507,6 +511,7 @@ async def get_teacher_announcement_detail(
                         ),
                     ),
                     Notification.sender_id == user.id,
+                    Notification.id.in_(recipient_notif_ids),
                 ),
             )
         )

@@ -7,6 +7,8 @@ import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './Announcements.module.css'
 
+const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '')
+
 export default function Announcements() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
@@ -55,9 +57,7 @@ export default function Announcements() {
                     )}
                   </div>
                   <p className={styles.cardMessage}>
-                    {item.message.length > 120
-                      ? item.message.slice(0, 120) + '...'
-                      : item.message}
+                    {(() => { const t = stripHtml(item.message); return t.length > 120 ? t.slice(0, 120) + '...' : t })()}
                   </p>
                   <span className={styles.cardDate}>{formatDateTime(item.sent_at, langToLocale(i18n.language))}</span>
                 </div>

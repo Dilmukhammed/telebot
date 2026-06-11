@@ -15,6 +15,8 @@ import SiteHeader from '../components/SiteHeader'
 import { langToLocale } from '../shared/utils/formatDate'
 import styles from './AdminAnnouncements.module.css'
 
+const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '')
+
 interface PendingAttachment {
   id: number
   title: string
@@ -196,7 +198,7 @@ export default function AdminAnnouncements() {
                   <span className={styles.date}>{formatDate(a.sent_at, currentLocale)}</span>
                 </div>
                 {a.title && <h4 className={styles.cardTitle}>{a.title}</h4>}
-                <p className={styles.cardMessage}>{a.message}</p>
+                <p className={styles.cardMessage}>{stripHtml(a.message)}</p>
                 <div className={styles.cardFooter}>
                   <span>{t('admin.announcements.recipients_count', { count: a.recipient_count })}</span>
                   {a.sender_name && <span>{t('admin.announcements.sender', { name: a.sender_name })}</span>}

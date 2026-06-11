@@ -72,7 +72,7 @@ export default function AnnouncementDetail() {
           )}
           <span className={styles.date}>{formatDateTime(announcement.sent_at, langToLocale(i18n.language))}</span>
           <div className={styles.divider} />
-          <p className={styles.message}>{announcement.message}</p>
+          <p className={styles.message} dangerouslySetInnerHTML={{ __html: announcement.message }} />
         </div>
 
         {/* Attachments */}
