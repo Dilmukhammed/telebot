@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -10,6 +12,8 @@ from models import User
 from profile_theme import merge_profile_theme, normalize_profile_theme
 from schemas import UserOut, UserRoleUpdate, OnboardingData, TeacherCreateIn, ProfileThemeUpdate
 from api.deps import require_admin, get_telegram_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin/users", tags=["users"])
 user_router = APIRouter(prefix="/users", tags=["user"])
@@ -143,7 +147,7 @@ class UpdateNameData(BaseModel):
     last_name: Optional[str] = Field(default=None, max_length=100)
 
 
-@user_router.patch("/me/profile-theme", response_model=UserOut)
+@user_router.api_route("/me/profile-theme", methods=["PUT", "PATCH"], response_model=UserOut)
 async def update_profile_theme(
     data: ProfileThemeUpdate,
     user: User = Depends(get_telegram_user),
@@ -153,8 +157,13 @@ async def update_profile_theme(
         user.profile_theme,
         data.model_dump(exclude_unset=True),
     )
-    await db.commit()
-    await db.refresh(user)
+    try:
+        await db.commit()
+        await db.refresh(user)
+    except Exception as exc:
+        await db.rollback()
+        logger.exception("profile_theme save failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Could not save profile theme") from exc
     return user_to_dict(user)
 
 

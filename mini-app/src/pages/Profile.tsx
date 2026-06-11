@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { updateName, updateProfileTheme } from '../api/client'
 import { useAvailability, useCreateAvailability, useDeleteAvailability } from '../api/hooks'
@@ -51,6 +51,8 @@ export default function Profile() {
   const [slotToDelete, setSlotToDelete] = useState<number | null>(null)
   const [showThemeSheet, setShowThemeSheet] = useState(false)
   const [themeSaving, setThemeSaving] = useState(false)
+  const [localTheme, setLocalTheme] = useState<ProfileThemeOut | null>(null)
+  const themeSaveTimer = useRef<ReturnType<typeof setTimeout>>()
 
   const handleSelectLang = (code: string) => {
     setSelectedLang(code)
@@ -93,21 +95,34 @@ export default function Profile() {
     }
   }
 
-  const handleSaveTheme = async (theme: ProfileThemeOut) => {
-    setThemeSaving(true)
-    try {
-      await updateProfileTheme({
-        card_theme: theme.card_theme,
-        status_emoji: theme.status_emoji ?? null,
-        status_text: theme.status_text ?? null,
-      })
-      await refreshUser()
-    } catch (err) {
-      alert(err instanceof Error ? err.message : t('common.error'))
-    } finally {
-      setThemeSaving(false)
-    }
-  }
+  const handleSaveTheme = useCallback((theme: ProfileThemeOut) => {
+    setLocalTheme(theme)
+    clearTimeout(themeSaveTimer.current)
+    themeSaveTimer.current = setTimeout(async () => {
+      setThemeSaving(true)
+      try {
+        await updateProfileTheme({
+          card_theme: theme.card_theme,
+          status_emoji: theme.status_emoji ?? null,
+          status_text: theme.status_text ?? null,
+        })
+        await refreshUser()
+      } catch (err) {
+        alert(err instanceof Error ? err.message : t('common.error'))
+        if (user) setLocalTheme(normalizeProfileTheme(user.profile_theme))
+      } finally {
+        setThemeSaving(false)
+      }
+    }, 350)
+  }, [refreshUser, t, user])
+
+  useEffect(() => {
+    return () => clearTimeout(themeSaveTimer.current)
+  }, [])
+
+  useEffect(() => {
+    if (user) setLocalTheme(normalizeProfileTheme(user.profile_theme))
+  }, [user?.id, user?.profile_theme?.card_theme, user?.profile_theme?.status_emoji, user?.profile_theme?.status_text])
 
   const handleDeleteSlot = async () => {
     if (slotToDelete === null) return
@@ -136,7 +151,7 @@ export default function Profile() {
 
   const displayName = user.first_name || (user.username ? `@${user.username}` : t('profile.user'))
   const roleLabel = user.role === 'admin' ? t('profile.admin') : user.role === 'teacher' ? t('profile.teacher') : t('profile.student')
-  const profileTheme = normalizeProfileTheme(user.profile_theme)
+  const profileTheme = localTheme ?? normalizeProfileTheme(user.profile_theme)
   const cardStyle = getProfileCardStyle(profileTheme)
 
   return (
