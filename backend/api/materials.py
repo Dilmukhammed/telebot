@@ -1,20 +1,23 @@
 """Materials API — CRUD + file upload for course/lesson materials."""
 
 import logging
+import os
 import re
 from urllib.parse import parse_qs, urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from typing import Optional
 
+from config import settings
 from database import get_db
 from models import Material, User, Lesson, Subject
 from schemas import MaterialOut, MaterialCreate, MaterialUpdate, MaterialDuplicateOut
 from api.deps import get_telegram_user, require_teacher
 import google_drive
-from subject_drive_folder import sync_subject_drive_folder
+from subject_drive_folder import get_subject_upload_folder
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +69,16 @@ def _youtube_video_id(url: str) -> Optional[str]:
         url,
     )
     return match.group(1) if match else None
+
+
+_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif", ".bmp", ".avif"}
+
+
+def _is_image_upload(file_name: str, mime_type: str) -> bool:
+    if mime_type.startswith("image/"):
+        return True
+    ext = os.path.splitext(file_name)[1].lower()
+    return ext in _IMAGE_EXTENSIONS
 
 
 def _normalize_material_url(url: str, material_type: str) -> str:
@@ -268,19 +281,29 @@ async def upload_material(
     file_name = file.filename or "upload"
     mime_type = file.content_type or "application/octet-stream"
 
+    is_image = _is_image_upload(file_name, mime_type)
     if material_type == "image":
-        if not mime_type.startswith("image/"):
+        if not is_image:
             raise HTTPException(status_code=400, detail="File must be an image")
-    elif mime_type.startswith("image/"):
+    elif is_image:
         raise HTTPException(status_code=400, detail="Use image material type for photos")
 
-    parent_folder_id = None
+    parent_folder_id = settings.GOOGLE_DRIVE_FOLDER_ID
     subject = await db.get(Subject, subject_id)
     if subject:
-        parent_folder_id = await sync_subject_drive_folder(db, subject)
-        await db.flush()
+        try:
+            folder_id = await get_subject_upload_folder(db, subject)
+            if folder_id:
+                parent_folder_id = folder_id
+            await db.flush()
+        except Exception as exc:
+            logger.warning("Drive folder resolve failed for subject %s: %s", subject_id, exc)
+
+    if not parent_folder_id:
+        raise HTTPException(status_code=500, detail="Google Drive upload is not configured")
 
     # Upload to Google Drive
+    google_file_id: str | None = None
     try:
         google_file_id, download_url = await google_drive.upload_file(
             file_bytes=file_bytes,
@@ -289,7 +312,7 @@ async def upload_material(
             parent_folder_id=parent_folder_id,
         )
     except Exception as exc:
-        logger.error("Google Drive upload failed: %s", exc)
+        logger.error("Google Drive upload failed: %s", exc, exc_info=True)
         raise HTTPException(status_code=500, detail="File upload failed")
 
     material = Material(
@@ -304,8 +327,15 @@ async def upload_material(
         created_by=user.id,
     )
     db.add(material)
-    await db.commit()
-    await db.refresh(material)
+    try:
+        await db.commit()
+        await db.refresh(material)
+    except IntegrityError as exc:
+        await db.rollback()
+        if google_file_id:
+            await google_drive.delete_file(google_file_id)
+        logger.error("Material save failed: %s", exc)
+        raise HTTPException(status_code=400, detail="Could not save material. Try again or contact support.")
 
     logger.info("File material uploaded: id=%d file=%s by user=%d", material.id, file_name, user.id)
     return _material_to_out(material)

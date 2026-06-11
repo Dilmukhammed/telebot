@@ -192,6 +192,7 @@
     "continue": "Davom etish",
     "saving": "Saqlanmoqda...",
     "uploading": "Fayl yuklanmoqda...",
+    "processing": "Serverda saqlanmoqda...",
     "uploadComplete": "Fayl yuklandi",
     "uploadError": "Yuklash xatosi",
     "retry": "Qayta urinish",

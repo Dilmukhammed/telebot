@@ -36,6 +36,15 @@ async def get_active_teacher_names(db: AsyncSession, subject_id: int) -> list[st
     return [row[0].strip() for row in result.all() if row[0] and row[0].strip()]
 
 
+async def get_subject_upload_folder(db: AsyncSession, subject: Subject) -> Optional[str]:
+    """Resolve Drive folder for upload. Uses cache; creates only if missing (no rename per upload)."""
+    if not settings.GOOGLE_DRIVE_FOLDER_ID:
+        return None
+    if subject.google_drive_folder_id:
+        return subject.google_drive_folder_id
+    return await sync_subject_drive_folder(db, subject)
+
+
 async def sync_subject_drive_folder(db: AsyncSession, subject: Subject) -> Optional[str]:
     """Create or rename the course folder on Drive. Updates subject.google_drive_folder_id."""
     if not settings.GOOGLE_DRIVE_FOLDER_ID:

@@ -412,6 +412,8 @@ export default function MaterialForm({ subjectId, lessonId, onClose }: MaterialF
                       <span className={`material-symbols-outlined ${styles.uploadErrorIcon}`}>error</span>
                       {uploadError}
                     </>
+                  ) : uploadProgress >= 92 ? (
+                    t('materialForm.processing')
                   ) : (
                     type === 'image' ? t('materialForm.photoUploading') : t('materialForm.uploading')
                   )}

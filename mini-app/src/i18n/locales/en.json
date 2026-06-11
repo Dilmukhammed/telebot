@@ -192,6 +192,7 @@
     "continue": "Continue",
     "saving": "Saving...",
     "uploading": "Uploading file...",
+    "processing": "Saving on server...",
     "uploadComplete": "File uploaded",
     "uploadError": "Upload failed",
     "retry": "Retry",

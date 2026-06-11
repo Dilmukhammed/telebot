@@ -3,6 +3,21 @@ import type { TestOut, RegistrationOut, ResultOut, UserOut, OnboardingData, Dash
 
 const BASE_URL = import.meta.env.VITE_API_URL || ''
 const REQUEST_TIMEOUT_MS = 30_000
+const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000
+
+function parseApiErrorDetail(body: unknown, fallback: string): string {
+  if (!body || typeof body !== 'object') return fallback
+  const detail = (body as { detail?: unknown }).detail
+  if (!detail) return fallback
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((d) => (typeof d === 'object' && d && 'msg' in d ? String((d as { msg?: string }).msg || '') : ''))
+      .filter(Boolean)
+    return messages.join('; ') || fallback
+  }
+  return fallback
+}
 
 /** Normalize browser time input (HH:MM or HH:MM:SS) to HH:MM for API. */
 function normalizeTime(t: string): string {
@@ -608,15 +623,23 @@ export function uploadMaterialWithProgress(
     xhr.open('POST', url)
     Object.entries(headers).forEach(([key, value]) => xhr.setRequestHeader(key, value))
 
+    xhr.timeout = UPLOAD_TIMEOUT_MS
+
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable && onProgress) {
-        onProgress(Math.round((e.loaded / e.total) * 100))
+        // Cap at 90% while sending — 100% only after server finishes (Drive + DB).
+        onProgress(Math.min(90, Math.round((e.loaded / e.total) * 90)))
       }
+    })
+
+    xhr.upload.addEventListener('load', () => {
+      onProgress?.(92)
     })
 
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
+          onProgress?.(100)
           resolve(JSON.parse(xhr.responseText) as MaterialOut)
         } catch {
           reject(new Error('Invalid response'))
@@ -625,14 +648,14 @@ export function uploadMaterialWithProgress(
       }
       let message = `Error (${xhr.status})`
       try {
-        const body = JSON.parse(xhr.responseText)
-        if (body.detail) message = body.detail
+        message = parseApiErrorDetail(JSON.parse(xhr.responseText), message)
       } catch { /* ignore */ }
       reject(new Error(message))
     })
 
-    xhr.addEventListener('error', () => reject(new Error('Upload failed')))
+    xhr.addEventListener('error', () => reject(new Error('Upload failed — check connection and try again')))
     xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')))
+    xhr.addEventListener('timeout', () => reject(new Error('Upload timed out — file may be too large or server is slow')))
     xhr.send(formData)
   })
 }
