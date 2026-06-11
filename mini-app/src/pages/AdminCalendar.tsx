@@ -251,22 +251,32 @@ export default function AdminCalendar() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title={t('admin.courses.schedule')} onBack={() => navigate('/dashboard')} />
-
-      {/* Active User Header Dropdown Button */}
-      {hasUserSelected && (
-        <div className={styles.activeUserHeader} onClick={() => setIsBottomSheetOpen(true)}>
-          <div className={styles.activeUserLabel}>
-            <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--color-primary)' }}>
-              {filterMode === 'teacher' ? 'local_library' : 'person'}
-            </span>
-            <span className={styles.activeUserName}>{selectedUserName}</span>
-            <span className={styles.activeUserRole}>
-              ({filterMode === 'teacher' ? t('admin.calendar.filter_teacher', 'Репетитор') : t('admin.calendar.filter_student', 'Ученик')})
-            </span>
+      {!hasUserSelected ? (
+        <SiteHeader title={t('admin.courses.schedule')} onBack={() => navigate('/dashboard')} />
+      ) : (
+        <header className={styles.header}>
+          <div className={styles.headerInner}>
+            <div className={styles.headerLeftBack}>
+              <button className={styles.backButton} onClick={() => navigate('/dashboard')} aria-label={t('common.back', { defaultValue: 'Назад' })}>
+                <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>
+                  arrow_back
+                </span>
+              </button>
+              
+              {/* Clickable selector replaces the title */}
+              <div className={styles.activeUserHeaderClickable} onClick={() => setIsBottomSheetOpen(true)}>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-primary)' }}>
+                  {filterMode === 'teacher' ? 'local_library' : 'person'}
+                </span>
+                <span className={styles.activeUserName}>{selectedUserName}</span>
+                <span className={styles.activeUserRole}>
+                  ({filterMode === 'teacher' ? t('admin.calendar.filter_teacher', 'Репетитор') : t('admin.calendar.filter_student', 'Ученик')})
+                </span>
+                <span className={`material-symbols-outlined ${styles.activeUserChevron}`}>expand_more</span>
+              </div>
+            </div>
           </div>
-          <span className={`material-symbols-outlined ${styles.activeUserChevron}`}>unfold_more</span>
-        </div>
+        </header>
       )}
 
       {hasUserSelected && (
