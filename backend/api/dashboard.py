@@ -532,6 +532,7 @@ async def get_calendar(
     lesson_ids = [lesson.id for lesson, _ in all_lessons]
     attended_set: set[tuple[int, str]] = set()
     lesson_statuses: dict[tuple[int, str], str] = {}
+    rescheduled_map: dict[tuple[int, str], tuple[str, str | None]] = {}  # (lesson_id, orig_date) -> (override_date, override_time)
     if lesson_ids:
         # Use date objects for PostgreSQL DATE columns
         attendance_result = await db.execute(
@@ -549,7 +550,7 @@ async def get_calendar(
 
         # Batch-query lesson statuses
         status_result = await db.execute(
-            select(LessonStatus.lesson_id, LessonStatus.date, LessonStatus.status)
+            select(LessonStatus.lesson_id, LessonStatus.date, LessonStatus.status, LessonStatus.override_date, LessonStatus.override_time)
             .where(
                 and_(
                     LessonStatus.lesson_id.in_(lesson_ids),
@@ -559,8 +560,13 @@ async def get_calendar(
         )
         for row in status_result.all():
             lesson_statuses[(row[0], row[1].isoformat() if hasattr(row[1], 'isoformat') else str(row[1]))] = row[2]
+            # Track rescheduled lessons: original_date -> (override_date, override_time)
+            if row[2] == "rescheduled" and row[3]:
+                override_str = row[3].isoformat() if hasattr(row[3], 'isoformat') else str(row[3])
+                rescheduled_map[(row[0], row[1].isoformat() if hasattr(row[1], 'isoformat') else str(row[1]))] = (override_str, row[4])
 
     # Group lessons by day_of_week, filtering by start_date and marking status
+    # Handle rescheduled lessons: skip original date, show on override date
     lessons_by_day: dict[int, list] = {}
     for lesson, subject in all_lessons:
         day = lesson.day_of_week
@@ -571,12 +577,44 @@ async def get_calendar(
             # Skip if before course start_date
             if start and date < start:
                 continue
+
+            date_str = date.isoformat()
+            ls = lesson_statuses.get((lesson.id, date_str))
+
+            # If rescheduled to a different date in this week, skip original and add to override day
+            if ls == "rescheduled":
+                resched = rescheduled_map.get((lesson.id, date_str))
+                if resched:
+                    override_date_str, override_time = resched
+                    # Find the override day index in this week
+                    override_day = None
+                    for j, wd in enumerate(week_dates):
+                        if wd.isoformat() == override_date_str:
+                            override_day = j
+                            break
+                    if override_day is not None:
+                        # Show on override date instead
+                        duration = subject.duration_minutes or 90
+                        t_name = teachers_map.get(lesson.teacher_id, lesson.teacher_name) if lesson.teacher_id else lesson.teacher_name
+                        override_time_str = override_time or lesson.time
+                        if override_day not in lessons_by_day:
+                            lessons_by_day[override_day] = []
+                        lessons_by_day[override_day].append(CalendarLessonOut(
+                            id=lesson.id,
+                            subject_name=subject.name,
+                            teacher_name=t_name,
+                            day_of_week=override_day,
+                            time=override_time_str,
+                            end_time=_calculate_end_time(override_time_str, duration),
+                            room=lesson.room,
+                            status="rescheduled",
+                        ))
+                continue  # Skip original date
+
             if day not in lessons_by_day:
                 lessons_by_day[day] = []
 
             # Determine status: check stored status FIRST, then fall back to date-based logic
-            date_str = date.isoformat()
-            ls = lesson_statuses.get((lesson.id, date_str))
             if ls == "happened":
                 if effective_role in ("teacher", "admin"):
                     status = "completed"
