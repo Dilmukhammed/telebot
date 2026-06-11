@@ -21,3 +21,6 @@ _(пока пусто)_
 - Full-stack optimization (9 phases) — кэш, N+1, memo, avatar, utils
 - Announcements: загрузка фото/видео, отправка медиа в Telegram (админ + репетитор)
 - Admin calendar: фильтр по репетитору/ученику
+- Admin calendar: пустой по умолчанию, нужно выбрать репетитора/ученика
+- Admin calendar: открытые слоты (availability) при просмотре репетитора
+- Admin calendar: фильтр по start_date курса
