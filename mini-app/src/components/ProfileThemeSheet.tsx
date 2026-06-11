@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ProfileThemeOut } from '../shared/types'
 import {
@@ -14,46 +14,54 @@ interface ProfileThemeSheetProps {
   open: boolean
   initialTheme: ProfileThemeOut
   onChange: (theme: ProfileThemeOut) => void
-  onClose: () => void
+  onClose: (theme: ProfileThemeOut) => void
 }
 
 export default function ProfileThemeSheet({ open, initialTheme, onChange, onClose }: ProfileThemeSheetProps) {
   const { t } = useTranslation()
   const [draft, setDraft] = useState(() => normalizeProfileTheme(initialTheme))
-
-  useEffect(() => {
-    if (open) {
-      const next = normalizeProfileTheme(initialTheme)
-      setDraft(next)
-      onChange(next)
-    }
-  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps -- reset only when sheet opens
-
-  if (!open) return null
+  const draftRef = useRef(draft)
 
   const apply = (next: ProfileThemeOut) => {
+    draftRef.current = next
     setDraft(next)
     onChange(next)
   }
 
+  useEffect(() => {
+    if (open) {
+      const next = normalizeProfileTheme(initialTheme)
+      apply(next)
+    }
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps -- reset only when sheet opens
+
+  const requestClose = () => onClose(draftRef.current)
+
+  if (!open) return null
+
   const setCardTheme = (card_theme: ProfileCardThemeId) => {
-    apply({ ...draft, card_theme })
+    apply({ ...draftRef.current, card_theme })
   }
 
   const setStatusEmoji = (status_emoji: string | undefined) => {
+    const current = draftRef.current
     apply({
-      ...draft,
-      status_emoji: draft.status_emoji === status_emoji ? undefined : status_emoji,
+      ...current,
+      status_emoji: current.status_emoji === status_emoji ? undefined : status_emoji,
     })
   }
 
+  const setStatusText = (status_text: string) => {
+    apply({ ...draftRef.current, status_text: status_text || undefined })
+  }
+
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    <div className={styles.overlay} onClick={requestClose}>
       <div className={styles.sheet} onClick={(e) => e.stopPropagation()}>
         <div className={styles.handle} />
         <div className={styles.header}>
           <h3 className={styles.title}>{t('profile.customize')}</h3>
-          <button type="button" className={styles.closeBtn} onClick={onClose} aria-label={t('common.close', { defaultValue: 'Закрыть' })}>
+          <button type="button" className={styles.closeBtn} onClick={requestClose} aria-label={t('common.close', { defaultValue: 'Закрыть' })}>
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -103,9 +111,16 @@ export default function ProfileThemeSheet({ open, initialTheme, onChange, onClos
             type="text"
             className={styles.statusInput}
             value={draft.status_text || ''}
-            onChange={(e) => apply({ ...draft, status_text: e.target.value || undefined })}
+            onChange={(e) => setStatusText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                ;(e.target as HTMLInputElement).blur()
+              }
+            }}
             placeholder={t('profile.statusPlaceholder')}
             maxLength={60}
+            enterKeyHint="done"
           />
         </section>
       </div>
