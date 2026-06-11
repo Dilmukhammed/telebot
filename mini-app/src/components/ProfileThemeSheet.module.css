@@ -137,10 +137,3 @@
   outline: none;
   border-color: var(--color-primary);
 }
-
-.saving {
-  text-align: center;
-  font-size: var(--font-xs);
-  color: var(--color-on-surface-variant);
-  margin: 0;
-}

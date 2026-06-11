@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { updateName, updateProfileTheme } from '../api/client'
 import { useAvailability, useCreateAvailability, useDeleteAvailability } from '../api/hooks'
@@ -50,9 +50,7 @@ export default function Profile() {
   const [slotEnd, setSlotEnd] = useState('14:00')
   const [slotToDelete, setSlotToDelete] = useState<number | null>(null)
   const [showThemeSheet, setShowThemeSheet] = useState(false)
-  const [themeSaving, setThemeSaving] = useState(false)
-  const [localTheme, setLocalTheme] = useState<ProfileThemeOut | null>(null)
-  const themeSaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const [themePreview, setThemePreview] = useState<ProfileThemeOut | null>(null)
 
   const handleSelectLang = (code: string) => {
     setSelectedLang(code)
@@ -95,34 +93,26 @@ export default function Profile() {
     }
   }
 
-  const handleSaveTheme = useCallback((theme: ProfileThemeOut) => {
-    setLocalTheme(theme)
-    clearTimeout(themeSaveTimer.current)
-    themeSaveTimer.current = setTimeout(async () => {
-      setThemeSaving(true)
-      try {
-        await updateProfileTheme({
-          card_theme: theme.card_theme,
-          status_emoji: theme.status_emoji ?? null,
-          status_text: theme.status_text ?? null,
-        })
-        await refreshUser()
-      } catch (err) {
-        alert(err instanceof Error ? err.message : t('common.error'))
-        if (user) setLocalTheme(normalizeProfileTheme(user.profile_theme))
-      } finally {
-        setThemeSaving(false)
-      }
-    }, 350)
-  }, [refreshUser, t, user])
-
-  useEffect(() => {
-    return () => clearTimeout(themeSaveTimer.current)
+  const handleThemePreview = useCallback((theme: ProfileThemeOut) => {
+    setThemePreview(theme)
   }, [])
 
-  useEffect(() => {
-    if (user) setLocalTheme(normalizeProfileTheme(user.profile_theme))
-  }, [user?.id, user?.profile_theme?.card_theme, user?.profile_theme?.status_emoji, user?.profile_theme?.status_text])
+  const handleCloseThemeSheet = useCallback(async () => {
+    const toSave = themePreview ?? normalizeProfileTheme(user?.profile_theme)
+    setShowThemeSheet(false)
+    setThemePreview(null)
+    if (!user || !toSave) return
+    try {
+      await updateProfileTheme({
+        card_theme: toSave.card_theme,
+        status_emoji: toSave.status_emoji ?? null,
+        status_text: toSave.status_text ?? null,
+      })
+      await refreshUser()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : t('common.error'))
+    }
+  }, [refreshUser, t, themePreview, user])
 
   const handleDeleteSlot = async () => {
     if (slotToDelete === null) return
@@ -151,7 +141,7 @@ export default function Profile() {
 
   const displayName = user.first_name || (user.username ? `@${user.username}` : t('profile.user'))
   const roleLabel = user.role === 'admin' ? t('profile.admin') : user.role === 'teacher' ? t('profile.teacher') : t('profile.student')
-  const profileTheme = localTheme ?? normalizeProfileTheme(user.profile_theme)
+  const profileTheme = themePreview ?? normalizeProfileTheme(user.profile_theme)
   const cardStyle = getProfileCardStyle(profileTheme)
 
   return (
@@ -165,7 +155,10 @@ export default function Profile() {
             <button
               type="button"
               className={styles.customizeBtn}
-              onClick={() => setShowThemeSheet(true)}
+              onClick={() => {
+                setThemePreview(normalizeProfileTheme(user.profile_theme))
+                setShowThemeSheet(true)
+              }}
               aria-label={t('profile.customize')}
             >
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>palette</span>
@@ -308,10 +301,9 @@ export default function Profile() {
 
       <ProfileThemeSheet
         open={showThemeSheet}
-        theme={profileTheme}
-        saving={themeSaving}
-        onClose={() => setShowThemeSheet(false)}
-        onSave={handleSaveTheme}
+        initialTheme={normalizeProfileTheme(user.profile_theme)}
+        onChange={handleThemePreview}
+        onClose={handleCloseThemeSheet}
       />
 
       {/* Language Modal */}
