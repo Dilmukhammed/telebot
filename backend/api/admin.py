@@ -529,12 +529,26 @@ async def reschedule_lesson(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format")
 
-    # Check if already happened
+    # Find existing status for this lesson — either on the displayed date or
+    # the original date (if already rescheduled, status is stored on the original date)
     existing = (await db.execute(
         select(LessonStatus).where(
             and_(LessonStatus.lesson_id == lesson_id, LessonStatus.date == original_date)
         )
     )).scalar_one_or_none()
+
+    # If not found on displayed date, check if the lesson was previously rescheduled
+    # (status is stored on the original day_of_week date)
+    if not existing:
+        existing = (await db.execute(
+            select(LessonStatus).where(
+                and_(
+                    LessonStatus.lesson_id == lesson_id,
+                    LessonStatus.status == "rescheduled",
+                    LessonStatus.override_date == original_date,
+                )
+            )
+        )).scalar_one_or_none()
 
     if existing and existing.status == "happened":
         raise HTTPException(status_code=400, detail="Cannot reschedule a completed lesson")
@@ -584,6 +598,15 @@ async def reschedule_lesson(
             marked_by=admin.id if hasattr(admin, 'id') else None,
         )
         db.add(ls)
+
+    # Clean up orphaned status at target date (e.g. previously rescheduled FROM that date)
+    target_existing = (await db.execute(
+        select(LessonStatus).where(
+            and_(LessonStatus.lesson_id == lesson_id, LessonStatus.date == new_date)
+        )
+    )).scalar_one_or_none()
+    if target_existing and target_existing.status == "rescheduled":
+        await db.delete(target_existing)
 
     admin_id = admin.id if hasattr(admin, 'id') else None
     await _log_audit(db, "lesson", lesson_id, "reschedule", "lesson_status", None, f"to {data.new_date}", admin_id)
