@@ -611,6 +611,55 @@ async def reschedule_lesson(
     admin_id = admin.id if hasattr(admin, 'id') else None
     await _log_audit(db, "lesson", lesson_id, "reschedule", "lesson_status", None, f"to {data.new_date}", admin_id)
     await db.commit()
+
+    # ── Notifications ──
+    from utils.constants import DAY_NAMES_RU
+    from bot.bot import bot
+
+    subject = (await db.execute(select(Subject).where(Subject.id == lesson.subject_id))).scalar_one_or_none()
+    subject_name = subject.name if subject else "занятие"
+    orig_day = DAY_NAMES_RU[original_date.weekday()]
+    new_day = DAY_NAMES_RU[new_date.weekday()]
+    new_time_str = data.new_time or lesson.time
+    msg_text = (
+        f"📅 <b>Перенос занятия</b>\n\n"
+        f"Предмет: <b>{subject_name}</b>\n"
+        f"Было: <b>{original_date.strftime('%d.%m.%Y')}</b> ({orig_day}) в <b>{lesson.time}</b>\n"
+        f"Стало: <b>{new_date.strftime('%d.%m.%Y')}</b> ({new_day}) в <b>{new_time_str}</b>"
+    )
+
+    # Telegram to teacher
+    if lesson.teacher_id:
+        teacher = (await db.execute(select(User).where(User.id == lesson.teacher_id))).scalar_one_or_none()
+        if teacher and teacher.telegram_id:
+            try:
+                await bot.send_message(chat_id=teacher.telegram_id, text=msg_text + "\n\nАдмин перенёс занятие. Проверьте расписание.", parse_mode="HTML")
+            except Exception as e:
+                logger.warning("Failed to send reschedule notification to teacher %s: %s", lesson.teacher_id, e)
+
+    # Announcement + Telegram to enrolled students
+    enrolled = (await db.execute(select(LessonEnrollment.user_id).where(LessonEnrollment.lesson_id == lesson_id))).scalars().all()
+    if enrolled:
+        notification = Notification(
+            sender_id=admin_id,
+            title=f"Перенос: {subject_name}",
+            message=msg_text,
+            target_type="course",
+        )
+        db.add(notification)
+        await db.flush()
+        for uid in enrolled:
+            db.add(NotificationRecipient(notification_id=notification.id, user_id=uid))
+        await db.commit()
+
+        for uid in enrolled:
+            student = (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
+            if student and student.telegram_id:
+                try:
+                    await bot.send_message(chat_id=student.telegram_id, text=msg_text, parse_mode="HTML")
+                except Exception as e:
+                    logger.warning("Failed to send reschedule notification to student %s: %s", uid, e)
+
     return {"ok": True, "original_date": original_date.strftime("%Y-%m-%d"), "new_date": data.new_date}
 
 

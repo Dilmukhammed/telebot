@@ -7,7 +7,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from sqlalchemy import select, and_
 
 from database import get_dbCtx
-from models import AvailabilityRequest, TeacherAvailability, User, Lesson, Subject, LessonStatus
+from models import AvailabilityRequest, TeacherAvailability, User, Lesson, Subject, LessonStatus, LessonEnrollment, Notification, NotificationRecipient
 from utils.time import _get_tashkent_now
 
 logger = logging.getLogger(__name__)
@@ -91,7 +91,7 @@ async def handle_avail_approve(callback: CallbackQuery):
             req.resolved_at = _get_tashkent_now()
             await db.commit()
 
-            # Get subject name for confirmation
+            # Get subject and lesson for notifications
             lesson = (await db.execute(
                 select(Lesson).where(Lesson.id == req.lesson_id)
             )).scalar_one_or_none()
@@ -101,6 +101,44 @@ async def handle_avail_approve(callback: CallbackQuery):
                     select(Subject).where(Subject.id == lesson.subject_id)
                 )).scalar_one_or_none()
                 subject_name = subject.name if subject else ""
+
+            # Build notification message
+            from utils.constants import DAY_NAMES_RU
+            orig_day = DAY_NAMES_RU[original_date.weekday()]
+            new_day = DAY_NAMES_RU[req.date.weekday()]
+            msg_text = (
+                f"📅 <b>Перенос занятия</b>\n\n"
+                f"Предмет: <b>{subject_name}</b>\n"
+                f"Было: <b>{original_date.strftime('%d.%m.%Y')}</b> ({orig_day}) в <b>{lesson.time if lesson else ''}</b>\n"
+                f"Стало: <b>{req.date.strftime('%d.%m.%Y')}</b> ({new_day}) в <b>{req.start_time}</b>"
+            )
+
+            # Create announcement for enrolled students
+            if lesson:
+                enrolled = (await db.execute(
+                    select(LessonEnrollment.user_id).where(LessonEnrollment.lesson_id == req.lesson_id)
+                )).scalars().all()
+                if enrolled:
+                    notification = Notification(
+                        sender_id=None,
+                        title=f"Перенос: {subject_name}",
+                        message=msg_text,
+                        target_type="course",
+                    )
+                    db.add(notification)
+                    await db.flush()
+                    for uid in enrolled:
+                        db.add(NotificationRecipient(notification_id=notification.id, user_id=uid))
+                    await db.commit()
+
+                    # Telegram to enrolled students
+                    for uid in enrolled:
+                        student = (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
+                        if student and student.telegram_id:
+                            try:
+                                await callback.bot.send_message(chat_id=student.telegram_id, text=msg_text, parse_mode="HTML")
+                            except Exception as e:
+                                logger.warning("Failed to send reschedule notification to student %s: %s", uid, e)
 
         # Update message after context manager closes (session committed)
         await callback.message.edit_text(

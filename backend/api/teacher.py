@@ -1552,6 +1552,38 @@ async def approve_availability_request(
     req.resolved_at = _get_tashkent_now()
     await db.commit()
 
+    # Notify enrolled students
+    from bot.bot import bot
+    from utils.constants import DAY_NAMES_RU
+    lesson_obj = (await db.execute(select(Lesson).where(Lesson.id == req.lesson_id))).scalar_one_or_none()
+    subject = (await db.execute(select(Subject).where(Subject.id == lesson_obj.subject_id))).scalar_one_or_none() if lesson_obj else None
+    subject_name = subject.name if subject else "занятие"
+    orig_day = DAY_NAMES_RU[original_date.weekday()]
+    new_day = DAY_NAMES_RU[req.date.weekday()]
+    msg_text = (
+        f"📅 <b>Перенос занятия</b>\n\n"
+        f"Предмет: <b>{subject_name}</b>\n"
+        f"Было: <b>{original_date.strftime('%d.%m.%Y')}</b> ({orig_day}) в <b>{lesson_obj.time if lesson_obj else ''}</b>\n"
+        f"Стало: <b>{req.date.strftime('%d.%m.%Y')}</b> ({new_day}) в <b>{req.start_time}</b>"
+    )
+
+    enrolled = (await db.execute(select(LessonEnrollment.user_id).where(LessonEnrollment.lesson_id == req.lesson_id))).scalars().all()
+    if enrolled:
+        notification = Notification(sender_id=user.id, title=f"Перенос: {subject_name}", message=msg_text, target_type="course")
+        db.add(notification)
+        await db.flush()
+        for uid in enrolled:
+            db.add(NotificationRecipient(notification_id=notification.id, user_id=uid))
+        await db.commit()
+
+        for uid in enrolled:
+            student = (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
+            if student and student.telegram_id:
+                try:
+                    await bot.send_message(chat_id=student.telegram_id, text=msg_text, parse_mode="HTML")
+                except Exception as e:
+                    logger.warning("Failed to send reschedule notification to student %s: %s", uid, e)
+
     return {"ok": True, "message": "Слот открыт и урок перенесён"}
 
 
