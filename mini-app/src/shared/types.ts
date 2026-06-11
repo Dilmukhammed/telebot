@@ -520,6 +520,7 @@ export interface AdminSubjectOut {
   student_count: number;
   teacher_names: string[];
   is_archived: boolean;
+  is_deleted: boolean;
   invite_code?: string | null;
 }
 

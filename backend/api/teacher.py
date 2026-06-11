@@ -310,6 +310,7 @@ async def get_teacher_student_detail(
                 and_(
                     LessonEnrollment.user_id == student_id,
                     Lesson.id.in_(lesson_ids),
+                    Subject.is_deleted == False,
                 )
             )
             .group_by(Subject.id)
@@ -607,6 +608,7 @@ async def get_teacher_courses(
             and_(
                 Lesson.teacher_id == user.id,
                 Lesson.is_active == True,
+                Subject.is_deleted == False,
             )
         )
         .group_by(Subject.id)

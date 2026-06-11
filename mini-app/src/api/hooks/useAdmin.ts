@@ -14,6 +14,7 @@ import {
   createAdminAnnouncement,
   archiveAdminSubject,
   unarchiveAdminSubject,
+  deleteAdminSubject,
   createAdminSubject,
   updateSubject,
   adminCreateLesson,
@@ -182,6 +183,14 @@ export function useUnarchiveSubject() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => unarchiveAdminSubject(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-subjects'] }),
+  })
+}
+
+export function useDeleteAdminSubject() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => deleteAdminSubject(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-subjects'] }),
   })
 }

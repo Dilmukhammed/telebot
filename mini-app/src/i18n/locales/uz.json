@@ -324,6 +324,9 @@
     "subtitle": "O'qituvchidan 6 xonali kodni oling va uni pastga kiriting",
     "errorLength": "Kod 6 ta belgidan iborat bo'lishi kerak",
     "successMessage": "Ariza muvaffaqiyatli yuborildi!",
+    "successTitle": "Ariza yuborildi",
+    "successSubtitle": "O'qituvchi xabardor qilinadi va arizangizni ko'rib chiqadi",
+    "successHint": "Tasdiqlangandan so'ng kurs ro'yxatingizda paydo bo'ladi. Hozir bu kurs uchun yana ariza yuborib bo'lmaydi.",
     "errorMessage": "Ariza yuborishda xatolik yuz berdi",
     "submitBtn": "Ariza yuborish",
     "viewCourses": "Mavjud kurslarni ko'rish"

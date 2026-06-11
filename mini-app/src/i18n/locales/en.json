@@ -324,6 +324,9 @@
     "subtitle": "Get a 6-digit code from your teacher and enter it below",
     "errorLength": "Code must contain 6 characters",
     "successMessage": "Application submitted successfully!",
+    "successTitle": "Application sent",
+    "successSubtitle": "Your teacher will be notified and review your request",
+    "successHint": "Once approved, the course will appear in your list. You cannot submit another request for this course right now.",
     "errorMessage": "Error sending application",
     "submitBtn": "Submit Application",
     "viewCourses": "View Available Courses"

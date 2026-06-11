@@ -1,3 +1,6 @@
+import logging
+from html import escape
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
@@ -9,6 +12,7 @@ from schemas import CourseOut, CourseDetailOut, CourseLessonOut, LessonDetailOut
 from api.deps import get_telegram_user
 
 router = APIRouter(prefix="/courses", tags=["courses"])
+logger = logging.getLogger(__name__)
 
 DAY_NAMES_RU = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
 DAY_NAMES_SHORT_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
@@ -50,7 +54,7 @@ async def list_courses(
             select(Subject)
             .join(Lesson, Lesson.subject_id == Subject.id)
             .join(LessonEnrollment, LessonEnrollment.lesson_id == Lesson.id)
-            .where(Lesson.is_active == True, LessonEnrollment.user_id == user.id, Subject.is_archived == False)
+            .where(Lesson.is_active == True, LessonEnrollment.user_id == user.id, Subject.is_archived == False, Subject.is_deleted == False)
             .distinct()
             .order_by(Subject.name)
         )
@@ -59,7 +63,7 @@ async def list_courses(
         result = await db.execute(
             select(Subject)
             .join(Lesson, Lesson.subject_id == Subject.id)
-            .where(Lesson.is_active == True, Subject.is_archived == False)
+            .where(Lesson.is_active == True, Subject.is_archived == False, Subject.is_deleted == False)
             .distinct()
             .order_by(Subject.name)
         )
@@ -110,7 +114,7 @@ async def get_lesson_detail(
         raise HTTPException(status_code=404, detail="Lesson not found")
 
     # Get subject
-    subject_result = await db.execute(select(Subject).where(Subject.id == lesson.subject_id))
+    subject_result = await db.execute(select(Subject).where(Subject.id == lesson.subject_id, Subject.is_deleted == False))
     subject = subject_result.scalar_one_or_none()
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
@@ -249,7 +253,7 @@ async def get_course_detail(
 ):
     """Get course detail with lessons grouped by status."""
     # Get subject
-    result = await db.execute(select(Subject).where(Subject.id == course_id))
+    result = await db.execute(select(Subject).where(Subject.id == course_id, Subject.is_deleted == False))
     subject = result.scalar_one_or_none()
     if not subject:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -332,7 +336,7 @@ async def join_course(
 
     # Find subject by invite code
     result = await db.execute(
-        select(Subject).where(Subject.invite_code == data.invite_code.upper())
+        select(Subject).where(Subject.invite_code == data.invite_code.upper(), Subject.is_deleted == False)
     )
     subject = result.scalar_one_or_none()
     if not subject:
@@ -380,4 +384,62 @@ async def join_course(
     db.add(enrollment_request)
     await db.commit()
 
+    await _notify_teachers_enrollment_request(db, subject, user)
+
     return {"message": "Request sent successfully", "subject_name": subject.name}
+
+
+async def _notify_teachers_enrollment_request(db: AsyncSession, subject: Subject, student: User) -> None:
+    """Send Telegram chat notification to teachers of the course."""
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+    from bot.bot import bot
+    from config import settings
+
+    teachers_result = await db.execute(
+        select(User.telegram_id)
+        .join(Lesson, Lesson.teacher_id == User.id)
+        .where(
+            and_(
+                Lesson.subject_id == subject.id,
+                Lesson.is_active == True,
+                Lesson.teacher_id.isnot(None),
+                User.telegram_id.isnot(None),
+            )
+        )
+        .distinct()
+    )
+    telegram_ids = [row[0] for row in teachers_result.all()]
+    if not telegram_ids:
+        return
+
+    student_name = escape(student.first_name or (f"@{student.username}" if student.username else "Ученик"))
+    student_line = student_name
+    if student.username:
+        student_line += f" (@{escape(student.username)})"
+    if student.grade:
+        student_line += f", {escape(student.grade)} класс"
+
+    text = (
+        "📝 <b>Новая заявка на курс</b>\n\n"
+        f"Курс: <b>{escape(subject.name)}</b>\n"
+        f"Ученик: {student_line}\n\n"
+        "Откройте приложение, чтобы одобрить или отклонить заявку."
+    )
+
+    reply_markup = None
+    if settings.WEBAPP_URL:
+        webapp_url = settings.WEBAPP_URL.strip().rstrip("/") + "/dashboard"
+        reply_markup = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="Открыть приложение", web_app=WebAppInfo(url=webapp_url))]]
+        )
+
+    for tg_id in telegram_ids:
+        try:
+            await bot.send_message(
+                chat_id=tg_id,
+                text=text,
+                parse_mode="HTML",
+                reply_markup=reply_markup,
+            )
+        except Exception as e:
+            logger.warning("Failed to notify teacher %s about enrollment request: %s", tg_id, e)

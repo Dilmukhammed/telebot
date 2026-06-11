@@ -752,6 +752,41 @@
   cursor: not-allowed;
 }
 
+.iconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.iconBtn:hover {
+  background: rgba(186, 26, 26, 0.08);
+}
+
+.deleteBtn {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: #ba1a1a;
+  color: #fff;
+  font-weight: 600;
+  font-size: var(--font-sm);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.deleteBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

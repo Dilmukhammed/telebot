@@ -417,6 +417,10 @@ export function unarchiveAdminSubject(id: number): Promise<{ ok: boolean }> {
   return api<{ ok: boolean }>(`/api/admin/subjects/${id}/unarchive`, { method: 'PATCH' })
 }
 
+export function deleteAdminSubject(id: number): Promise<{ message: string }> {
+  return api<{ message: string }>(`/api/admin/subjects/${id}`, { method: 'DELETE' })
+}
+
 export function createAdminSubject(data: AdminSubjectCreate): Promise<AdminSubjectDetailOut> {
   return api<AdminSubjectDetailOut>('/api/admin/subjects', {
     method: 'POST',

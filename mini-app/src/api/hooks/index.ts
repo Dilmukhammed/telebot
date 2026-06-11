@@ -58,6 +58,7 @@ export {
   useAdminSubjectDetail,
   useArchiveSubject,
   useUnarchiveSubject,
+  useDeleteAdminSubject,
   useCreateAdminSubject,
   useUpdateSubject,
   useAdminCreateLesson,

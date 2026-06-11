@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAdminSubjects } from '../api/hooks'
+import { useAdminSubjects, useDeleteAdminSubject } from '../api/hooks'
 import {
   adminSearchCourses,
   createAdminSubject,
@@ -658,6 +658,8 @@ function ArchiveCourses({ navigate }: { navigate: (p: string) => void }) {
   const { data: rawCourses = [], isLoading } = useAdminSubjects(true)
   const courses = useMemo(() => [...rawCourses].sort((a, b) => a.name.localeCompare(b.name, 'ru')), [rawCourses])
   const loading = isLoading
+  const deleteSubject = useDeleteAdminSubject()
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
 
   if (loading) return <div className={styles.loading}>{t('admin.courses.loading_archive')}</div>
 
@@ -671,42 +673,84 @@ function ArchiveCourses({ navigate }: { navigate: (p: string) => void }) {
   }
 
   return (
-    <div className={styles.list}>
-      {courses.map(c => (
-        <div
-          key={c.id}
-          className={styles.courseCard}
-          onClick={() => navigate(`/admin/courses/${c.id}`)}
-          style={{ cursor: 'pointer', opacity: 0.7 }}
-        >
-          <div className={styles.cardHeader}>
-            <div className={styles.cardInfo}>
-              <span className={styles.badge} style={{ background: 'var(--color-outline)', color: 'var(--color-on-surface)' }}>
-                {t('admin.courses.archive')}
-              </span>
-              <h2 className={styles.courseTitle}>{c.name}</h2>
+    <>
+      <div className={styles.list}>
+        {courses.map(c => (
+          <div
+            key={c.id}
+            className={styles.courseCard}
+            style={{ cursor: 'pointer', opacity: 0.7 }}
+          >
+            <div
+              className={styles.cardHeader}
+              onClick={() => navigate(`/admin/courses/${c.id}`)}
+            >
+              <div className={styles.cardInfo}>
+                <span className={styles.badge} style={{ background: 'var(--color-outline)', color: 'var(--color-on-surface)' }}>
+                  {t('admin.courses.archive')}
+                </span>
+                <h2 className={styles.courseTitle}>{c.name}</h2>
+              </div>
+              <div className={styles.cardRight}>
+                <span className={`material-symbols-outlined ${styles.courseChevron}`}>
+                  chevron_right
+                </span>
+              </div>
             </div>
-            <div className={styles.cardRight}>
-              <span className={`material-symbols-outlined ${styles.courseChevron}`}>
-                chevron_right
+            <div className={styles.teacherRow}>
+              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-outline)' }}>
+                person
               </span>
+              <span className={styles.teacherName}>
+                {c.teacher_names.join(', ') || t('admin.courses.no_teacher')}
+              </span>
+              <span className={styles.metaDivider}>·</span>
+              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-outline)' }}>
+                groups
+              </span>
+              <span className={styles.teacherName}>{t('admin.courses.students_short', { count: c.student_count })}</span>
+              <button
+                className={styles.iconBtn}
+                title="Удалить курс"
+                onClick={(e) => { e.stopPropagation(); setConfirmDelete(c.id) }}
+                style={{ marginLeft: 'auto', color: '#ba1a1a' }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>delete</span>
+              </button>
             </div>
           </div>
-          <div className={styles.teacherRow}>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-outline)' }}>
-              person
-            </span>
-            <span className={styles.teacherName}>
-              {c.teacher_names.join(', ') || t('admin.courses.no_teacher')}
-            </span>
-            <span className={styles.metaDivider}>·</span>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-outline)' }}>
-              groups
-            </span>
-            <span className={styles.teacherName}>{t('admin.courses.students_short', { count: c.student_count })}</span>
+        ))}
+      </div>
+
+      {/* Delete confirmation modal */}
+      {confirmDelete !== null && (
+        <div className={styles.modalOverlay} onClick={() => setConfirmDelete(null)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>Удалить курс?</h3>
+            </div>
+            <div className={styles.modalBody}>
+              <p style={{ fontSize: '14px', color: 'var(--color-on-surface-variant)', lineHeight: 1.6 }}>
+                Курс будет скрыт из всех списков и интерфейсов. Данные (уроки, посещаемость, результаты) сохранятся в базе для истории, но станут недоступны.
+                <br /><br />
+                <strong>Это действие нельзя отменить.</strong>
+              </p>
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.cancelBtn} onClick={() => setConfirmDelete(null)}>Отмена</button>
+              <button
+                className={styles.deleteBtn}
+                onClick={async () => {
+                  await deleteSubject.mutateAsync(confirmDelete)
+                  setConfirmDelete(null)
+                }}
+              >
+                {deleteSubject.isPending ? 'Удаление...' : 'Удалить'}
+              </button>
+            </div>
           </div>
         </div>
-      ))}
-    </div>
+      )}
+    </>
   )
 }

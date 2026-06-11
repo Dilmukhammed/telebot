@@ -104,7 +104,7 @@ async def create_test(
     """
     # Find or create subject
     subject_result = await db.execute(
-        select(Subject).where(Subject.name == test_data.subject_name)
+        select(Subject).where(Subject.name == test_data.subject_name, Subject.is_deleted == False)
     )
     subject = subject_result.scalar_one_or_none()
     
@@ -164,7 +164,7 @@ async def update_test(
         subject_name = update_dict.pop("subject_name")
         # Find or create subject
         subject_result = await db.execute(
-            select(Subject).where(Subject.name == subject_name)
+            select(Subject).where(Subject.name == subject_name, Subject.is_deleted == False)
         )
         subject = subject_result.scalar_one_or_none()
         if not subject:
@@ -248,7 +248,7 @@ async def update_subject(
     admin=Depends(get_current_admin),
 ):
     """Update a subject/course (admin only). Only provided fields are updated."""
-    result = await db.execute(select(Subject).where(Subject.id == subject_id))
+    result = await db.execute(select(Subject).where(Subject.id == subject_id, Subject.is_deleted == False))
     subject = result.scalar_one_or_none()
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")

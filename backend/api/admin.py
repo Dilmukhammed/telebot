@@ -511,7 +511,7 @@ async def create_announcement(
         # Build summary
         course_names = []
         for cid in data.course_ids:
-            subj = (await db.execute(select(Subject).where(Subject.id == cid))).scalar_one_or_none()
+            subj = (await db.execute(select(Subject).where(Subject.id == cid, Subject.is_deleted == False))).scalar_one_or_none()
             if subj:
                 course_names.append(subj.name)
         target_summary = f"Курс: {', '.join(course_names)}" if course_names else "Курс"
@@ -645,7 +645,7 @@ async def get_announcements(
     subjects_map: dict[int, str] = {}
     teachers_map: dict[int, str] = {}
     if subject_ids:
-        subj_result = await db.execute(select(Subject.id, Subject.name).where(Subject.id.in_(subject_ids)))
+        subj_result = await db.execute(select(Subject.id, Subject.name).where(Subject.id.in_(subject_ids), Subject.is_deleted == False))
         subjects_map = dict(subj_result.all())
     if teacher_ids:
         teacher_result = await db.execute(select(User.id, User.first_name).where(User.id.in_(teacher_ids)))
@@ -709,7 +709,7 @@ async def get_announcement_detail(
     # Build detailed target_summary
     target_summary = TARGET_SUMMARY.get(n.target_type, n.target_type)
     if n.target_type == "course" and n.target_id:
-        subj = (await db.execute(select(Subject).where(Subject.id == n.target_id))).scalar_one_or_none()
+        subj = (await db.execute(select(Subject).where(Subject.id == n.target_id, Subject.is_deleted == False))).scalar_one_or_none()
         if subj:
             target_summary = f"Курс: {subj.name}"
     elif n.target_type == "teacher_courses" and n.target_id:
@@ -822,7 +822,7 @@ async def create_admin_subject(
 ):
     """Create a course with lessons, teacher, and enrolled students."""
     # Check name uniqueness
-    existing = await db.execute(select(Subject).where(Subject.name == data.name))
+    existing = await db.execute(select(Subject).where(Subject.name == data.name, Subject.is_deleted == False))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Course name already exists")
 
@@ -840,7 +840,7 @@ async def create_admin_subject(
     invite_code = None
     for _ in range(10):  # Try 10 times max
         code = ''.join(secrets.choice(alphabet) for _ in range(6))
-        exists = await db.execute(select(Subject).where(Subject.invite_code == code))
+        exists = await db.execute(select(Subject).where(Subject.invite_code == code, Subject.is_deleted == False))
         if not exists.scalar_one_or_none():
             invite_code = code
             break
@@ -963,7 +963,7 @@ async def get_admin_subject_detail(
     db: AsyncSession = Depends(get_db),
 ):
     subject = (await db.execute(
-        select(Subject).where(Subject.id == subject_id)
+        select(Subject).where(Subject.id == subject_id, Subject.is_deleted == False)
     )).scalar_one_or_none()
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
@@ -1068,7 +1068,7 @@ async def update_admin_subject(
     db: AsyncSession = Depends(get_db),
 ):
     """Update subject details (name, description, duration_weeks, etc.)."""
-    result = await db.execute(select(Subject).where(Subject.id == subject_id))
+    result = await db.execute(select(Subject).where(Subject.id == subject_id, Subject.is_deleted == False))
     subject = result.scalar_one_or_none()
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
@@ -1458,7 +1458,7 @@ async def admin_create_lesson(
     db: AsyncSession = Depends(get_db),
 ):
     """Admin: create a new lesson slot for a subject."""
-    subject = (await db.execute(select(Subject).where(Subject.id == subject_id))).scalar_one_or_none()
+    subject = (await db.execute(select(Subject).where(Subject.id == subject_id, Subject.is_deleted == False))).scalar_one_or_none()
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
 
@@ -1519,7 +1519,7 @@ async def admin_update_lesson_schedule(
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
 
-    subject = (await db.execute(select(Subject).where(Subject.id == lesson.subject_id))).scalar_one_or_none()
+    subject = (await db.execute(select(Subject).where(Subject.id == lesson.subject_id, Subject.is_deleted == False))).scalar_one_or_none()
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
 
