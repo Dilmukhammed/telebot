@@ -566,6 +566,7 @@ async def create_availability_request(
 
     # Check for existing pending request
     req_date = datetime.strptime(data.date, "%Y-%m-%d").date()
+    orig_date = datetime.strptime(data.original_date, "%Y-%m-%d").date()
     existing = (await db.execute(
         select(AvailabilityRequest).where(
             and_(
@@ -584,6 +585,7 @@ async def create_availability_request(
         lesson_id=data.lesson_id,
         teacher_id=lesson.teacher_id,
         requested_by=admin_id,
+        original_date=orig_date,
         date=req_date,
         start_time=data.start_time,
         end_time=data.end_time,
@@ -641,6 +643,7 @@ async def create_availability_request(
         id=req.id,
         lesson_id=req.lesson_id,
         teacher_id=req.teacher_id,
+        original_date=req.original_date.strftime("%Y-%m-%d"),
         date=req.date.strftime("%Y-%m-%d"),
         start_time=req.start_time,
         end_time=req.end_time,
@@ -674,6 +677,7 @@ async def list_availability_requests(
             id=req.id,
             lesson_id=req.lesson_id,
             teacher_id=req.teacher_id,
+            original_date=req.original_date.strftime("%Y-%m-%d") if req.original_date else req.date.strftime("%Y-%m-%d"),
             date=req.date.strftime("%Y-%m-%d"),
             start_time=req.start_time,
             end_time=req.end_time,

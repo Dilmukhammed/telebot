@@ -416,7 +416,8 @@ class TeacherAvailabilityOut(BaseModel):
 
 class AvailabilityRequestIn(BaseModel):
     lesson_id: int
-    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    original_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")  # date of the lesson being rescheduled
+    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")  # new target date
     start_time: str = Field(pattern=r"^\d{2}:\d{2}$")
     end_time: str = Field(pattern=r"^\d{2}:\d{2}$")
 
@@ -425,6 +426,7 @@ class AvailabilityRequestOut(BaseModel):
     id: int
     lesson_id: int
     teacher_id: int
+    original_date: str
     date: str
     start_time: str
     end_time: str

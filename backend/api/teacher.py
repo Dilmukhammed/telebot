@@ -1480,6 +1480,7 @@ async def list_my_availability_requests(
             id=req.id,
             lesson_id=req.lesson_id,
             teacher_id=req.teacher_id,
+            original_date=req.original_date.strftime("%Y-%m-%d") if req.original_date else req.date.strftime("%Y-%m-%d"),
             date=req.date.strftime("%Y-%m-%d"),
             start_time=req.start_time,
             end_time=req.end_time,
@@ -1520,11 +1521,38 @@ async def approve_availability_request(
     )
     db.add(new_slot)
 
+    # Reschedule the lesson: mark original date as rescheduled → new date
+    original_date = req.original_date
+    existing_status = (await db.execute(
+        select(LessonStatus).where(
+            and_(LessonStatus.lesson_id == req.lesson_id, LessonStatus.date == original_date)
+        )
+    )).scalar_one_or_none()
+
+    if existing_status:
+        existing_status.status = "rescheduled"
+        existing_status.override_date = req.date
+        existing_status.override_time = req.start_time
+        existing_status.note = f"Перенесено на {req.date.strftime('%d.%m.%Y')}"
+        existing_status.marked_by = user.id
+        existing_status.marked_at = _get_tashkent_now()
+    else:
+        ls = LessonStatus(
+            lesson_id=req.lesson_id,
+            date=original_date,
+            status="rescheduled",
+            override_date=req.date,
+            override_time=req.start_time,
+            note=f"Перенесено на {req.date.strftime('%d.%m.%Y')}",
+            marked_by=user.id,
+        )
+        db.add(ls)
+
     req.status = "approved"
     req.resolved_at = _get_tashkent_now()
     await db.commit()
 
-    return {"ok": True, "message": "Слот открыт"}
+    return {"ok": True, "message": "Слот открыт и урок перенесён"}
 
 
 @router.post("/availability-requests/{request_id}/reject")

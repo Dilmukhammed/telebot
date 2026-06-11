@@ -261,6 +261,7 @@ export default function AdminCalendar() {
     try {
       await createAvailabilityRequest({
         lesson_id: selectedLesson.id,
+        original_date: selectedLesson.date,
         date: newDate,
         start_time: newTime || selectedLesson.time,
         end_time: selectedLesson.end_time,

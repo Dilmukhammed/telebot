@@ -7,7 +7,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from sqlalchemy import select, and_
 
 from database import get_dbCtx
-from models import AvailabilityRequest, TeacherAvailability, User, Lesson, Subject
+from models import AvailabilityRequest, TeacherAvailability, User, Lesson, Subject, LessonStatus
 from utils.time import _get_tashkent_now
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ router = Router()
 
 @router.callback_query(F.data.startswith("avail_approve:"))
 async def handle_avail_approve(callback: CallbackQuery):
-    """Teacher approves availability request via Telegram."""
+    """Teacher approves availability request via Telegram — creates slot and reschedules lesson."""
     try:
         request_id = int(callback.data.split(":")[1])
     except (IndexError, ValueError):
@@ -60,6 +60,33 @@ async def handle_avail_approve(callback: CallbackQuery):
             )
             db.add(new_slot)
 
+            # Reschedule the lesson: mark original date as rescheduled → new date
+            original_date = req.original_date
+            existing_status = (await db.execute(
+                select(LessonStatus).where(
+                    and_(LessonStatus.lesson_id == req.lesson_id, LessonStatus.date == original_date)
+                )
+            )).scalar_one_or_none()
+
+            if existing_status:
+                existing_status.status = "rescheduled"
+                existing_status.override_date = req.date
+                existing_status.override_time = req.start_time
+                existing_status.note = f"Перенесено на {req.date.strftime('%d.%m.%Y')}"
+                existing_status.marked_by = teacher.id
+                existing_status.marked_at = _get_tashkent_now()
+            else:
+                ls = LessonStatus(
+                    lesson_id=req.lesson_id,
+                    date=original_date,
+                    status="rescheduled",
+                    override_date=req.date,
+                    override_time=req.start_time,
+                    note=f"Перенесено на {req.date.strftime('%d.%m.%Y')}",
+                    marked_by=teacher.id,
+                )
+                db.add(ls)
+
             req.status = "approved"
             req.resolved_at = _get_tashkent_now()
             await db.commit()
@@ -77,14 +104,14 @@ async def handle_avail_approve(callback: CallbackQuery):
 
         # Update message after context manager closes (session committed)
         await callback.message.edit_text(
-            f"✅ <b>Слот открыт</b>\n\n"
+            f"✅ <b>Слот открыт, урок перенесён</b>\n\n"
             f"Предмет: <b>{subject_name}</b>\n"
-            f"Дата: <b>{req.date.strftime('%d.%m.%Y')}</b>\n"
-            f"Время: <b>{req.start_time} — {req.end_time}</b>\n\n"
-            f"Админ может перенести урок на это время.",
+            f"Было: <b>{original_date.strftime('%d.%m.%Y')}</b>\n"
+            f"Стало: <b>{req.date.strftime('%d.%m.%Y')}</b> в <b>{req.start_time}</b>\n\n"
+            f"Урок автоматически перенесён на новое время.",
             parse_mode="HTML",
         )
-        await callback.answer("Слот открыт ✅")
+        await callback.answer("Слот открыт, урок перенесён ✅")
     except Exception as e:
         logger.error("avail_approve handler error: %s", e, exc_info=True)
         await callback.answer("Произошла ошибка", show_alert=True)

@@ -423,7 +423,7 @@ export function markAdminLessonStatus(lessonId: number, data: { date: string; st
   })
 }
 
-export function createAvailabilityRequest(data: { lesson_id: number; date: string; start_time: string; end_time: string }): Promise<{ id: number; status: string }> {
+export function createAvailabilityRequest(data: { lesson_id: number; original_date: string; date: string; start_time: string; end_time: string }): Promise<{ id: number; status: string }> {
   return api<{ id: number; status: string }>('/api/admin/availability-requests', {
     method: 'POST',
     body: JSON.stringify(data),

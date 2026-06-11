@@ -543,4 +543,12 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
         await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_availability_requests_teacher_id ON availability_requests (teacher_id)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_availability_requests_status ON availability_requests (status)"))
 
+    # Add original_date to availability_requests
+    if await _table_exists(conn, "availability_requests", dialect):
+        if not await _column_exists(conn, "availability_requests", "original_date", dialect):
+            logger.info("Adding availability_requests.original_date")
+            await conn.execute(text("ALTER TABLE availability_requests ADD COLUMN original_date DATE"))
+            # Backfill: set original_date = date for existing rows
+            await conn.execute(text("UPDATE availability_requests SET original_date = date WHERE original_date IS NULL"))
+
     logger.info("Schema migrations complete")

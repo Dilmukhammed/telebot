@@ -153,7 +153,8 @@ class AvailabilityRequest(Base):
     lesson_id: Mapped[int] = mapped_column(Integer, ForeignKey("lessons.id"), nullable=False, index=True)
     teacher_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     requested_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    date: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    original_date: Mapped[dt.date] = mapped_column(Date, nullable=False)  # date of the lesson being rescheduled
+    date: Mapped[dt.date] = mapped_column(Date, nullable=False)  # new target date
     start_time: Mapped[str] = mapped_column(String, nullable=False)  # "HH:MM"
     end_time: Mapped[str] = mapped_column(String, nullable=False)  # "HH:MM"
     status: Mapped[str] = mapped_column(String, default="pending")  # pending/approved/rejected
