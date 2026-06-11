@@ -20,7 +20,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 
 from database import async_session_maker, Base, engine
 from models import Subject, Test, Registration
-from scheduler import send_reminders, scheduler, get_now
+from scheduler import send_reminders, scheduler, get_now, get_now_utc
 
 
 @pytest_asyncio.fixture
@@ -44,7 +44,7 @@ async def subject_with_registrations(setup_db):
         await session.refresh(subject)
 
         # Test starting in 60 minutes (within 45-75 min window)
-        test_time = get_now() + timedelta(minutes=60)
+        test_time = get_now_utc() + timedelta(minutes=60)
         test = Test(
             subject_id=subject.id,
             datetime=test_time,
@@ -93,7 +93,7 @@ async def past_test_registration(setup_db):
         # Test 30 minutes ago (past test - outside window)
         past_test = Test(
             subject_id=subject.id,
-            datetime=get_now() - timedelta(minutes=30),
+            datetime=get_now_utc() - timedelta(minutes=30),
             max_capacity=20,
             format="offline",
             duration_minutes=90,
@@ -126,7 +126,7 @@ async def future_outside_window(setup_db):
         # Test in 2 hours (outside 45-75 min window)
         future_test = Test(
             subject_id=subject.id,
-            datetime=get_now() + timedelta(hours=2),
+            datetime=get_now_utc() + timedelta(hours=2),
             max_capacity=15,
             format="online",
             duration_minutes=45,

@@ -1,0 +1,25 @@
+.avatar {
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--tg-theme-secondary-bg-color, #e8e8e8);
+}
+
+.img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.initials {
+  color: var(--tg-theme-text-color, #333);
+  font-weight: 600;
+  user-select: none;
+}
+
+.placeholder {
+  color: var(--tg-theme-hint-color, #999);
+}

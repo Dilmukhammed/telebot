@@ -8,12 +8,12 @@ export interface CardProps {
   'data-testid'?: string;
 }
 
-export const Card: React.FC<CardProps> = ({
+export const Card = React.memo(function Card({
   children,
   onClick,
   className = '',
   'data-testid': dataTestId,
-}) => {
+}: CardProps) {
   const isClickable = !!onClick;
 
   const classNames = [
@@ -45,6 +45,6 @@ export const Card: React.FC<CardProps> = ({
       {children}
     </div>
   );
-};
+});
 
 export default Card;

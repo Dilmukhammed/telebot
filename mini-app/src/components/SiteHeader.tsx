@@ -1,3 +1,4 @@
+import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CENTER } from '../config'
@@ -10,7 +11,7 @@ interface SiteHeaderProps {
   announcementPath?: string
 }
 
-export default function SiteHeader({ title, onBack, announcementCount, announcementPath }: SiteHeaderProps) {
+const SiteHeader = React.memo(function SiteHeader({ title, onBack, announcementCount, announcementPath }: SiteHeaderProps) {
   const navigate = useNavigate()
   const { t } = useTranslation()
 
@@ -56,4 +57,6 @@ export default function SiteHeader({ title, onBack, announcementCount, announcem
       </div>
     </header>
   )
-}
+})
+
+export default SiteHeader

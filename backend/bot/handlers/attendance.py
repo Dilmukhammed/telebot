@@ -6,13 +6,9 @@ from sqlalchemy import select, and_, func
 
 from database import get_dbCtx
 from models import Lesson, LessonEnrollment, User, Attendance, LessonStatus, Subject
+from utils.time import _get_tashkent_now
 
 router = Router()
-
-
-def _get_tashkent_now():
-    tashkent_tz = dt.timezone(dt.timedelta(hours=5))
-    return dt.datetime.now(tashkent_tz).replace(tzinfo=None)
 
 
 async def _is_lesson_teacher(db, lesson_id: int, telegram_id: int) -> bool:

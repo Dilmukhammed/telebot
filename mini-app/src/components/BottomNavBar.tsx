@@ -1,9 +1,32 @@
+import React from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '../context/UserContext'
 import styles from './BottomNavBar.module.css'
 
-export default function BottomNavBar() {
+const STUDENT_TABS = [
+  { path: '/dashboard', icon: 'home', labelKey: 'nav.home' },
+  { path: '/courses', icon: 'menu_book', labelKey: 'nav.courses' },
+  { path: '/calendar', icon: 'calendar_today', labelKey: 'nav.calendar' },
+  { path: '/profile', icon: 'person', labelKey: 'nav.profile' },
+]
+
+const TEACHER_TABS = [
+  { path: '/dashboard', icon: 'dashboard', labelKey: 'nav.home' },
+  { path: '/courses', icon: 'menu_book', labelKey: 'nav.courses' },
+  { path: '/calendar', icon: 'calendar_today', labelKey: 'nav.calendar' },
+  { path: '/profile', icon: 'person', labelKey: 'nav.profile' },
+]
+
+const ADMIN_TABS = [
+  { path: '/dashboard', icon: 'dashboard', labelKey: 'nav.home' },
+  { path: '/admin/people', icon: 'group', labelKey: 'nav.people' },
+  { path: '/admin/courses', icon: 'menu_book', labelKey: 'nav.courses' },
+  { path: '/admin/calendar', icon: 'calendar_today', labelKey: 'nav.calendar' },
+  { path: '/profile', icon: 'person', labelKey: 'nav.profile' },
+]
+
+const BottomNavBar = React.memo(function BottomNavBar() {
   const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
@@ -15,35 +38,9 @@ export default function BottomNavBar() {
   const isAdmin = role === 'admin'
   const isTeacher = role === 'teacher'
 
-  const studentTabs = [
-    { path: '/dashboard', icon: 'home', label: t('nav.home') },
-    { path: '/courses', icon: 'menu_book', label: t('nav.courses') },
-    { path: '/calendar', icon: 'calendar_today', label: t('nav.calendar') },
-    { path: '/profile', icon: 'person', label: t('nav.profile') },
-  ]
-
-  const teacherTabs = [
-    { path: '/dashboard', icon: 'dashboard', label: t('nav.home') },
-    { path: '/courses', icon: 'menu_book', label: t('nav.courses') },
-    { path: '/calendar', icon: 'calendar_today', label: t('nav.calendar') },
-    { path: '/profile', icon: 'person', label: t('nav.profile') },
-  ]
-
-  const adminTabs = [
-    { path: '/dashboard', icon: 'dashboard', label: t('nav.home') },
-    { path: '/admin/people', icon: 'group', label: t('nav.people') },
-    { path: '/admin/courses', icon: 'menu_book', label: t('nav.courses') },
-    { path: '/admin/calendar', icon: 'calendar_today', label: t('nav.calendar') },
-    { path: '/profile', icon: 'person', label: t('nav.profile') },
-  ]
-
   // Admin always gets admin tabs, teacher gets teacher tabs, everyone else gets student tabs
-  let tabs = studentTabs
-  if (isAdmin) {
-    tabs = adminTabs
-  } else if (isTeacher) {
-    tabs = teacherTabs
-  }
+  const tabConfig = isAdmin ? ADMIN_TABS : isTeacher ? TEACHER_TABS : STUDENT_TABS
+  const tabs = tabConfig.map(tab => ({ ...tab, label: t(tab.labelKey) }))
 
   return (
     <nav className={styles.nav}>
@@ -75,4 +72,6 @@ export default function BottomNavBar() {
       </div>
     </nav>
   )
-}
+})
+
+export default BottomNavBar

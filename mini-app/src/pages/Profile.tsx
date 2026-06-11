@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { updateName, updateProfileTheme } from '../api/client'
 import { useAvailability, useCreateAvailability, useDeleteAvailability } from '../api/hooks'
 import { useUser } from '../context/UserContext'
 import { useAvatarUrl } from '../hooks/useAvatarUrl'
 import { CENTER } from '../config'
+import Avatar from '../components/Avatar'
 import SiteHeader from '../components/SiteHeader'
 import ProfileThemeSheet from '../components/ProfileThemeSheet'
 import { getProfileCardStyle, hasProfileStatus, normalizeProfileTheme } from '../shared/profileTheme'
@@ -51,6 +52,15 @@ export default function Profile() {
   const [slotToDelete, setSlotToDelete] = useState<number | null>(null)
   const [showThemeSheet, setShowThemeSheet] = useState(false)
   const [themePreview, setThemePreview] = useState<ProfileThemeOut | null>(null)
+
+  const totalHours = useMemo(
+    () => availability.reduce((sum, s) => {
+      const [sh, sm] = s.start_time.split(':').map(Number)
+      const [eh, em] = s.end_time.split(':').map(Number)
+      return sum + (eh * 60 + em - sh * 60 - sm) / 60
+    }, 0),
+    [availability]
+  )
 
   const handleSelectLang = (code: string) => {
     setSelectedLang(code)
@@ -166,13 +176,7 @@ export default function Profile() {
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>palette</span>
             </button>
             <div className={styles.avatarWrapper}>
-              <div className={styles.avatar}>
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="Avatar" className={styles.avatarImg} />
-                ) : (
-                  <span className="material-symbols-outlined">person</span>
-                )}
-              </div>
+              <Avatar photoUrl={avatarUrl} name={user?.first_name} size={80} />
             </div>
 
             <div className={styles.nameRow}>
@@ -268,11 +272,7 @@ export default function Profile() {
                   <span className={styles.availabilityTitle}>{t('profile.schedule')}</span>
                   {availability.length > 0 && (
                     <span className={styles.availabilityHours}>
-                      {availability.reduce((sum, s) => {
-                        const [sh, sm] = s.start_time.split(':').map(Number)
-                        const [eh, em] = s.end_time.split(':').map(Number)
-                        return sum + (eh * 60 + em - sh * 60 - sm) / 60
-                      }, 0)} {t('profile.hoursPerWeek')}
+                      {totalHours} {t('profile.hoursPerWeek')}
                     </span>
                   )}
                 </div>

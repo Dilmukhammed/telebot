@@ -13,7 +13,7 @@ export interface ButtonProps {
   type?: 'button' | 'submit' | 'reset';
 }
 
-export const Button: React.FC<ButtonProps> = ({
+export const Button = React.memo(function Button({
   variant = 'primary',
   children,
   onClick,
@@ -23,7 +23,7 @@ export const Button: React.FC<ButtonProps> = ({
   className = '',
   'data-testid': dataTestId,
   type = 'button',
-}) => {
+}: ButtonProps) {
   const isDisabled = disabled || loading;
 
   const classNames = [
@@ -50,6 +50,6 @@ export const Button: React.FC<ButtonProps> = ({
       {children}
     </button>
   );
-};
+});
 
 export default Button;

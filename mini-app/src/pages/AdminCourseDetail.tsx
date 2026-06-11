@@ -19,6 +19,7 @@ import {
   archiveAdminSubject,
   unarchiveAdminSubject,
 } from '../api/client'
+import Avatar from '../components/Avatar'
 import SiteHeader from '../components/SiteHeader'
 import MaterialCard from '../components/MaterialCard'
 import MaterialForm from '../components/MaterialForm'
@@ -628,11 +629,7 @@ export default function AdminCourseDetail() {
                       className={styles.studentAvatar}
                       onClick={() => navigate(`/admin/people/${student.id}`)}
                     >
-                      {student.photo_url ? (
-                        <img src={student.photo_url} alt="" className={styles.avatarImg} />
-                      ) : (
-                        <span className="material-symbols-outlined">person</span>
-                      )}
+                      <Avatar photoUrl={student.photo_url} name={student.first_name} size={40} />
                     </div>
                     <div className={styles.studentInfo} onClick={() => navigate(`/admin/people/${student.id}`)}>
                       <h3 className={styles.studentName}>

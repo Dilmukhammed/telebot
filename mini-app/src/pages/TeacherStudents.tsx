@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useTeacherStudents } from '../api/hooks'
+import Avatar from '../components/Avatar'
 import SiteHeader from '../components/SiteHeader'
 import styles from './TeacherStudents.module.css'
 
@@ -67,13 +68,7 @@ export default function TeacherStudents() {
                 className={styles.studentCard}
                 onClick={() => navigate(`/teacher/students/${student.id}`)}
               >
-                <div className={styles.studentAvatar}>
-                  {student.photo_url ? (
-                    <img src={student.photo_url} alt="" className={styles.avatarImg} />
-                  ) : (
-                    <span className="material-symbols-outlined">person</span>
-                  )}
-                </div>
+                <Avatar photoUrl={student.photo_url} name={student.first_name} size={40} className={styles.studentAvatar} />
                 <div className={styles.studentInfo}>
                   <h3 className={styles.studentName}>{student.first_name || (student.username ? `@${student.username}` : `#${student.id}`)}</h3>
                   <div className={styles.studentMeta}>

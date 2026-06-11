@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useCourseDetail, useCourseStudents, useMaterials, useDeleteMaterial } from '../api/hooks'
 import { useUser } from '../context/UserContext'
 import type { CourseLessonOut } from '../shared/types'
+import Avatar from '../components/Avatar'
 import SiteHeader from '../components/SiteHeader'
 import MaterialCard from '../components/MaterialCard'
 import MaterialForm from '../components/MaterialForm'
@@ -49,6 +50,25 @@ export default function CourseDetail() {
     return d.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })
   }
 
+  const todayLessons = useMemo(
+    () => (course?.lessons ?? []).filter(l => l.status === 'today'),
+    [course?.lessons]
+  )
+  const upcomingLessons = useMemo(
+    () => (course?.lessons ?? []).filter(l => l.status === 'upcoming'),
+    [course?.lessons]
+  )
+  const pastLessons = useMemo(
+    () => (course?.lessons ?? []).filter(l => l.status === 'past'),
+    [course?.lessons]
+  )
+  const uniqueSchedule = useMemo(
+    () => (course?.lessons ?? []).filter((lesson, index, self) =>
+      index === self.findIndex(l => l.day_of_week === lesson.day_of_week && l.time === lesson.time)
+    ),
+    [course?.lessons]
+  )
+
   if (!isValidId) {
     return (
       <div className={styles.page}>
@@ -64,10 +84,6 @@ export default function CourseDetail() {
   if (isLoading || !course) {
     return <Loading fullPage message={t('common.loading')} />
   }
-
-  const todayLessons = course.lessons.filter(l => l.status === 'today')
-  const upcomingLessons = course.lessons.filter(l => l.status === 'upcoming')
-  const pastLessons = course.lessons.filter(l => l.status === 'past')
 
   return (
     <div className={styles.page}>
@@ -245,11 +261,7 @@ export default function CourseDetail() {
             <div className={styles.aboutCard}>
               <h3 className={styles.aboutLabel}>{t('courseDetail.schedule')}</h3>
               <div className={styles.scheduleList}>
-                {course.lessons
-                  .filter((lesson, index, self) =>
-                    index === self.findIndex(l => l.day_of_week === lesson.day_of_week && l.time === lesson.time)
-                  )
-                  .map(lesson => {
+                {uniqueSchedule.map(lesson => {
                     const dayName = t(`courseDetail.daysShort.${lesson.day_of_week}`, { defaultValue: lesson.day_name })
                     return (
                       <div key={`${lesson.day_of_week}-${lesson.time}`} className={styles.scheduleItem}>
@@ -303,13 +315,7 @@ export default function CourseDetail() {
                     className={styles.studentCard}
                     onClick={() => navigate(`/teacher/students/${student.id}`)}
                   >
-                    <div className={styles.studentAvatar}>
-                      {student.photo_url ? (
-                        <img src={student.photo_url} alt="" className={styles.avatarImg} />
-                      ) : (
-                        <span className="material-symbols-outlined">person</span>
-                      )}
-                    </div>
+                    <Avatar photoUrl={student.photo_url} name={student.first_name} size={40} className={styles.studentAvatar} />
                     <div className={styles.studentInfo}>
                       <h3 className={styles.studentName}>
                         {student.first_name || `@${student.username}`}

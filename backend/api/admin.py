@@ -30,27 +30,28 @@ from schemas import (
 )
 from api.deps import require_admin
 from subject_drive_folder import sync_subject_drive_folder
+from utils.time import _get_tashkent_now, _calculate_end_time
+from utils.constants import DAY_NAMES_RU, DAY_NAMES_SHORT_RU
+from cache import admin_stats_cache, course_list_cache, cache_get, cache_set, invalidate_admin_stats, invalidate_courses
+from utils.attendance import build_attendance_list
 
 router = APIRouter(prefix="/admin", tags=["admin-panel"])
 
-_DAY_NAMES = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 
-
-async def _sync_subject_drive_folder_after_update(db: AsyncSession, subject_id: int) -> None:
+async def _sync_subject_drive_folder_after_update(
+    db: AsyncSession, subject_id: int,
+    old_name: str | None = None,
+) -> None:
+    """Sync Google Drive folder for a subject. Skips API call if name unchanged."""
     subject = (await db.execute(select(Subject).where(Subject.id == subject_id))).scalar_one_or_none()
     if not subject:
         return
+    # Only sync if subject name actually changed (teacher changes are on Lesson, not Subject)
+    if old_name is not None and old_name == subject.name:
+        return  # No change, skip Google Drive API call
     await sync_subject_drive_folder(db, subject)
     await db.commit()
 
-DAY_NAMES_RU = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
-DAY_NAMES_SHORT_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
-
-
-def _get_tashkent_now():
-    import datetime as _dt
-    tashkent_tz = _dt.timezone(_dt.timedelta(hours=5))
-    return _dt.datetime.now(tashkent_tz).replace(tzinfo=None)
 
 
 async def _log_audit(db: AsyncSession, entity_type: str, entity_id: int, action: str,
@@ -84,16 +85,6 @@ def _normalize_hhmm(t: str) -> str:
     return f"{h:02d}:{m:02d}"
 
 
-def _calculate_end_time(start_time: str, duration_minutes: int = 90) -> str:
-    norm = _normalize_hhmm(start_time)
-    if not norm:
-        return ""
-    try:
-        h, m = map(int, norm.split(":"))
-        total = h * 60 + m + duration_minutes
-        return f"{total // 60:02d}:{total % 60:02d}"
-    except Exception:
-        return ""
 
 
 def _time_to_minutes(t: str) -> int:
@@ -118,6 +109,11 @@ async def get_stats(
     admin=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    # Check cache
+    cached = cache_get(admin_stats_cache, "admin_stats")
+    if cached is not None:
+        return cached
+
     now = _get_tashkent_now()
     today = now.date()
     today_weekday = today.weekday()
@@ -166,13 +162,16 @@ async def get_stats(
             date=today.strftime("%Y-%m-%d"),
         ))
 
-    return AdminStatsOut(
+    result = AdminStatsOut(
         student_count=student_count,
         teacher_count=teacher_count,
         course_count=course_count,
         active_tests=active_tests,
         today_lessons=today_lessons,
     )
+
+    cache_set(admin_stats_cache, "admin_stats", result)
+    return result
 
 
 # ── Lessons (Schedule View) ───────────────────────────────────────────
@@ -182,6 +181,8 @@ async def get_admin_lessons(
     week_offset: int = Query(0, ge=-52, le=52),
     teacher_id: int | None = None,
     subject_id: int | None = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     admin=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
@@ -218,6 +219,7 @@ async def get_admin_lessons(
         LessonStatus.date == start_monday + timedelta(days=Lesson.day_of_week)
     ))
 
+    query = query.offset(skip).limit(limit)
     result = await db.execute(query)
     rows = result.all()
 
@@ -886,12 +888,15 @@ async def create_admin_subject(
 
     # Enroll students in all lessons
     if data.student_ids:
+        # Batch verify all student IDs exist
+        users_result = await db.execute(
+            select(User).where(User.id.in_(data.student_ids))
+        )
+        valid_user_ids = {u.id for u in users_result.scalars().all()}
+
         for lesson in lessons:
             for user_id in data.student_ids:
-                # Verify student exists
-                student = await db.execute(select(User).where(User.id == user_id))
-                student = student.scalar_one_or_none()
-                if not student:
+                if user_id not in valid_user_ids:
                     continue
                 enrollment = LessonEnrollment(
                     lesson_id=lesson.id,
@@ -899,6 +904,9 @@ async def create_admin_subject(
                 )
                 db.add(enrollment)
     await db.commit()
+
+    invalidate_courses()
+    invalidate_admin_stats()
 
     # Return the created subject detail
     return await get_admin_subject_detail(subject.id, admin, db)
@@ -920,16 +928,24 @@ async def get_teachers_for_schedule(
     )
     all_teachers = teachers_result.scalars().all()
 
-    matching = []
-    for teacher in all_teachers:
-        # Get teacher's availability slots
+    # Batch fetch all teacher availability to avoid N+1 queries
+    teacher_ids = [t.id for t in all_teachers]
+    if teacher_ids:
         avail_result = await db.execute(
             select(TeacherAvailability).where(
-                TeacherAvailability.teacher_id == teacher.id,
+                TeacherAvailability.teacher_id.in_(teacher_ids),
                 TeacherAvailability.is_active == True,
             )
         )
-        avail_slots = avail_result.scalars().all()
+        avail_map: dict[int, list] = {}
+        for a in avail_result.scalars().all():
+            avail_map.setdefault(a.teacher_id, []).append(a)
+    else:
+        avail_map = {}
+
+    matching = []
+    for teacher in all_teachers:
+        avail_slots = avail_map.get(teacher.id, [])
 
         # Check if teacher has availability for ALL schedule slots
         # Lesson must fit entirely: avail.start <= lesson.start AND avail.end >= lesson.end
@@ -989,22 +1005,34 @@ async def get_admin_subject_detail(
     today = now.date()
     start_monday = today - timedelta(days=today.weekday())
 
+    # Batch fetch lesson statuses and enrollment counts to avoid N+1 queries
+    lesson_ids = [lesson.id for lesson, _ in lessons]
+
+    if lesson_ids:
+        # Batch fetch all lesson statuses
+        status_result = await db.execute(
+            select(LessonStatus).where(LessonStatus.lesson_id.in_(lesson_ids))
+        )
+        statuses_map = {s.lesson_id: s for s in status_result.scalars().all()}
+
+        # Batch fetch all enrollment counts
+        count_result = await db.execute(
+            select(LessonEnrollment.lesson_id, func.count(LessonEnrollment.id))
+            .where(LessonEnrollment.lesson_id.in_(lesson_ids))
+            .group_by(LessonEnrollment.lesson_id)
+        )
+        enrollment_counts = {row[0]: row[1] for row in count_result.all()}
+    else:
+        statuses_map = {}
+        enrollment_counts = {}
+
     admin_lessons = []
     for lesson, subj in lessons:
         instance_date = start_monday + timedelta(days=lesson.day_of_week)
-        ls_result = await db.execute(
-            select(LessonStatus).where(
-                and_(LessonStatus.lesson_id == lesson.id, LessonStatus.date == instance_date)
-            )
-        )
-        ls = ls_result.scalar_one_or_none()
-        status = ls.status if ls else None
+        ls = statuses_map.get(lesson.id)
+        status = ls.status if ls and ls.date == instance_date else None
 
-        count_result = await db.execute(
-            select(func.count()).select_from(LessonEnrollment)
-            .where(LessonEnrollment.lesson_id == lesson.id)
-        )
-        student_count = count_result.scalar() or 0
+        student_count = enrollment_counts.get(lesson.id, 0)
 
         end_time = _calculate_end_time(lesson.time, subj.duration_minutes or 90)
 
@@ -1023,8 +1051,6 @@ async def get_admin_subject_detail(
             lesson_status=status,
             date=instance_date.strftime("%Y-%m-%d"),
         ))
-
-    lesson_ids = [l.id for l, _ in lessons]
     students = []
     if lesson_ids:
         enroll_result = await db.execute(
@@ -1082,6 +1108,9 @@ async def update_admin_subject(
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
 
+    # Capture old name before update for Drive sync optimization
+    old_name = subject.name
+
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(subject, field, value)
@@ -1091,7 +1120,10 @@ async def update_admin_subject(
                      None, None, str(update_data), admin_id)
     await db.commit()
     await db.refresh(subject)
-    await _sync_subject_drive_folder_after_update(db, subject_id)
+    await _sync_subject_drive_folder_after_update(db, subject_id, old_name=old_name)
+
+    invalidate_courses()
+    invalidate_admin_stats()
 
     # Return full subject detail (reuse get logic)
     lessons_result = await db.execute(
@@ -1112,7 +1144,7 @@ async def update_admin_subject(
             subject_id=subj.id,
             subject_name=subj.name,
             day_of_week=lesson.day_of_week,
-            day_name=_DAY_NAMES[lesson.day_of_week],
+            day_name=DAY_NAMES_SHORT_RU[lesson.day_of_week],
             time=lesson.time,
             end_time=end_time,
             room=lesson.room,
@@ -1166,6 +1198,10 @@ async def archive_subject(
     await _log_audit(db, "subject", subject_id, "archive",
                      "is_archived", "false", "true", admin_id)
     await db.commit()
+
+    invalidate_courses()
+    invalidate_admin_stats()
+
     return {"ok": True, "archived": True}
 
 
@@ -1196,6 +1232,10 @@ async def unarchive_subject(
     await _log_audit(db, "subject", subject_id, "unarchive",
                      "is_archived", "true", "false", admin_id)
     await db.commit()
+
+    invalidate_courses()
+    invalidate_admin_stats()
+
     return {"ok": True, "archived": False}
 
 
@@ -1229,6 +1269,10 @@ async def delete_subject(
     await _log_audit(db, "subject", subject_id, "delete",
                      "is_deleted", "false", "true", admin_id)
     await db.commit()
+
+    invalidate_courses()
+    invalidate_admin_stats()
+
     return {"ok": True}
 
 
@@ -1346,7 +1390,7 @@ async def admin_get_lesson_attendance(
     lesson_status = status_result.scalar_one_or_none()
     status_str = lesson_status.status if lesson_status else None
 
-    return await _build_attendance_list_admin(lesson_id, date, status_str, db)
+    return await build_attendance_list(lesson_id, date, status_str, db)
 
 
 @router.post("/lessons/{lesson_id}/attendance", response_model=AttendanceListOut)
@@ -1417,45 +1461,7 @@ async def admin_mark_attendance(
                      None, f"{len(data.records)} records for {data.date}", admin_id)
     await db.commit()
 
-    return await _build_attendance_list_admin(lesson_id, data.date, lesson_status.status, db)
-
-
-async def _build_attendance_list_admin(lesson_id: int, date: str, status: str | None, db: AsyncSession) -> AttendanceListOut:
-    """Build attendance list with all enrolled students."""
-    lesson_date = datetime.strptime(date, "%Y-%m-%d").date()
-
-    enrollments_result = await db.execute(
-        select(User)
-        .join(LessonEnrollment, LessonEnrollment.user_id == User.id)
-        .where(LessonEnrollment.lesson_id == lesson_id)
-        .order_by(User.first_name)
-    )
-    students = enrollments_result.scalars().all()
-
-    att_result = await db.execute(
-        select(Attendance).where(
-            and_(Attendance.lesson_id == lesson_id, Attendance.date == lesson_date)
-        )
-    )
-    att_map = {att.user_id: att for att in att_result.scalars().all()}
-
-    records = []
-    for student in students:
-        att = att_map.get(student.id)
-        records.append(AttendanceRecordOut(
-            user_id=student.id,
-            first_name=student.first_name or (f"@{student.username}" if student.username else "Ученик"),
-            username=student.username,
-            present=att.present if att else False,
-        ))
-
-    return AttendanceListOut(
-        lesson_id=lesson_id,
-        date=date,
-        status=status,
-        saved=len(att_map) > 0,
-        records=records,
-    )
+    return await build_attendance_list(lesson_id, data.date, lesson_status.status, db)
 
 
 # ── Create Lesson ────────────────────────────────────────────────────
@@ -1610,7 +1616,7 @@ async def admin_update_lesson_schedule(
     admin_id = admin.id if hasattr(admin, "id") else None
     await _log_audit(
         db, "lesson", new_lesson.id, "schedule_update", None, None,
-        f"{new_teacher_name} {_DAY_NAMES[new_day]} {new_time} from {effective_from}", admin_id,
+        f"{new_teacher_name} {DAY_NAMES_SHORT_RU[new_day]} {new_time} from {effective_from}", admin_id,
     )
     await db.commit()
     await db.refresh(new_lesson)
@@ -1726,6 +1732,7 @@ async def admin_unenroll_student(
 async def get_audit_log(
     entity_type: str | None = None,
     entity_id: int | None = None,
+    skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     admin=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
@@ -1736,7 +1743,7 @@ async def get_audit_log(
         query = query.where(AuditLog.entity_type == entity_type)
     if entity_id:
         query = query.where(AuditLog.entity_id == entity_id)
-    query = query.order_by(AuditLog.performed_at.desc()).limit(limit)
+    query = query.order_by(AuditLog.performed_at.desc()).offset(skip).limit(limit)
 
     result = await db.execute(query)
     rows = result.all()

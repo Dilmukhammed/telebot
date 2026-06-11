@@ -8,11 +8,11 @@ export interface LoadingProps {
   fullPage?: boolean;
 }
 
-export const Loading: React.FC<LoadingProps> = ({
+export const Loading = React.memo(function Loading({
   message,
   'data-testid': dataTestId,
   fullPage = false,
-}) => {
+}: LoadingProps) {
   const { t } = useTranslation();
   const displayMessage = message || t('common.loading', 'Загрузка...');
 
@@ -22,6 +22,6 @@ export const Loading: React.FC<LoadingProps> = ({
       <p className={styles.message}>{displayMessage}</p>
     </div>
   );
-};
+});
 
 export default Loading;

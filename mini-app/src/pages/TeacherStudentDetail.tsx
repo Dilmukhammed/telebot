@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useTeacherStudentDetail } from '../api/hooks'
+import Avatar from '../components/Avatar'
 import SiteHeader from '../components/SiteHeader'
 import { getProfileCardStyle, hasProfileStatus, normalizeProfileTheme } from '../shared/profileTheme'
 import styles from './TeacherStudentDetail.module.css'
@@ -43,13 +44,7 @@ export default function TeacherStudentDetail() {
 
         {/* Student Profile */}
         <div className={styles.profileCard} style={cardStyle}>
-          <div className={styles.avatar}>
-            {student.photo_url ? (
-              <img src={student.photo_url} alt={displayName} className={styles.avatarImg} />
-            ) : (
-              <span className="material-symbols-outlined">person</span>
-            )}
-          </div>
+          <Avatar photoUrl={student.photo_url} name={displayName} size={64} />
           <div className={styles.profileInfo}>
             <h2 className={styles.studentName}>
               {displayName}

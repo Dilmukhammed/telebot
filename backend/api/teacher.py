@@ -10,17 +10,11 @@ logger = logging.getLogger(__name__)
 from database import get_db
 from models import User, Lesson, LessonEnrollment, Subject, Attendance, Notification, NotificationRecipient, NotificationRead, NotificationAttachment, LessonStatus, EnrollmentRequest
 from api.deps import require_teacher
+from utils.time import _get_tashkent_now, _to_tashkent_iso
+from utils.constants import DAY_NAMES_RU
+from utils.attendance import build_attendance_list
 
 router = APIRouter(prefix="/teacher", tags=["teacher"])
-
-DAY_NAMES_RU = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
-
-TASHKENT_OFFSET = timedelta(hours=5)
-
-
-def _to_tashkent_iso(utc_dt: datetime) -> str:
-    """Convert naive UTC datetime to Tashkent time ISO string with timezone."""
-    return (utc_dt + TASHKENT_OFFSET).isoformat() + "+05:00"
 
 
 def _get_day_label(lesson_day: int, today: int) -> str:
@@ -70,9 +64,7 @@ async def get_teacher_dashboard(
     db: AsyncSession = Depends(get_db),
 ):
     """Get teacher dashboard data."""
-    import datetime as _dt
-    tashkent_tz = _dt.timezone(_dt.timedelta(hours=5))
-    now = _dt.datetime.now(tashkent_tz).replace(tzinfo=None)
+    now = _get_tashkent_now()
     today = now.weekday()  # 0=Mon, 6=Sun
     current_time = now.strftime("%H:%M")
 
@@ -321,53 +313,61 @@ async def get_teacher_student_detail(
             .group_by(Subject.id)
         )
         subjects = subjects_result.scalars().all()
-        
-        for subject in subjects:
-            # Get all lessons for this subject taught by this teacher
-            subject_lessons_result = await db.execute(
-                select(Lesson.id)
+
+        # Batch: get lesson_id -> subject_id mapping for all teacher's lessons
+        lesson_subject_result = await db.execute(
+            select(Lesson.id, Lesson.subject_id)
+            .where(
+                and_(
+                    Lesson.teacher_id == user.id,
+                    Lesson.is_active == True,
+                    Lesson.subject_id.in_([s.id for s in subjects]),
+                )
+            )
+        )
+        lesson_subject_map: dict[int, int] = {}
+        for lid, sid in lesson_subject_result.all():
+            lesson_subject_map[lid] = sid
+
+        # Build subject -> lesson_ids mapping
+        subject_lesson_ids: dict[int, list[int]] = {}
+        for lid, sid in lesson_subject_map.items():
+            subject_lesson_ids.setdefault(sid, []).append(lid)
+
+        # Batch: get all attendance for this student across all teacher's lessons
+        all_lesson_ids = list(lesson_subject_map.keys())
+        if all_lesson_ids:
+            attendance_result = await db.execute(
+                select(Attendance.lesson_id, Attendance.present)
                 .where(
                     and_(
-                        Lesson.subject_id == subject.id,
-                        Lesson.teacher_id == user.id,
-                        Lesson.is_active == True,
+                        Attendance.user_id == student_id,
+                        Attendance.lesson_id.in_(all_lesson_ids),
                     )
                 )
             )
-            subject_lesson_ids = [row[0] for row in subject_lessons_result.fetchall()]
-            
-            # Count attendance for this student in these lessons
-            if subject_lesson_ids:
-                attendance_result = await db.execute(
-                    select(func.count(Attendance.id))
-                    .where(
-                        and_(
-                            Attendance.user_id == student_id,
-                            Attendance.lesson_id.in_(subject_lesson_ids),
-                            Attendance.present == True,
-                        )
-                    )
-                )
-                attended = attendance_result.scalar() or 0
-                
-                # Total attendance records (present + absent)
-                total_result = await db.execute(
-                    select(func.count(Attendance.id))
-                    .where(
-                        and_(
-                            Attendance.user_id == student_id,
-                            Attendance.lesson_id.in_(subject_lesson_ids),
-                        )
-                    )
-                )
-                total = total_result.scalar() or 0
-                
+            # Count attended and total per subject from attendance records
+            attended_by_subject: dict[int, int] = {}
+            total_by_subject: dict[int, int] = {}
+            for lid, present in attendance_result.all():
+                sid = lesson_subject_map.get(lid)
+                if sid is None:
+                    continue
+                total_by_subject[sid] = total_by_subject.get(sid, 0) + 1
+                if present:
+                    attended_by_subject[sid] = attended_by_subject.get(sid, 0) + 1
+
+        for subject in subjects:
+            sids = subject_lesson_ids.get(subject.id, [])
+            if sids:
+                attended = attended_by_subject.get(subject.id, 0)
+                total = total_by_subject.get(subject.id, 0)
                 attendance_percent = (attended / total * 100) if total > 0 else 0
             else:
                 attended = 0
                 total = 0
                 attendance_percent = 0
-            
+
             courses.append(TeacherStudentCourseAttendance(
                 subject_id=subject.id,
                 subject_name=subject.name,
@@ -1083,11 +1083,6 @@ from fastapi import HTTPException, Query
 import datetime as _dt
 
 
-def _get_tashkent_now():
-    tashkent_tz = _dt.timezone(_dt.timedelta(hours=5))
-    return _dt.datetime.now(tashkent_tz).replace(tzinfo=None)
-
-
 @router.put("/lessons/{lesson_id}", response_model=LessonDetailOut)
 async def update_lesson(
     lesson_id: int,
@@ -1268,7 +1263,7 @@ async def mark_attendance(
     await db.commit()
 
     # Return full attendance list
-    return await _build_attendance_list(lesson_id, data.date, lesson_status.status, db)
+    return await build_attendance_list(lesson_id, data.date, lesson_status.status, db)
 
 
 @router.get("/lessons/{lesson_id}/attendance", response_model=AttendanceListOut)
@@ -1303,47 +1298,7 @@ async def get_lesson_attendance(
     lesson_status = status_result.scalar_one_or_none()
     status_str = lesson_status.status if lesson_status else None
 
-    return await _build_attendance_list(lesson_id, date, status_str, db)
-
-
-async def _build_attendance_list(lesson_id: int, date: str, status: str | None, db: AsyncSession) -> AttendanceListOut:
-    """Build attendance list with all enrolled students."""
-    lesson_date = _dt.datetime.strptime(date, "%Y-%m-%d").date()
-
-    # Get all enrolled students
-    enrollments_result = await db.execute(
-        select(User)
-        .join(LessonEnrollment, LessonEnrollment.user_id == User.id)
-        .where(LessonEnrollment.lesson_id == lesson_id)
-        .order_by(User.first_name)
-    )
-    students = enrollments_result.scalars().all()
-
-    # Get existing attendance records
-    att_result = await db.execute(
-        select(Attendance).where(
-            and_(Attendance.lesson_id == lesson_id, Attendance.date == lesson_date)
-        )
-    )
-    att_map = {att.user_id: att for att in att_result.scalars().all()}
-
-    records = []
-    for student in students:
-        att = att_map.get(student.id)
-        records.append(AttendanceRecordOut(
-            user_id=student.id,
-            first_name=student.first_name or (f"@{student.username}" if student.username else "Ученик"),
-            username=student.username,
-            present=att.present if att else False,
-        ))
-
-    return AttendanceListOut(
-        lesson_id=lesson_id,
-        date=date,
-        status=status,
-        saved=len(att_map) > 0,
-        records=records,
-    )
+    return await build_attendance_list(lesson_id, date, status_str, db)
 
 
 # --- Teacher Availability Endpoints ---

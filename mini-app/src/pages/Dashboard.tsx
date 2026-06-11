@@ -5,90 +5,10 @@ import { useDashboard } from '../api/hooks'
 import { CENTER, getLocalized } from '../config'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
+import LessonCountdown from '../components/LessonCountdown'
+import MiniCalendar from '../components/MiniCalendar'
+import { getGreeting, getTodayLessonsStatus, isLessThanAnHourAway, isLessonOngoing } from '../utils/lessonHelpers'
 import styles from './Dashboard.module.css'
-
-/** Safe countdown — never produces NaN, works on iOS/Safari */
-function LessonCountdown({ date, time }: { date?: string; time?: string }) {
-  const { t } = useTranslation()
-  const [label, setLabel] = useState('')
-  const [active, setActive] = useState(false)
-
-  useEffect(() => {
-    if (!date || !time) return
-
-    function calc() {
-      const diff = getTashkentDiffMs(date, time)
-      if (isNaN(diff)) return
-
-      if (diff <= 0) {
-        if (diff > -90 * 60 * 1000) {
-          setLabel(t('dashboard.countdown.happeningNow'))
-          setActive(true)
-        } else {
-          setLabel('')
-          setActive(false)
-        }
-        return
-      }
-
-      setActive(false)
-      const totalMin = Math.floor(diff / 60000)
-      const h = Math.floor(totalMin / 60)
-      const d = Math.floor(h / 24)
-
-      if (d > 0) {
-        const word = d === 1 ? t('dashboard.countdown.day') : d < 5 ? t('dashboard.countdown.daysFew') : t('dashboard.countdown.days')
-        setLabel(t('dashboard.countdown.inDays', { count: d, word }))
-      } else if (h > 0) {
-        const remMin = totalMin % 60
-        setLabel(remMin > 0 ? t('dashboard.countdown.inHoursMinutes', { h, m: remMin }) : t('dashboard.countdown.inHours', { h }))
-      } else {
-        setLabel(t('dashboard.countdown.inMinutes', { m: totalMin }))
-      }
-    }
-
-    calc()
-    const id = setInterval(calc, 30_000)
-    return () => clearInterval(id)
-  }, [date, time, t])
-
-  if (!label) return null
-
-  return (
-    <span className={`${styles.countdownBadge} ${active ? styles.countdownActive : ''}`}>
-      {active && <span className={styles.pulseDot} />}
-      {label}
-    </span>
-  )
-}
-
-
-
-const getTashkentDiffMs = (dateStr?: string, timeStr?: string): number => {
-  if (!dateStr || !timeStr) return NaN
-  try {
-    const dp = dateStr.split('-').map(Number)   // [YYYY, MM, DD]
-    const tp = timeStr.split(':').map(Number)   // [HH, MM]
-    if (dp.length < 3 || tp.length < 2) return NaN
-    if (dp.some(isNaN) || tp.some(isNaN)) return NaN
-
-    const utcMs = Date.UTC(dp[0], dp[1] - 1, dp[2], tp[0], tp[1], 0)
-    const tashkentOffsetMs = 5 * 60 * 60 * 1000
-    return utcMs - tashkentOffsetMs - Date.now()
-  } catch {
-    return NaN
-  }
-}
-
-const isLessThanAnHourAway = (dateStr?: string, timeStr?: string): boolean => {
-  const diff = getTashkentDiffMs(dateStr, timeStr)
-  return !isNaN(diff) && diff > 0 && diff < 60 * 60 * 1000
-}
-
-const isLessonOngoing = (dateStr?: string, timeStr?: string): boolean => {
-  const diff = getTashkentDiffMs(dateStr, timeStr)
-  return !isNaN(diff) && diff <= 0 && diff > -90 * 60 * 1000
-}
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation()
@@ -143,50 +63,6 @@ export default function Dashboard() {
 
   const { profile, lessons, results } = data
 
-  const getGreeting = (firstName: string) => {
-    const utcHour = new Date().getUTCHours()
-    const tashkentHour = (utcHour + 5) % 24
-    if (tashkentHour >= 5 && tashkentHour < 12) return t('dashboard.greetingMorning', { name: firstName, defaultValue: `Доброе утро, ${firstName}! ☀️` })
-    if (tashkentHour >= 12 && tashkentHour < 18) return t('dashboard.greetingAfternoon', { name: firstName, defaultValue: `Добрый день, ${firstName}! 🌤️` })
-    if (tashkentHour >= 18 && tashkentHour < 22) return t('dashboard.greetingEvening', { name: firstName, defaultValue: `Добрый вечер, ${firstName}! 🌙` })
-    return t('dashboard.greetingNight', { name: firstName, defaultValue: `Доброй ночи, ${firstName}! 🌌` })
-  }
-
-  const getTodayLessonsStatus = () => {
-    const tashkentDate = new Date(Date.now() + 5 * 60 * 60 * 1000)
-    const yyyy = tashkentDate.getUTCFullYear()
-    const mm = String(tashkentDate.getUTCMonth() + 1).padStart(2, '0')
-    const dd = String(tashkentDate.getUTCDate()).padStart(2, '0')
-    const todayStr = `${yyyy}-${mm}-${dd}`
-
-    const count = lessons.filter(l => l.date === todayStr).length
-    if (count === 0) return t('dashboard.motivation') || 'Сегодня занятий нет. Отличный день для подготовки! ✨'
-    
-    const lastDigit = count % 10
-    const lastTwoDigits = count % 100
-    if (lastDigit === 1 && lastTwoDigits !== 11) {
-      return `Сегодня у вас ${count} запланированное занятие`
-    }
-    if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 10 || lastTwoDigits >= 20)) {
-      return `Сегодня у вас ${count} запланированных занятия`
-    }
-    return `Сегодня у вас ${count} запланированных занятий`
-  }
-
-  // Mini-calendar widget date calculation (Tashkent Time)
-  const today = new Date(Date.now() + 5 * 60 * 60 * 1000)
-  const dayNum = today.getUTCDate()
-  const isEn = i18n.language?.startsWith('en')
-  const isUz = i18n.language?.startsWith('uz')
-  const monthsRu = ['ЯНВ', 'ФЕВ', 'МАР', 'АПР', 'МАЙ', 'ИЮН', 'ИЮЛ', 'АВГ', 'СЕН', 'ОКТ', 'НОЯ', 'ДЕК']
-  const monthsEn = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-  const monthsUz = ['YAN', 'FEV', 'MAR', 'APR', 'MAY', 'IYN', 'IYL', 'AVG', 'SEN', 'OKT', 'NOY', 'DEK']
-  const daysRu = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ']
-  const daysEn = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
-  const daysUz = ['YAK', 'DUSH', 'SESH', 'CHOR', 'PAY', 'JUM', 'SHAN']
-  const calendarMonth = (isEn ? monthsEn : isUz ? monthsUz : monthsRu)[today.getUTCMonth()] || ''
-  const calendarDayName = (isEn ? daysEn : isUz ? daysUz : daysRu)[today.getUTCDay()] || ''
-
   return (
     <div
       ref={containerRef}
@@ -220,7 +96,7 @@ export default function Dashboard() {
         <div className={styles.welcomeCard}>
           <div className={styles.welcomeLeft}>
             <h1 className={styles.welcomeGreeting}>
-              {getGreeting(profile.first_name)}
+              {getGreeting(profile.first_name, t)}
             </h1>
             <p className={styles.welcomeStatus}>
               {profile.grade && (
@@ -229,19 +105,11 @@ export default function Dashboard() {
                   {t('dashboard.grade', { grade: profile.grade })}
                 </span>
               )}
-              <span>{getTodayLessonsStatus()}</span>
+              <span>{getTodayLessonsStatus(lessons, t)}</span>
             </p>
           </div>
           
-          <div className={styles.welcomeCalendarWidget}>
-            <div className={styles.widgetHeader}>
-              {calendarMonth}
-            </div>
-            <div className={styles.widgetBody}>
-              <span className={styles.widgetDayNum}>{dayNum}</span>
-              <span className={styles.widgetDayName}>{calendarDayName}</span>
-            </div>
-          </div>
+          <MiniCalendar language={i18n.language} />
         </div>
 
         {/* Stats Section */}

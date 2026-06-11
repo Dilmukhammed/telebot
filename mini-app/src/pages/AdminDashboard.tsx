@@ -1,7 +1,9 @@
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAdminStats, useAnnouncements } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
+import MiniCalendar from '../components/MiniCalendar'
 import { Loading } from '../shared/components'
 import { langToLocale } from '../shared/utils/formatDate'
 import styles from './AdminDashboard.module.css'
@@ -12,7 +14,10 @@ export default function AdminDashboard() {
   const currentLocale = langToLocale(i18n.language)
   const { data: stats, isLoading } = useAdminStats()
   const { data: announcements = [] } = useAnnouncements('admin')
-  const unreadCount = announcements.filter(a => !a.is_read).length
+  const unreadCount = useMemo(
+    () => announcements.filter(a => !a.is_read).length,
+    [announcements]
+  )
 
   if (isLoading) {
     return <Loading fullPage message={t('common.loading')} />
@@ -25,20 +30,6 @@ export default function AdminDashboard() {
       </div>
     )
   }
-
-  // Mini-calendar widget date calculation (Tashkent Time)
-  const today = new Date(Date.now() + 5 * 60 * 60 * 1000)
-  const dayNum = today.getUTCDate()
-  const isEn = i18n.language?.startsWith('en')
-  const isUz = i18n.language?.startsWith('uz')
-  const monthsRu = ['ЯНВ', 'ФЕВ', 'МАР', 'АПР', 'МАЙ', 'ИЮН', 'ИЮЛ', 'АВГ', 'СЕН', 'ОКТ', 'НОЯ', 'ДЕК']
-  const monthsEn = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-  const monthsUz = ['YAN', 'FEV', 'MAR', 'APR', 'MAY', 'IYN', 'IYL', 'AVG', 'SEN', 'OKT', 'NOY', 'DEK']
-  const daysRu = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ']
-  const daysEn = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
-  const daysUz = ['YAK', 'DUSH', 'SESH', 'CHOR', 'PAY', 'JUM', 'SHAN']
-  const calendarMonth = (isEn ? monthsEn : isUz ? monthsUz : monthsRu)[today.getUTCMonth()] || ''
-  const calendarDayName = (isEn ? daysEn : isUz ? daysUz : daysRu)[today.getUTCDay()] || ''
 
   return (
     <div className={styles.page}>
@@ -57,15 +48,7 @@ export default function AdminDashboard() {
             </p>
           </div>
 
-          <div className={styles.welcomeCalendarWidget}>
-            <div className={styles.widgetHeader}>
-              {calendarMonth}
-            </div>
-            <div className={styles.widgetBody}>
-              <span className={styles.widgetDayNum}>{dayNum}</span>
-              <span className={styles.widgetDayName}>{calendarDayName}</span>
-            </div>
-          </div>
+          <MiniCalendar language={i18n.language} />
         </section>
 
         {/* Stats */}

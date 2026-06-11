@@ -214,6 +214,23 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
             except Exception as exc:
                 logger.debug("Index %s skipped: %s", idx_name, exc)
 
+    # Performance indexes for common queries
+    for idx_name, table, col in [
+        ("idx_lessons_subject_id", "lessons", "subject_id"),
+        ("idx_lesson_enrollments_lesson_id", "lesson_enrollments", "lesson_id"),
+        ("idx_lesson_enrollments_user_id", "lesson_enrollments", "user_id"),
+        ("idx_attendance_lesson_id", "attendance", "lesson_id"),
+        ("idx_notifications_created_at", "notifications", "created_at"),
+        ("idx_notification_reads_user_id", "notification_reads", "user_id"),
+        ("idx_users_telegram_id", "users", "telegram_id"),
+    ]:
+        try:
+            await conn.execute(
+                text(f'CREATE INDEX IF NOT EXISTS {idx_name} ON "{table}" ("{col}")')
+            )
+        except Exception as exc:
+            logger.debug("Index %s skipped: %s", idx_name, exc)
+
     if not await _table_exists(conn, "enrollment_requests", dialect):
         logger.info("Creating enrollment_requests table")
         if dialect == "postgresql":

@@ -4,9 +4,21 @@ from sqlalchemy.orm import DeclarativeBase
 from config import settings
 
 
+# Connection pool config: pool_size, max_overflow, and pool_recycle are only
+# effective for PostgreSQL (asyncpg). For SQLite (aiosqlite) they must be omitted.
+_is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+
+_pool_kwargs = {} if _is_sqlite else {
+    "pool_size": 20,
+    "max_overflow": 10,
+    "pool_recycle": 300,
+}
+
 engine = create_async_engine(
     settings.DATABASE_URL,
+    pool_pre_ping=True,
     echo=False,
+    **_pool_kwargs,
 )
 
 async_session_maker = async_sessionmaker(

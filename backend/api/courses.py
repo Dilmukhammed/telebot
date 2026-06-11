@@ -10,27 +10,12 @@ from database import get_db
 from models import Subject, Lesson, User, LessonStatus, LessonEnrollment, EnrollmentRequest, Material
 from schemas import CourseOut, CourseDetailOut, CourseLessonOut, LessonDetailOut, MaterialOut, LessonAgendaItemOut, LessonHomeworkOut, JoinCourseIn, EnrollmentRequestOut
 from api.deps import get_telegram_user
+from utils.time import _get_tashkent_now, _calculate_end_time
+from utils.constants import DAY_NAMES_RU, DAY_NAMES_SHORT_RU
+from cache import course_list_cache, cache_get, cache_set, invalidate_courses
 
 router = APIRouter(prefix="/courses", tags=["courses"])
 logger = logging.getLogger(__name__)
-
-DAY_NAMES_RU = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
-DAY_NAMES_SHORT_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
-
-
-def _calculate_end_time(start_time: str, duration_minutes: int = 90) -> str:
-    try:
-        h, m = map(int, start_time.split(":"))
-        total = h * 60 + m + duration_minutes
-        return f"{total // 60:02d}:{total % 60:02d}"
-    except Exception:
-        return ""
-
-
-def _get_tashkent_now():
-    import datetime as _dt
-    tashkent_tz = _dt.timezone(_dt.timedelta(hours=5))
-    return _dt.datetime.now(tashkent_tz).replace(tzinfo=None)
 
 
 def _get_next_date(day_of_week: int) -> datetime:
@@ -48,6 +33,12 @@ async def list_courses(
     db: AsyncSession = Depends(get_db),
 ):
     """Get courses. Students see only enrolled courses, teachers/admins see all."""
+    # Check cache (key varies by role; students are per-user, teachers share one key)
+    cache_key = f"courses_list:student:{user.id}" if user.role == "student" else "courses_list:teacher"
+    cached = cache_get(course_list_cache, cache_key)
+    if cached is not None:
+        return cached
+
     if user.role == "student":
         # Student: only enrolled, non-archived courses
         result = await db.execute(
@@ -110,6 +101,7 @@ async def list_courses(
             lesson_count=len(lessons),
         ))
 
+    cache_set(course_list_cache, cache_key, courses)
     return courses
 
 
@@ -409,6 +401,8 @@ async def join_course(
     )
     db.add(enrollment_request)
     await db.commit()
+
+    invalidate_courses()
 
     await _notify_teachers_enrollment_request(db, subject, user)
 

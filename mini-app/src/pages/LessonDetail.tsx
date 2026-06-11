@@ -10,6 +10,7 @@ import {
   useUpdateLesson,
 } from '../api/hooks'
 import type { AttendanceRecordIn } from '../shared/types'
+import Avatar from '../components/Avatar'
 import SiteHeader from '../components/SiteHeader'
 import MaterialCard from '../components/MaterialCard'
 import MaterialForm from '../components/MaterialForm'
@@ -204,13 +205,7 @@ export default function LessonDetail() {
         <section className={styles.section}>
           <h3 className={styles.sectionTitle}>{t('lessonDetail.instructor')}</h3>
           <div className={styles.instructorCard}>
-            <div className={styles.instructorAvatar}>
-              {lesson.teacher_photo_url ? (
-                <img src={lesson.teacher_photo_url} alt={lesson.teacher_name} />
-              ) : (
-                <span className="material-symbols-outlined">person</span>
-              )}
-            </div>
+            <Avatar photoUrl={lesson.teacher_photo_url} name={lesson.teacher_name} size={40} className={styles.instructorAvatar} />
             <div className={styles.instructorInfo}>
               <p className={styles.instructorName}>{lesson.teacher_name}</p>
               {lesson.teacher_title && (

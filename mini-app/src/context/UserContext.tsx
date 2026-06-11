@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react'
+import { createContext, useContext, useCallback, useMemo, type ReactNode } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getMe } from '../api/client'
 import type { UserOut } from '../shared/types'
 
@@ -7,6 +8,7 @@ interface UserContextValue {
   loading: boolean
   error: string | null
   refresh: () => Promise<void>
+  setUser: (user: UserOut | null) => void
 }
 
 const UserContext = createContext<UserContextValue>({
@@ -14,45 +16,45 @@ const UserContext = createContext<UserContextValue>({
   loading: true,
   error: null,
   refresh: async () => {},
+  setUser: () => {},
 })
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserOut | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const requestCounter = useRef(0)
+  const queryClient = useQueryClient()
 
-  const fetchUser = useCallback(async (isRefresh = false) => {
-    // Only show full-page spinner on initial load, not on refreshes
-    if (!isRefresh) setLoading(true)
-    setError(null)
+  const {
+    data: user,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery<UserOut>({
+    queryKey: ['me'],
+    queryFn: () => getMe(),
+    staleTime: 5 * 60 * 1000, // 5 minutes — user data rarely changes
+    gcTime: 10 * 60 * 1000,   // 10 minutes
+    retry: 1,
+    refetchOnWindowFocus: false,
+  })
 
-    const currentRequest = ++requestCounter.current
-    try {
-      const u = await getMe()
-      // Discard stale response if a newer request was made
-      if (currentRequest !== requestCounter.current) return
-      setUser(u)
-    } catch (e) {
-      // Only update error if this is still the latest request
-      if (currentRequest !== requestCounter.current) return
-      setError(e instanceof Error ? e.message : 'Failed to load user')
-    } finally {
-      if (!isRefresh && currentRequest === requestCounter.current) {
-        setLoading(false)
-      }
-    }
-  }, [])
+  const refresh = useCallback(async () => {
+    await refetch()
+  }, [refetch])
 
-  useEffect(() => {
-    fetchUser()
-  }, [fetchUser])
+  const setUser = useCallback((newUser: UserOut | null) => {
+    queryClient.setQueryData(['me'], newUser)
+  }, [queryClient])
 
-  const refresh = useCallback(() => fetchUser(true), [fetchUser])
+  const errorStr = error ? (error instanceof Error ? error.message : 'Failed to load user') : null
 
   const value = useMemo<UserContextValue>(
-    () => ({ user, loading, error, refresh }),
-    [user, loading, error, refresh]
+    () => ({
+      user: user ?? null,
+      loading: isLoading,
+      error: errorStr,
+      refresh,
+      setUser,
+    }),
+    [user, isLoading, errorStr, refresh, setUser]
   )
 
   return (

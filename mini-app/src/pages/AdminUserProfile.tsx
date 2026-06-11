@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAdminUser, useUpdateAdminUserRole } from '../api/hooks'
+import Avatar from '../components/Avatar'
 import SiteHeader from '../components/SiteHeader'
 import { getProfileCardStyle, hasProfileStatus, normalizeProfileTheme } from '../shared/profileTheme'
 import styles from './AdminUserProfile.module.css'
@@ -52,12 +53,6 @@ export default function AdminUserProfile() {
     )
   }
 
-  const getInitials = () => {
-    if (user.first_name) return user.first_name[0].toUpperCase()
-    if (user.username) return user.username[0].toUpperCase()
-    return '?'
-  }
-
   const roleLabel = user.role === 'admin' ? t('admin.profile.role_admin') : user.role === 'teacher' ? t('admin.profile.role_teacher') : t('admin.profile.role_student')
   const profileTheme = normalizeProfileTheme(user.profile_theme)
   const cardStyle = getProfileCardStyle(profileTheme)
@@ -72,13 +67,7 @@ export default function AdminUserProfile() {
       <main className={styles.main}>
         {/* Profile header */}
         <div className={styles.profileCard} style={cardStyle}>
-          <div className={styles.avatar}>
-            {user.photo_url ? (
-              <img src={user.photo_url} alt="" className={styles.avatarImg} />
-            ) : (
-              getInitials()
-            )}
-          </div>
+          <Avatar photoUrl={user.photo_url} name={user.first_name || user.username} size={64} className={styles.avatar} />
           <div className={styles.profileInfo}>
             <h1 className={styles.name}>{user.first_name || t('admin.people.no_name')} {user.last_name || ''}</h1>
             <div className={styles.meta}>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { MaterialOut } from '../shared/types'
 import styles from './MaterialCard.module.css'
@@ -115,10 +115,15 @@ function renderMarkdown(content?: string) {
   })
 }
 
-export default function MaterialCard({ material, canDelete, onDelete }: MaterialCardProps) {
+const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onDelete }: MaterialCardProps) {
   const { t } = useTranslation()
   const [isPlayerOpen, setIsPlayerOpen] = useState(false)
   const [isTextCollapsed, setIsTextCollapsed] = useState(true)
+
+  const renderedMarkdown = useMemo(
+    () => renderMarkdown(material.content),
+    [material.content]
+  )
 
   const youtubeId = material.type === 'youtube' ? getYoutubeId(material.url) : null
   const isVideo = material.type === 'video' || (material.type === 'youtube' && youtubeId)
@@ -284,7 +289,7 @@ export default function MaterialCard({ material, canDelete, onDelete }: Material
         </div>
         {material.content && (
           <div className={`${styles.textContent} ${isLong && isTextCollapsed ? styles.textContentCollapsed : ''}`}>
-            {renderMarkdown(material.content)}
+            {renderedMarkdown}
             {isLong && isTextCollapsed && <div className={styles.textFadeOverlay} />}
           </div>
         )}
@@ -358,5 +363,7 @@ export default function MaterialCard({ material, canDelete, onDelete }: Material
       </div>
     </div>
   )
-}
+})
+
+export default MaterialCard
 

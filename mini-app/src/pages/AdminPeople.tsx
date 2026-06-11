@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAdminUsers, useCreateAdminUser } from '../api/hooks'
 import type { UserOut } from '../shared/types'
+import Avatar from '../components/Avatar'
 import SiteHeader from '../components/SiteHeader'
 import styles from './AdminPeople.module.css'
 
@@ -25,19 +26,22 @@ export default function AdminPeople() {
   const [createLoading, setCreateLoading] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
 
-  const filteredUsers = users.filter(u => {
-    if (!searchQuery) return true
-    const fullName = `${u.first_name || ''} ${u.last_name || ''}`.toLowerCase()
-    const username = (u.username || '').toLowerCase()
-    const phone = (u.phone || '').toLowerCase()
-    const query = searchQuery.toLowerCase()
-    return fullName.includes(query) || username.includes(query) || phone.includes(query)
-  })
+  const filteredUsers = useMemo(
+    () => users.filter(u => {
+      if (!searchQuery) return true
+      const fullName = `${u.first_name || ''} ${u.last_name || ''}`.toLowerCase()
+      const username = (u.username || '').toLowerCase()
+      const phone = (u.phone || '').toLowerCase()
+      const query = searchQuery.toLowerCase()
+      return fullName.includes(query) || username.includes(query) || phone.includes(query)
+    }),
+    [users, searchQuery]
+  )
 
-  const getInitials = (u: UserOut) => {
-    if (u.first_name) return u.first_name[0].toUpperCase()
-    if (u.username) return u.username[0].toUpperCase()
-    return '?'
+  const getUserName = (u: UserOut) => {
+    if (u.first_name) return u.first_name
+    if (u.username) return u.username
+    return undefined
   }
 
   const handleCreateTeacher = async () => {
@@ -122,13 +126,7 @@ export default function AdminPeople() {
                   className={styles.card}
                   onClick={() => navigate(`/admin/people/${u.id}`)}
                 >
-                  <div className={styles.avatar}>
-                    {u.photo_url ? (
-                      <img src={u.photo_url} alt="" className={styles.avatarImg} />
-                    ) : (
-                      getInitials(u)
-                    )}
-                  </div>
+                  <Avatar photoUrl={u.photo_url} name={getUserName(u)} size={40} className={styles.avatar} />
                   <div className={styles.info}>
                     <div className={styles.nameRow}>
                       <span className={styles.name}>

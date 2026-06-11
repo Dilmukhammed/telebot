@@ -7,6 +7,7 @@ from sqlalchemy import and_, select
 from bot.bot import bot
 from database import async_session_maker
 from models import Registration, Subject, Test, Lesson, LessonEnrollment, User, LessonStatus
+from utils.time import _get_tashkent_now
 
 logger = logging.getLogger(__name__)
 
@@ -14,10 +15,8 @@ logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 
-def get_now():
-    """Get current time in Tashkent (UTC+5) as a naive datetime."""
-    tashkent_tz = dt.timezone(dt.timedelta(hours=5))
-    return dt.datetime.now(tashkent_tz).replace(tzinfo=None)
+# Alias for backward compatibility within this module
+get_now = _get_tashkent_now
 
 
 def get_now_utc():
@@ -153,23 +152,26 @@ async def send_lesson_reminders():
                 if teacher:
                     teacher_name = teacher.first_name or (f"@{teacher.username}" if teacher.username else "Преподаватель")
 
+            # Batch load all users for these enrollments
+            user_ids = [e.user_id for e in enrollments]
+            users_result = await session.execute(
+                select(User).where(User.id.in_(user_ids))
+            )
+            users_map = {u.id: u for u in users_result.scalars().all()}
+
+            # Greeting based on time of day
+            hour = int(lesson.time.split(":")[0])
+            if hour < 12:
+                greeting = "Доброе утро"
+            elif hour < 17:
+                greeting = "Добрый день"
+            else:
+                greeting = "Добрый вечер"
+
             for enrollment in enrollments:
-                # Get user
-                user_result = await session.execute(
-                    select(User).where(User.id == enrollment.user_id)
-                )
-                user = user_result.scalar_one_or_none()
+                user = users_map.get(enrollment.user_id)
                 if not user:
                     continue
-
-                # Greeting based on time of day
-                hour = int(lesson.time.split(":")[0])
-                if hour < 12:
-                    greeting = "Доброе утро"
-                elif hour < 17:
-                    greeting = "Добрый день"
-                else:
-                    greeting = "Добрый вечер"
 
                 # Send reminder
                 message = (

@@ -6,9 +6,9 @@ from typing import Optional
 
 from database import get_db
 from models import Test, Subject, Registration
-from schemas import TestOut, TestCreate, TestUpdate, SubjectUpdate
-from subject_drive_folder import sync_subject_drive_folder
+from schemas import TestOut, TestCreate, TestUpdate
 from api.deps import get_current_admin
+from cache import test_list_cache, cache_get, cache_set, invalidate_tests
 
 router = APIRouter(prefix="", tags=["tests"])
 
@@ -31,12 +31,20 @@ def _test_to_out(test: Test, registered_count: int) -> TestOut:
 @router.get("/tests", response_model=list[TestOut])
 async def list_tests(
     subject_id: Optional[int] = Query(None, description="Filter by subject ID"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
 ):
     """
     List active tests with computed registered_count and has_capacity.
     Only returns is_active=True tests ordered by datetime ascending.
     """
+    # Check cache
+    cache_key = "tests_list" if subject_id is None else f"tests_list:{subject_id}"
+    cached = cache_get(test_list_cache, cache_key)
+    if cached is not None:
+        return cached
+
     # Fetch tests with subject eagerly loaded
     query = select(Test).options(selectinload(Test.subject)).where(Test.is_active == True)
 
@@ -44,6 +52,7 @@ async def list_tests(
         query = query.where(Test.subject_id == subject_id)
 
     query = query.order_by(Test.datetime.asc())
+    query = query.offset(skip).limit(limit)
 
     result = await db.execute(query)
     tests = result.scalars().all()
@@ -65,6 +74,7 @@ async def list_tests(
         registered_count = reg_counts.get(test.id, 0)
         out_list.append(_test_to_out(test, registered_count))
 
+    cache_set(test_list_cache, cache_key, out_list)
     return out_list
 
 
@@ -136,11 +146,13 @@ async def create_test(
     db.add(test)
     await db.flush()
     await db.refresh(test)
-    
+
     # Load subject relationship
     await db.refresh(test, ["subject"])
     await db.commit()
-    
+
+    invalidate_tests()
+
     return _test_to_out(test, registered_count=0)
 
 
@@ -200,7 +212,9 @@ async def update_test(
     await db.refresh(test)
     await db.refresh(test, ["subject"])
     await db.commit()
-    
+
+    invalidate_tests()
+
     # Get registered count
     reg_count_result = await db.execute(
         select(func.count(Registration.id))
@@ -208,7 +222,7 @@ async def update_test(
         .where(Registration.status == "registered")
     )
     registered_count = reg_count_result.scalar() or 0
-    
+
     return _test_to_out(test, registered_count)
 
 
@@ -230,6 +244,8 @@ async def delete_test(
     await db.refresh(test, ["subject"])
     await db.commit()
 
+    invalidate_tests()
+
     # Get registered count
     reg_count_result = await db.execute(
         select(func.count(Registration.id))
@@ -239,52 +255,3 @@ async def delete_test(
     registered_count = reg_count_result.scalar() or 0
 
     return _test_to_out(test, registered_count)
-
-
-@router.patch("/admin/subjects/{subject_id}", response_model=dict)
-async def update_subject(
-    subject_id: int,
-    data: SubjectUpdate,
-    db: AsyncSession = Depends(get_db),
-    admin=Depends(get_current_admin),
-):
-    """Update a subject/course (admin only). Only provided fields are updated."""
-    result = await db.execute(select(Subject).where(Subject.id == subject_id, Subject.is_deleted == False))
-    subject = result.scalar_one_or_none()
-    if not subject:
-        raise HTTPException(status_code=404, detail="Subject not found")
-
-    update_dict = data.model_dump(exclude_unset=True)
-
-    if "name" in update_dict:
-        subject.name = update_dict["name"]
-    if "description" in update_dict:
-        subject.description = update_dict["description"]
-    if "start_date" in update_dict:
-        from datetime import datetime
-        sd = update_dict["start_date"]
-        if sd is None:
-            subject.start_date = None
-        else:
-            try:
-                subject.start_date = datetime.strptime(sd, "%Y-%m-%d")
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
-    if "duration_weeks" in update_dict:
-        subject.duration_weeks = update_dict["duration_weeks"]
-    if "duration_minutes" in update_dict:
-        subject.duration_minutes = update_dict["duration_minutes"]
-
-    await db.commit()
-    await db.refresh(subject)
-    await sync_subject_drive_folder(db, subject)
-    await db.commit()
-
-    return {
-        "id": subject.id,
-        "name": subject.name,
-        "description": subject.description,
-        "start_date": subject.start_date.strftime("%Y-%m-%d") if subject.start_date else None,
-        "duration_weeks": subject.duration_weeks,
-        "duration_minutes": subject.duration_minutes,
-    }

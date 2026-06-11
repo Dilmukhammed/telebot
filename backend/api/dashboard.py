@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, func
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 from typing import Optional
@@ -10,18 +10,10 @@ from database import get_db
 from models import User, Lesson, LessonEnrollment, Registration, Result, Subject, Test, Notification, NotificationRecipient, NotificationRead, NotificationAttachment, Attendance, LessonStatus, TeacherAvailability
 from schemas import DashboardOut, DashboardProfileOut, DashboardLessonOut, DashboardResultOut, DashboardNotificationOut
 from api.deps import get_telegram_user
+from utils.time import _get_tashkent_now, _to_tashkent_iso, _calculate_end_time
+from utils.constants import DAY_NAMES_RU, DAY_NAMES_SHORT_RU
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
-
-DAY_NAMES_RU = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
-DAY_NAMES_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
-
-TASHKENT_OFFSET = timedelta(hours=5)
-
-
-def _to_tashkent_iso(utc_dt: datetime) -> str:
-    """Convert naive UTC datetime to Tashkent time ISO string with timezone."""
-    return (utc_dt + TASHKENT_OFFSET).isoformat() + "+05:00"
 
 
 def _get_day_label(lesson_day: int, today: int) -> str:
@@ -37,9 +29,7 @@ async def get_dashboard(
     user: User = Depends(get_telegram_user),
     db: AsyncSession = Depends(get_db),
 ):
-    import datetime as _dt
-    tashkent_tz = _dt.timezone(_dt.timedelta(hours=5))
-    now = _dt.datetime.now(tashkent_tz).replace(tzinfo=None)
+    now = _get_tashkent_now()
     today = now.weekday()  # 0=Mon, 6=Sun
     current_time = now.strftime("%H:%M")
 
@@ -198,30 +188,27 @@ async def get_dashboard(
     ]
 
     # Count ALL unread announcements (not just top 3) for the badge
-    all_unread_query = (
-        select(Notification.id)
+    # Single count query with outerjoin instead of fetching all IDs then checking reads
+    unread_count_result = await db.execute(
+        select(func.count())
+        .select_from(Notification)
+        .outerjoin(
+            NotificationRead,
+            and_(
+                NotificationRead.notification_id == Notification.id,
+                NotificationRead.user_id == user.id,
+            ),
+        )
         .where(
             or_(
                 Notification.target_type.in_(visible_types),
                 Notification.id.in_(course_recipient_subq),
             ),
-            Notification.sender_id != user.id,  # Exclude own announcements
+            Notification.sender_id != user.id,
+            NotificationRead.id.is_(None),
         )
     )
-    all_unread_res = await db.execute(all_unread_query)
-    all_notif_ids = [row[0] for row in all_unread_res.all()]
-
-    unread_count = 0
-    if all_notif_ids:
-        read_all_res = await db.execute(
-            select(NotificationRead.notification_id)
-            .where(
-                NotificationRead.user_id == user.id,
-                NotificationRead.notification_id.in_(all_notif_ids),
-            )
-        )
-        all_read_set = {row[0] for row in read_all_res.all()}
-        unread_count = sum(1 for nid in all_notif_ids if nid not in all_read_set)
+    unread_count = unread_count_result.scalar() or 0
 
     return DashboardOut(
         profile=profile,
@@ -462,19 +449,6 @@ class CalendarWeekOut(BaseModel):
     days: list[CalendarDayOut]
 
 
-def _calculate_end_time(start_time: str, duration_minutes: int | None = 90) -> str:
-    """Calculate end time from start time and duration."""
-    try:
-        dur = duration_minutes or 90
-        h, m = map(int, start_time.split(":"))
-        total_minutes = h * 60 + m + dur
-        end_h = total_minutes // 60
-        end_m = total_minutes % 60
-        return f"{end_h:02d}:{end_m:02d}"
-    except Exception:
-        return ""
-
-
 @router.get("/calendar", response_model=CalendarWeekOut)
 async def get_calendar(
     week_offset: int = Query(0, description="Week offset from current week"),
@@ -482,9 +456,7 @@ async def get_calendar(
     db: AsyncSession = Depends(get_db),
 ):
     """Get calendar data for a specific week."""
-    import datetime as _dt
-    tashkent_tz = _dt.timezone(_dt.timedelta(hours=5))
-    today = _dt.datetime.now(tashkent_tz).date()
+    today = _get_tashkent_now().date()
     # Get Monday of current week
     current_monday = today - timedelta(days=today.weekday())
     # Apply offset
@@ -625,7 +597,7 @@ async def get_calendar(
         days.append(CalendarDayOut(
             date=date.isoformat(),
             day_of_week=i,
-            day_name=DAY_NAMES_SHORT[i],
+            day_name=DAY_NAMES_SHORT_RU[i],
             lessons=lessons_by_day.get(i, []),
         ))
 

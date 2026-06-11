@@ -44,12 +44,15 @@ def user_to_dict(user: User) -> dict:
 @router.get("", response_model=list[UserOut])
 async def list_users(
     role: str = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     admin=Depends(require_admin),
 ):
     query = select(User)
     if role:
         query = query.where(User.role == role)
+    query = query.offset(skip).limit(limit)
     result = await db.execute(query)
     users = result.scalars().all()
     return [user_to_dict(u) for u in users]
