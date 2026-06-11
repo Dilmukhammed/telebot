@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from typing import Optional
 
 from database import get_db
@@ -16,6 +16,37 @@ import google_drive
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/materials", tags=["materials"])
+
+
+async def _user_can_manage_material(user: User, material: Material, db: AsyncSession) -> bool:
+    """Owner, admin, or any teacher with an active lesson on the course."""
+    if user.role == "admin":
+        return True
+    if material.created_by == user.id:
+        return True
+    if user.role != "teacher":
+        return False
+
+    subject_id = material.subject_id
+    if subject_id is None and material.lesson_id is not None:
+        lesson = await db.get(Lesson, material.lesson_id)
+        if lesson:
+            subject_id = lesson.subject_id
+    if subject_id is None:
+        return False
+
+    result = await db.execute(
+        select(Lesson.id)
+        .where(
+            and_(
+                Lesson.subject_id == subject_id,
+                Lesson.teacher_id == user.id,
+                Lesson.is_active == True,
+            )
+        )
+        .limit(1)
+    )
+    return result.scalar_one_or_none() is not None
 
 
 def _material_to_out(m: Material) -> MaterialOut:
@@ -192,7 +223,7 @@ async def update_material(
     if not material:
         raise HTTPException(status_code=404, detail="Material not found")
 
-    if material.created_by != user.id and user.role != "admin":
+    if not await _user_can_manage_material(user, material, db):
         raise HTTPException(status_code=403, detail="Not allowed")
 
     if data.title is not None:
@@ -218,7 +249,7 @@ async def delete_material(
     if not material:
         raise HTTPException(status_code=404, detail="Material not found")
 
-    if material.created_by != user.id and user.role != "admin":
+    if not await _user_can_manage_material(user, material, db):
         raise HTTPException(status_code=403, detail="Not allowed")
 
     # Delete from Google Drive if it's a file
