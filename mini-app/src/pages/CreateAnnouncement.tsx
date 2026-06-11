@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useTeacherCourses } from '../api/hooks'
 import { getCourseStudents, createAnnouncement } from '../api/client'
+import { useQueryClient } from '@tanstack/react-query'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './CreateAnnouncement.module.css'
@@ -16,6 +17,7 @@ interface Student {
 export default function CreateAnnouncement() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
@@ -81,6 +83,10 @@ export default function CreateAnnouncement() {
         course_ids: targetType === 'course' ? selectedCourses : undefined,
         student_ids: targetType === 'students' ? selectedStudents : undefined,
       })
+      // Invalidate announcement caches so the list refreshes
+      queryClient.invalidateQueries({ queryKey: ['announcements'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-announcements'] })
       navigate(-1)
     } catch (e: any) {
       setError(e.message || t('common.error'))

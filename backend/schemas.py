@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import datetime
 from typing import Optional, Generic, TypeVar, List
 
@@ -67,8 +67,8 @@ class ResultCreate(BaseModel):
 
 
 class ResultUpdate(BaseModel):
-    score: Optional[int] = None
-    max_score: Optional[int] = None
+    score: Optional[int] = Field(default=None, ge=0)
+    max_score: Optional[int] = Field(default=None, ge=1)
     comment: Optional[str] = None
 
 
@@ -289,6 +289,7 @@ class DashboardOut(BaseModel):
     results: list[DashboardResultOut]
     stats: Optional[StudentDashboardStatsOut] = None
     notifications: list[DashboardNotificationOut] = []
+    unread_count: int = 0  # Total unread announcements (not limited to top 3)
 
 
 class NotificationCreate(BaseModel):
@@ -302,9 +303,9 @@ class NotificationCreate(BaseModel):
 class SubjectUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    start_date: Optional[str] = None  # "YYYY-MM-DD"
-    duration_weeks: Optional[int] = None
-    duration_minutes: Optional[int] = None
+    start_date: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    duration_weeks: Optional[int] = Field(default=None, ge=1)
+    duration_minutes: Optional[int] = Field(default=None, ge=1)
 
 
 # Lesson Status schemas
@@ -315,7 +316,7 @@ class LessonUpdateIn(BaseModel):
 
 class LessonStatusIn(BaseModel):
     lesson_id: int
-    date: str  # "YYYY-MM-DD"
+    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     status: str = Field(pattern="^(happened|cancelled|rescheduled)$")
 
 
@@ -335,7 +336,7 @@ class AttendanceRecordIn(BaseModel):
 
 class AttendanceBulkIn(BaseModel):
     lesson_id: int
-    date: str  # "YYYY-MM-DD"
+    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     records: list[AttendanceRecordIn]
 
 
@@ -499,13 +500,13 @@ class AdminLessonCreate(BaseModel):
 
 class ScheduleSlot(BaseModel):
     day_of_week: int = Field(ge=0, le=6)
-    time: str = Field(pattern=r"^\d{2}:\d{2}$")
+    time: str = Field(pattern=r"^\d{2}:\d{2}(:\d{2})?$")
     room: str = Field(max_length=100)
 
 
 class ScheduleTimeSlot(BaseModel):
     day_of_week: int = Field(ge=0, le=6)
-    time: str = Field(pattern=r"^\d{2}:\d{2}$")
+    time: str = Field(pattern=r"^\d{2}:\d{2}(:\d{2})?$")
     duration_minutes: int = Field(default=90, ge=1)
 
 

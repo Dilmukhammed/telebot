@@ -60,9 +60,26 @@ async def _log_audit(db: AsyncSession, entity_type: str, entity_id: int, action:
     db.add(entry)
 
 
-def _calculate_end_time(start_time: str, duration_minutes: int = 90) -> str:
+def _normalize_hhmm(t: str) -> str:
+    """Parse HH:MM or HH:MM:SS into canonical HH:MM."""
+    parts = t.strip().split(":")
+    if len(parts) < 2:
+        return ""
     try:
-        h, m = map(int, start_time.split(":"))
+        h, m = int(parts[0]), int(parts[1])
+    except ValueError:
+        return ""
+    if not (0 <= h <= 23 and 0 <= m <= 59):
+        return ""
+    return f"{h:02d}:{m:02d}"
+
+
+def _calculate_end_time(start_time: str, duration_minutes: int = 90) -> str:
+    norm = _normalize_hhmm(start_time)
+    if not norm:
+        return ""
+    try:
+        h, m = map(int, norm.split(":"))
         total = h * 60 + m + duration_minutes
         return f"{total // 60:02d}:{total % 60:02d}"
     except Exception:
@@ -70,7 +87,10 @@ def _calculate_end_time(start_time: str, duration_minutes: int = 90) -> str:
 
 
 def _time_to_minutes(t: str) -> int:
-    h, m = map(int, t.split(":"))
+    norm = _normalize_hhmm(t)
+    if not norm:
+        return 0
+    h, m = map(int, norm.split(":"))
     return h * 60 + m
 
 
@@ -222,13 +242,17 @@ async def get_admin_lessons(
 @router.get("/search", response_model=SearchResultOut)
 async def search_courses(
     days: list[int] = Query(..., ge=0, le=6),
-    time_from: str = Query(..., pattern=r"^\d{2}:\d{2}$"),
-    time_to: str = Query(..., pattern=r"^\d{2}:\d{2}$"),
+    time_from: str = Query(..., pattern=r"^\d{2}:\d{2}(:\d{2})?$"),
+    time_to: str = Query(..., pattern=r"^\d{2}:\d{2}(:\d{2})?$"),
     teacher_id: int | None = None,
     subject_id: int | None = None,
     admin=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    time_from = _normalize_hhmm(time_from)
+    time_to = _normalize_hhmm(time_to)
+    if not time_from or not time_to:
+        raise HTTPException(status_code=400, detail="Invalid time format")
     if _time_to_minutes(time_from) >= _time_to_minutes(time_to):
         raise HTTPException(status_code=400, detail="time_from must be before time_to")
 
@@ -887,16 +911,17 @@ async def get_teachers_for_schedule(
         # Lesson must fit entirely: avail.start <= lesson.start AND avail.end >= lesson.end
         covers_all = True
         for slot in schedule:
-            # Calculate lesson end time
-            h, m = map(int, slot.time.split(":"))
-            end_minutes = h * 60 + m + slot.duration_minutes
-            end_h, end_m = divmod(end_minutes, 60)
-            lesson_end = f"{end_h:02d}:{end_m:02d}"
+            lesson_start = _normalize_hhmm(slot.time)
+            if not lesson_start:
+                covers_all = False
+                break
+            lesson_start_min = _time_to_minutes(lesson_start)
+            lesson_end_min = lesson_start_min + slot.duration_minutes
 
             has_slot = any(
                 a.day_of_week == slot.day_of_week
-                and a.start_time <= slot.time
-                and a.end_time >= lesson_end
+                and _time_to_minutes(a.start_time) <= lesson_start_min
+                and _time_to_minutes(a.end_time) >= lesson_end_min
                 for a in avail_slots
             )
             if not has_slot:

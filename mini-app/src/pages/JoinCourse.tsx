@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { joinCourse } from '../api/client'
+import { useJoinCourse } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
 import styles from './JoinCourse.module.css'
 
@@ -9,10 +9,10 @@ export default function JoinCourse() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [code, setCode] = useState('')
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  const joinMutation = useJoinCourse()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,18 +21,15 @@ export default function JoinCourse() {
       return
     }
 
-    setLoading(true)
     setError('')
     setSuccess('')
 
     try {
-      const result = await joinCourse(code.toUpperCase())
+      const result = await joinMutation.mutateAsync(code.toUpperCase())
       setSuccess(result.message || t('joinCourse.successMessage'))
       setCode('')
     } catch (e: any) {
       setError(e.message || t('joinCourse.errorMessage'))
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -109,10 +106,10 @@ export default function JoinCourse() {
 
             <button
               type="submit"
-              disabled={code.length !== 6 || loading}
+              disabled={code.length !== 6 || joinMutation.isPending}
               className={styles.submitButton}
             >
-              {loading ? (
+              {joinMutation.isPending ? (
                 <span className={styles.spinner} />
               ) : (
                 <>

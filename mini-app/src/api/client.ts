@@ -2,31 +2,23 @@ import WebApp from '@twa-dev/sdk'
 import type { TestOut, RegistrationOut, ResultOut, UserOut, OnboardingData, DashboardOut, CalendarWeekOut, CourseOut, CourseDetailOut, LessonDetailOut, TeacherDashboardOut, TeacherStudentsOut, TeacherStudentDetailOut, AnnouncementOut, AnnouncementRecipient, TeacherStudentOut, LessonStatusOut, AttendanceRecordIn, AttendanceListOut, TeacherAvailabilityOut, AdminStats, AdminLessonOut, SearchResultOut, AdminAnnouncementCreate, AdminAnnouncementOut, AdminSubjectOut, AdminSubjectDetailOut, AuditLogOut, AdminSubjectCreate, MaterialOut, MaterialCreate } from '../shared/types'
 
 const BASE_URL = import.meta.env.VITE_API_URL || ''
+const REQUEST_TIMEOUT_MS = 30_000
+
+/** Normalize browser time input (HH:MM or HH:MM:SS) to HH:MM for API. */
+function normalizeTime(t: string): string {
+  return t.length >= 5 ? t.slice(0, 5) : t
+}
 
 function getAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
 
-  // Primary: send initData (for HMAC validation on server)
+  // Send initData for HMAC validation on server.
+  // X-Telegram-User fallback removed — it had no signature and allowed impersonation.
   const initData = WebApp.initData
   if (initData) {
     headers['X-Telegram-Init-Data'] = initData
-  }
-
-  // Fallback: send user info directly from WebApp SDK
-  // This works even when initData is empty (e.g. in dev/tunnel)
-  // Base64 encode to avoid non-ISO-8859-1 characters in headers
-  const user = (WebApp as any).initDataUnsafe?.user
-    || (window as any).Telegram?.WebApp?.initDataUnsafe?.user
-  if (user) {
-    const userJson = JSON.stringify({
-      id: user.id,
-      username: user.username || '',
-      first_name: user.first_name || '',
-      photo_url: user.photo_url || '',
-    })
-    headers['X-Telegram-User'] = btoa(unescape(encodeURIComponent(userJson)))
   }
 
   return headers
@@ -36,26 +28,51 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${BASE_URL}${path}`
   const authHeaders = getAuthHeaders()
 
-  const response = await fetch(url, {
-    ...options,
-    headers: { ...authHeaders, ...(options.headers as Record<string, string> || {}) },
-  })
+  // Add request timeout to prevent permanent UI freezes on hanging server
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
-  if (!response.ok) {
-    let message = `Error (${response.status})`
-    try {
-      const body = await response.json()
-      if (body.detail) message = body.detail
-    } catch { /* ignore */ }
-    throw new Error(message)
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: { ...authHeaders, ...(options.headers as Record<string, string> || {}) },
+      signal: controller.signal,
+      // Bypass browser HTTP cache — React Query manages staleness.
+      // Without this, Cache-Control: max-age=X on the server causes the browser
+      // to return stale cached responses even after invalidateQueries().
+      cache: 'no-store',
+    })
+
+    if (!response.ok) {
+      let message = `Error (${response.status})`
+      try {
+        const body = await response.json()
+        if (body.detail) {
+          message = Array.isArray(body.detail)
+            ? body.detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join('; ') || message
+            : typeof body.detail === 'string' ? body.detail : message
+        }
+      } catch { /* ignore */ }
+      throw new Error(message)
+    }
+
+    // Handle 204 No Content and empty responses
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
+      return undefined as T
+    }
+
+    return response.json() as Promise<T>
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.')
+    }
+    if (err instanceof TypeError && err.message === 'Failed to fetch') {
+      throw new Error('Network error — could not reach the server')
+    }
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
   }
-
-  // Handle 204 No Content and empty responses
-  if (response.status === 204 || response.headers.get('content-length') === '0') {
-    return undefined as T
-  }
-
-  return response.json() as Promise<T>
 }
 
 export function getTests(): Promise<TestOut[]> {
@@ -272,8 +289,8 @@ export function getAdminLessons(params: { week_offset?: number; teacher_id?: num
 export function adminSearchCourses(params: { days: number[]; time_from: string; time_to: string; teacher_id?: number; subject_id?: number }): Promise<SearchResultOut> {
   const searchParams = new URLSearchParams()
   params.days.forEach(day => searchParams.append('days', String(day)))
-  searchParams.append('time_from', params.time_from)
-  searchParams.append('time_to', params.time_to)
+  searchParams.append('time_from', normalizeTime(params.time_from))
+  searchParams.append('time_to', normalizeTime(params.time_to))
   if (params.teacher_id !== undefined) searchParams.append('teacher_id', String(params.teacher_id))
   if (params.subject_id !== undefined) searchParams.append('subject_id', String(params.subject_id))
   return api<SearchResultOut>(`/api/admin/search?${searchParams.toString()}`)
@@ -345,7 +362,10 @@ export function createAdminSubject(data: AdminSubjectCreate): Promise<AdminSubje
 export function getTeachersForSchedule(schedule: { day_of_week: number; time: string; duration_minutes?: number }[]): Promise<UserOut[]> {
   return api<UserOut[]>('/api/admin/teachers-for-schedule', {
     method: 'POST',
-    body: JSON.stringify(schedule),
+    body: JSON.stringify(schedule.map(slot => ({
+      ...slot,
+      time: normalizeTime(slot.time),
+    }))),
   })
 }
 

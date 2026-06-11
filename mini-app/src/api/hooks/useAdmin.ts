@@ -65,7 +65,11 @@ export function useRescheduleLesson() {
   return useMutation({
     mutationFn: (data: { lessonId: number; date: string; new_date: string; new_time?: string }) =>
       rescheduleLesson(data.lessonId, { date: data.date, new_date: data.new_date, new_time: data.new_time }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-lessons'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-lessons'] })
+      qc.invalidateQueries({ queryKey: ['admin-subjects'] })
+      qc.invalidateQueries({ queryKey: ['calendar'] })
+    },
   })
 }
 
@@ -74,7 +78,11 @@ export function useCancelAdminLesson() {
   return useMutation({
     mutationFn: (data: { lessonId: number; date: string }) =>
       cancelAdminLesson(data.lessonId, { date: data.date }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-lessons'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-lessons'] })
+      qc.invalidateQueries({ queryKey: ['admin-subjects'] })
+      qc.invalidateQueries({ queryKey: ['calendar'] })
+    },
   })
 }
 
@@ -83,7 +91,11 @@ export function useMarkAdminLessonStatus() {
   return useMutation({
     mutationFn: (data: { lessonId: number; date: string; status: string }) =>
       markAdminLessonStatus(data.lessonId, { date: data.date, status: data.status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-lessons'] }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['admin-lessons'] })
+      qc.invalidateQueries({ queryKey: ['admin-lesson-attendance', variables.lessonId, variables.date] })
+      qc.invalidateQueries({ queryKey: ['calendar'] })
+    },
   })
 }
 
@@ -109,7 +121,11 @@ export function useAdminUpdateLesson() {
   return useMutation({
     mutationFn: (data: { lessonId: number; custom_title?: string | null; lesson_plan?: string | null }) =>
       adminUpdateLesson(data.lessonId, { custom_title: data.custom_title, lesson_plan: data.lesson_plan }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-lessons'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-lessons'] })
+      qc.invalidateQueries({ queryKey: ['admin-subjects'] })
+      qc.invalidateQueries({ queryKey: ['lesson'] })
+    },
   })
 }
 
@@ -183,7 +199,10 @@ export function useUpdateSubject() {
   return useMutation({
     mutationFn: (data: { id: number; name?: string; description?: string; start_date?: string; duration_weeks?: number; duration_minutes?: number }) =>
       updateSubject(data.id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-subjects'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-subjects'] })
+      qc.invalidateQueries({ queryKey: ['admin-subject'] })
+    },
   })
 }
 
@@ -192,7 +211,10 @@ export function useAdminCreateLesson() {
   return useMutation({
     mutationFn: (data: { subjectId: number; teacher_name: string; teacher_id?: number; day_of_week: number; time: string; room: string; location?: string; max_capacity?: number }) =>
       adminCreateLesson(data.subjectId, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-subjects'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-subjects'] })
+      qc.invalidateQueries({ queryKey: ['admin-lessons'] })
+    },
   })
 }
 
@@ -259,7 +281,11 @@ export function useCreateAdminAnnouncement() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: createAdminAnnouncement,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-announcements'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-announcements'] })
+      qc.invalidateQueries({ queryKey: ['announcements'] })
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    },
   })
 }
 

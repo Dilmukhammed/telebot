@@ -24,6 +24,7 @@ export function useRegisterForTest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['registrations'] })
       queryClient.invalidateQueries({ queryKey: ['tests'] })
+      queryClient.invalidateQueries({ queryKey: ['test'] })
     },
   })
 }
@@ -34,6 +35,8 @@ export function useCancelRegistration() {
     mutationFn: (id: number) => cancelRegistration(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['registrations'] })
+      queryClient.invalidateQueries({ queryKey: ['tests'] })
+      queryClient.invalidateQueries({ queryKey: ['test'] })
     },
   })
 }

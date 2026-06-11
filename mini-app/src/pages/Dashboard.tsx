@@ -102,12 +102,10 @@ export default function Dashboard() {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!data?.notifications) return
-    const count = data.notifications.filter(
-      n => !n.is_read && n.sender_id !== user?.id
-    ).length
-    setUnreadCount(count)
-  }, [data, user])
+    if (!data) return
+    // Use server-calculated unread_count (counts ALL announcements, not just top 3)
+    setUnreadCount(data.unread_count ?? 0)
+  }, [data])
 
   const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
   const telegramAvatar = tgUser?.photo_url
@@ -154,10 +152,10 @@ export default function Dashboard() {
   const getGreeting = (firstName: string) => {
     const utcHour = new Date().getUTCHours()
     const tashkentHour = (utcHour + 5) % 24
-    if (tashkentHour >= 5 && tashkentHour < 12) return `Доброе утро, ${firstName}! ☀️`
-    if (tashkentHour >= 12 && tashkentHour < 18) return `Добрый день, ${firstName}! 🌤️`
-    if (tashkentHour >= 18 && tashkentHour < 22) return `Добрый вечер, ${firstName}! 🌙`
-    return `Доброй ночи, ${firstName}! 🌌`
+    if (tashkentHour >= 5 && tashkentHour < 12) return t('dashboard.greetingMorning', { name: firstName, defaultValue: `Доброе утро, ${firstName}! ☀️` })
+    if (tashkentHour >= 12 && tashkentHour < 18) return t('dashboard.greetingAfternoon', { name: firstName, defaultValue: `Добрый день, ${firstName}! 🌤️` })
+    if (tashkentHour >= 18 && tashkentHour < 22) return t('dashboard.greetingEvening', { name: firstName, defaultValue: `Добрый вечер, ${firstName}! 🌙` })
+    return t('dashboard.greetingNight', { name: firstName, defaultValue: `Доброй ночи, ${firstName}! 🌌` })
   }
 
   const getTodayLessonsStatus = () => {

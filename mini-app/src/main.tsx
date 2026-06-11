@@ -16,13 +16,24 @@ try {
   // Outside Telegram context — that's fine for dev
 }
 
-const tp = WebApp.themeParams || {}
-document.documentElement.style.setProperty('--tg-bg-color', tp.bg_color || '#ffffff')
-document.documentElement.style.setProperty('--tg-text-color', tp.text_color || '#000000')
-document.documentElement.style.setProperty('--tg-hint-color', tp.hint_color || '#999999')
-document.documentElement.style.setProperty('--tg-button-color', tp.button_color || '#2481cc')
-document.documentElement.style.setProperty('--tg-button-text-color', tp.button_text_color || '#ffffff')
-document.documentElement.style.setProperty('--tg-secondary-bg-color', tp.secondary_bg_color || '#f0f0f0')
+function applyThemeParams() {
+  const tp = WebApp.themeParams || {}
+  document.documentElement.style.setProperty('--tg-bg-color', tp.bg_color || '#ffffff')
+  document.documentElement.style.setProperty('--tg-text-color', tp.text_color || '#000000')
+  document.documentElement.style.setProperty('--tg-hint-color', tp.hint_color || '#999999')
+  document.documentElement.style.setProperty('--tg-button-color', tp.button_color || '#2481cc')
+  document.documentElement.style.setProperty('--tg-button-text-color', tp.button_text_color || '#ffffff')
+  document.documentElement.style.setProperty('--tg-secondary-bg-color', tp.secondary_bg_color || '#f0f0f0')
+}
+
+applyThemeParams()
+
+// Listen for Telegram theme changes while the mini-app is open
+try {
+  WebApp.onEvent('themeChanged', applyThemeParams)
+} catch {
+  // Outside Telegram context
+}
 
 const root = document.getElementById('root')
 if (root) {

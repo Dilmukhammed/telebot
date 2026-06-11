@@ -24,9 +24,10 @@ export default function CourseDetail() {
   const navigate = useNavigate()
   const { user } = useUser()
   const courseId = Number(id)
-  const { data: course, isLoading } = useCourseDetail(courseId)
+  const isValidId = !isNaN(courseId) && courseId > 0
+  const { data: course, isLoading } = useCourseDetail(isValidId ? courseId : 0)
   const isTeacherOrAdmin = user?.role === 'teacher' || user?.role === 'admin'
-  const { data: students = [] } = useCourseStudents(isTeacherOrAdmin ? courseId : 0)
+  const { data: students = [], isLoading: studentsLoading } = useCourseStudents(isTeacherOrAdmin ? courseId : 0)
   const [activeTab, setActiveTab] = useState<Tab>('lessons')
   const [copied, setCopied] = useState(false)
   const [showMaterialForm, setShowMaterialForm] = useState(false)
@@ -62,6 +63,18 @@ export default function CourseDetail() {
     const d = new Date(dateStr + 'T00:00:00')
     const locale = i18n.language === 'en' ? 'en-US' : i18n.language === 'uz' ? 'uz-UZ' : 'ru-RU'
     return d.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })
+  }
+
+  if (!isValidId) {
+    return (
+      <div className={styles.page}>
+        <SiteHeader title={t('common.error')} onBack={() => navigate(-1)} hideProfile />
+        <div className={styles.emptyState}>
+          <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>error</span>
+          <p>{t('common.error')}</p>
+        </div>
+      </div>
+    )
   }
 
   if (isLoading || !course) {
@@ -296,7 +309,7 @@ export default function CourseDetail() {
         {/* Students Tab */}
         {activeTab === 'students' && isTeacherOrAdmin && (
           <div className={styles.studentsTab}>
-            {false ? (
+            {studentsLoading ? (
               <div className={styles.loading}>{t('common.loading')}</div>
             ) : students.length > 0 ? (
               <div className={styles.studentsList}>

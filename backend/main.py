@@ -44,7 +44,8 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
 
         return response
 
-cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
+cors_origins_str = os.environ.get("CORS_ORIGINS", "")
+cors_origins = [o.strip() for o in cors_origins_str.split(",") if o.strip()] if cors_origins_str else []
 debug = os.environ.get("DEBUG", "false").lower() in ("true", "1", "yes")
 
 
@@ -54,14 +55,15 @@ async def lifespan(app: FastAPI):
     reset_db = os.environ.get("RESET_DB", "false").lower() in ("true", "1", "yes")
 
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        await run_migrations(conn, engine.dialect.name)
-
+        # Wipe FIRST if requested, before creating tables or running migrations
         if reset_db:
             print("[startup] RESET_DB=true — wiping all tables...")
             for table in reversed(Base.metadata.sorted_tables):
                 await conn.execute(text(f'DELETE FROM "{table.name}"'))
             print("[startup] All tables cleared.")
+
+        await conn.run_sync(Base.metadata.create_all)
+        await run_migrations(conn, engine.dialect.name)
 
     await seed_db()
     # Start reminder scheduler
@@ -89,10 +91,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="EduCenter API", version="1.0.0", lifespan=lifespan, debug=debug)
 
-# CORS middleware
+# CORS middleware — only allow specific origins in production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=cors_origins if cors_origins else ["http://localhost:5173", "http://localhost:3000"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

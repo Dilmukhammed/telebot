@@ -2,7 +2,7 @@
 export { useDashboard } from './useDashboard'
 
 // Courses
-export { useCourses, useCourseDetail } from './useCourses'
+export { useCourses, useCourseDetail, useJoinCourse } from './useCourses'
 
 // Calendar
 export { useCalendar } from './useCalendar'

@@ -22,9 +22,10 @@ git push -u origin main
 3. Railway автоматически найдёт Dockerfile в папке `backend/`
 4. Settings → Root Directory → `backend`
 5. Variables → добавь:
-   - `BOT_TOKEN` = `8936387460:AAGFPQpdvxXJs_3KE7nn41TaOwJRqKE735I`
-   - `DATABASE_URL` = `sqlite+aiosqlite:///./app.db`
-   - `ADMIN_JWT_SECRET` = `zuhrabot-secret-2024`
+   - `BOT_TOKEN` = `<ТВОЙ_BOT_TOKEN_ИЗ_BOTFATHER>`
+   - `DATABASE_URL` = `postgresql+asyncpg://<user>:<pass>@<host>:<port>/<db>`
+   - `ADMIN_JWT_SECRET` = `<СЛУЧАЙНАЯ_СТРОКА_МИНИМУМ_32_СИМВОЛА>`
+   - `ADMIN_PASSWORD` = `<ПАРОЛЬ_АДМИНА>`
 6. Deploy! Railway даст URL типа `https://zuhrabot-production.up.railway.app`
 
 ## 2. Frontend (mini-app) → Vercel

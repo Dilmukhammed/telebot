@@ -98,21 +98,21 @@ class TestValidateInitData:
 
     @pytest.mark.asyncio
     async def test_expired_auth_date_raises_error(self):
-        """Test that initData older than 24 hours raises error."""
+        """Test that initData older than 1 hour raises error."""
         user_data = {"id": 123456789, "first_name": "Test"}
-        # auth_date from 2 days ago
-        old_auth_date = int(time.time()) - (86400 * 2)
+        # auth_date from 2 hours ago (exceeds 1-hour window)
+        old_auth_date = int(time.time()) - (3600 * 2)
         init_data = create_valid_init_data(user_data, auth_date=old_auth_date)
 
         with pytest.raises(ValueError, match="Data expired"):
             validate_init_data(init_data)
 
     @pytest.mark.asyncio
-    async def test_exactly_24_hours_old_is_valid(self):
-        """Test that exactly 24 hours old is still valid (boundary test)."""
+    async def test_exactly_1_hour_old_is_valid(self):
+        """Test that exactly 1 hour old is still valid (boundary test)."""
         user_data = {"id": 123456789, "first_name": "Test"}
-        # Exactly 24 hours ago (should still be valid as we use > not >=)
-        old_auth_date = int(time.time()) - 86390
+        # Exactly 1 hour ago minus 10 seconds (should still be valid as we use > not >=)
+        old_auth_date = int(time.time()) - 3590
         init_data = create_valid_init_data(user_data, auth_date=old_auth_date)
 
         result = validate_init_data(init_data)
@@ -231,7 +231,7 @@ class TestGetTelegramUserDependency:
             return {"telegram_id": user.telegram_id}
 
         user_data = {"id": 123456789, "first_name": "Test"}
-        old_auth_date = int(time.time()) - (86400 * 2)
+        old_auth_date = int(time.time()) - (3600 * 2)
         init_data = create_valid_init_data(user_data, auth_date=old_auth_date)
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:

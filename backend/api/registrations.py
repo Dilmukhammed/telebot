@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -8,6 +10,8 @@ from database import get_db
 from models import Test, Registration, Subject, User
 from schemas import RegistrationOut
 from api.deps import get_telegram_user, get_current_admin
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="", tags=["registrations"])
 
@@ -69,7 +73,14 @@ async def register_for_test(
     if existing_reg:
         if existing_reg.status == "registered":
             raise HTTPException(status_code=409, detail="Вы уже зарегистрированы")
-        # Re-activate cancelled registration
+        # Re-activate cancelled registration — re-check capacity first
+        recheck = await db.execute(
+            select(func.count(Registration.id))
+            .where(Registration.test_id == test_id)
+            .where(Registration.status == "registered")
+        )
+        if (recheck.scalar() or 0) >= test.max_capacity:
+            raise HTTPException(status_code=400, detail="Тест заполнен")
         existing_reg.status = "registered"
         existing_reg.username = username
         existing_reg.first_name = first_name
@@ -84,11 +95,14 @@ async def register_for_test(
             status="registered",
         )
         db.add(registration)
-        await db.flush()
+        try:
+            await db.flush()
+        except IntegrityError:
+            # Race condition: another request registered this user concurrently
+            raise HTTPException(status_code=409, detail="Вы уже зарегистрированы")
 
     # Load test relationship for response
     await db.refresh(registration)
-    await db.commit()
 
     # Get subject name after transaction
     subject_result = await db.execute(

@@ -1,3 +1,5 @@
+import sys
+
 from pydantic_settings import BaseSettings
 import os
 import logging
@@ -8,7 +10,7 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     BOT_TOKEN: str
     DATABASE_URL: str = "postgresql+asyncpg://localhost:5432/app"
-    ADMIN_JWT_SECRET: str = "change-me"
+    ADMIN_JWT_SECRET: str = ""
     WEBHOOK_URL: str = ""
     WEBAPP_URL: str = ""
     DEV_MODE: bool = False
@@ -28,5 +30,9 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-if settings.ADMIN_JWT_SECRET == "change-me":
-    logger.warning("ADMIN_JWT_SECRET is using default value! Set a strong secret in .env")
+if not settings.DEV_MODE and len(settings.ADMIN_JWT_SECRET) < 32:
+    logger.error(
+        "ADMIN_JWT_SECRET is not set or too short (< 32 chars). "
+        "Set a strong secret in .env. Refusing to start in production mode."
+    )
+    sys.exit(1)

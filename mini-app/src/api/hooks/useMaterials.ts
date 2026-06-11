@@ -7,7 +7,7 @@ export function useMaterials(subjectId?: number, lessonId?: number) {
     queryKey: ['materials', { subjectId, lessonId }],
     queryFn: () => getMaterials(subjectId, lessonId),
     enabled: (subjectId !== undefined && subjectId !== 0) || (lessonId !== undefined && lessonId !== 0),
-    staleTime: 60_000, // 1 minute
+    staleTime: 10_000, // 10s — materials change often
   })
 }
 

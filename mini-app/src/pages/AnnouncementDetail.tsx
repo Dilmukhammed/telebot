@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAnnouncementDetail, useAdminAnnouncementRecipients as useAnnouncementRecipients, useMarkAnnouncementRead } from '../api/hooks'
@@ -21,10 +21,12 @@ export default function AnnouncementDetail() {
   const { data: recipients = [] } = useAnnouncementRecipients(numId)
   const markReadMutation = useMarkAnnouncementRead()
   const [showAllRecipients, setShowAllRecipients] = useState(false)
+  const hasMarkedRead = useRef(false)
 
-  // Mark as read when viewing
+  // Mark as read when viewing (only once per mount)
   useEffect(() => {
-    if (announcement && numId && !announcement.is_read) {
+    if (announcement && numId && !announcement.is_read && !hasMarkedRead.current && !markReadMutation.isPending) {
+      hasMarkedRead.current = true
       markReadMutation.mutate(numId)
     }
   }, [announcement, numId])

@@ -204,6 +204,7 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
           setTeachers(allTeachers)
           setMatchingTeacherIds(new Set(allTeachers.map(t => t.id)))
         })
+        .catch((e: Error) => setError(e.message))
         .finally(() => setTeachersLoading(false))
     }
   }, [step, selectedDays, scheduleTime, durationMinutes, teachers.length])

@@ -35,12 +35,14 @@ export function useMarkAnnouncementRead() {
     onMutate: async (id: number) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['announcements'] })
+      await queryClient.cancelQueries({ queryKey: ['dashboard'] })
 
-      // Snapshot previous values
-      const queryKeys = queryClient.getQueriesData<AnnouncementOut[]>({ queryKey: ['announcements'] })
+      // Snapshot previous values for rollback
+      const announcementsSnapshot = queryClient.getQueriesData<AnnouncementOut[]>({ queryKey: ['announcements'] })
+      const dashboardSnapshot = queryClient.getQueriesData<any>({ queryKey: ['dashboard'] })
 
       // Optimistically update ALL announcement list caches
-      for (const [key, data] of queryKeys) {
+      for (const [key, data] of announcementsSnapshot) {
         if (data) {
           queryClient.setQueryData<AnnouncementOut[]>(key, (old) =>
             old?.map((a) => (a.id === id ? { ...a, is_read: true } : a))
@@ -49,22 +51,28 @@ export function useMarkAnnouncementRead() {
       }
 
       // Also update the dashboard cache (notifications)
-      queryClient.setQueriesData<any>({ queryKey: ['dashboard'] }, (old: any) => {
-        if (!old?.notifications) return old
-        return {
-          ...old,
-          notifications: old.notifications.map((n: any) =>
-            n.id === id ? { ...n, is_read: true } : n
-          ),
+      for (const [key, data] of dashboardSnapshot) {
+        if (data?.notifications) {
+          queryClient.setQueryData(key, {
+            ...data,
+            notifications: data.notifications.map((n: any) =>
+              n.id === id ? { ...n, is_read: true } : n
+            ),
+          })
         }
-      })
+      }
 
-      return { queryKeys }
+      return { announcementsSnapshot, dashboardSnapshot }
     },
-    // If mutation fails, roll back
+    // If mutation fails, roll back ALL caches
     onError: (_err, _id, context) => {
-      if (context?.queryKeys) {
-        for (const [key, data] of context.queryKeys) {
+      if (context?.announcementsSnapshot) {
+        for (const [key, data] of context.announcementsSnapshot) {
+          if (data) queryClient.setQueryData(key, data)
+        }
+      }
+      if (context?.dashboardSnapshot) {
+        for (const [key, data] of context.dashboardSnapshot) {
           if (data) queryClient.setQueryData(key, data)
         }
       }
@@ -73,6 +81,7 @@ export function useMarkAnnouncementRead() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['announcements'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['announcement'] })
     },
   })
 }

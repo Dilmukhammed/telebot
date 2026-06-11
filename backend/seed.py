@@ -6,13 +6,16 @@ Teachers and students are created through the admin panel / Telegram.
 """
 
 import asyncio
+import os
+import secrets
+import string
 from sqlalchemy import select
 from database import engine, Base, async_session_maker
 from models import User, Admin
 
 
-ADMIN_USERNAME = "gi_rocke"
-ADMIN_PASSWORD = "admin"
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "gi_rocke")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 ADMIN_TELEGRAM_ID = -1  # placeholder, updated on first Telegram login
 
 
@@ -20,6 +23,14 @@ async def seed():
     """Seed admin. Runs on every startup — skips if exists."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Determine admin password: from env, or generate random one
+    admin_password = ADMIN_PASSWORD
+    if not admin_password:
+        alphabet = string.ascii_letters + string.digits + "!@#$%"
+        admin_password = "".join(secrets.choice(alphabet) for _ in range(16))
+        print(f"  [seed] WARNING: ADMIN_PASSWORD not set. Generated random password: {admin_password}")
+        print(f"  [seed] Set ADMIN_PASSWORD env var to persist this password across restarts.")
 
     async with async_session_maker() as session:
         # --- Admin in JWT table (for /admin panel login) ---
@@ -32,7 +43,7 @@ async def seed():
             from auth import hash_password
             admin = Admin(
                 username=ADMIN_USERNAME,
-                password_hash=hash_password(ADMIN_PASSWORD),
+                password_hash=hash_password(admin_password),
                 telegram_id=ADMIN_TELEGRAM_ID,
             )
             session.add(admin)

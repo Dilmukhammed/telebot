@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react'
 import { getMe } from '../api/client'
 import type { UserOut } from '../shared/types'
 
@@ -20,18 +20,27 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserOut | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const requestCounter = useRef(0)
 
   const fetchUser = useCallback(async (isRefresh = false) => {
     // Only show full-page spinner on initial load, not on refreshes
     if (!isRefresh) setLoading(true)
     setError(null)
+
+    const currentRequest = ++requestCounter.current
     try {
       const u = await getMe()
+      // Discard stale response if a newer request was made
+      if (currentRequest !== requestCounter.current) return
       setUser(u)
     } catch (e) {
+      // Only update error if this is still the latest request
+      if (currentRequest !== requestCounter.current) return
       setError(e instanceof Error ? e.message : 'Failed to load user')
     } finally {
-      if (!isRefresh) setLoading(false)
+      if (!isRefresh && currentRequest === requestCounter.current) {
+        setLoading(false)
+      }
     }
   }, [])
 

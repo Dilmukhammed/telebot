@@ -91,9 +91,11 @@ export function useMarkLessonStatus() {
   return useMutation({
     mutationFn: (data: { lessonId: number; date: string; status: 'happened' | 'cancelled' }) =>
       markLessonStatus(data.lessonId, data.date, data.status),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['teacher-dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['lesson', variables.lessonId] })
+      queryClient.invalidateQueries({ queryKey: ['admin-lessons'] })
     },
   })
 }
@@ -103,8 +105,10 @@ export function useMarkAttendance() {
   return useMutation({
     mutationFn: (data: { lessonId: number; date: string; records: { user_id: number; present: boolean }[] }) =>
       markAttendance(data.lessonId, data.date, data.records),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['teacher-dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['lesson-attendance', variables.lessonId, variables.date] })
+      queryClient.invalidateQueries({ queryKey: ['lesson', variables.lessonId] })
     },
   })
 }
@@ -125,6 +129,9 @@ export function useUpdateLesson() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lesson'] })
       queryClient.invalidateQueries({ queryKey: ['teacher-dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['course'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-lessons'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-subjects'] })
     },
   })
 }
@@ -156,6 +163,7 @@ export function useRejectEnrollment() {
     mutationFn: (requestId: number) => rejectEnrollment(requestId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['enrollment-requests'] })
+      queryClient.invalidateQueries({ queryKey: ['teacher-dashboard'] })
     },
   })
 }

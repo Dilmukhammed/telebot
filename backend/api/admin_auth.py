@@ -38,13 +38,22 @@ def _clear_attempts(ip: str):
     _login_attempts.pop(ip, None)
 
 
+def _get_client_ip(request: Request) -> str:
+    """Extract client IP, respecting X-Forwarded-For behind reverse proxies."""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        # First IP in the chain is the real client
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 @router.post("/login", response_model=AdminToken)
 async def login(
     admin_login: AdminLogin,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    ip = request.client.host if request.client else "unknown"
+    ip = _get_client_ip(request)
     _check_rate_limit(ip)
 
     result = await db.execute(select(Admin).where(Admin.username == admin_login.username))

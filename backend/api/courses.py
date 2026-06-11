@@ -126,7 +126,6 @@ async def get_lesson_detail(
         if teacher:
             teacher_photo_url = teacher.photo_url
             teacher_username = teacher.username
-            teacher_title = "Mathematics Department Head"  # Could be stored in DB
 
     # Calculate end time
     end_time = _calculate_end_time(lesson.time, subject.duration_minutes or 90)
@@ -196,16 +195,8 @@ async def get_lesson_detail(
         except (json.JSONDecodeError, TypeError):
             agenda = []
 
-    # Mock homework (in real app, this would come from database)
+    # Homework placeholder (no homework system implemented yet)
     homework = None
-    if status == "today" or status == "upcoming":
-        homework = LessonHomeworkOut(
-            id=1,
-            title="Problem Set #4",
-            description="Complete exercises 1-15 from the worksheet",
-            due_date=(lesson_date + timedelta(days=5)).strftime("%Y-%m-%d"),
-            status="pending"
-        )
 
     # Query lesson status for this instance
     lesson_status_str = None
@@ -250,6 +241,7 @@ async def get_lesson_detail(
 @router.get("/{course_id}", response_model=CourseDetailOut)
 async def get_course_detail(
     course_id: int,
+    user: User = Depends(get_telegram_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get course detail with lessons grouped by status."""

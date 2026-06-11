@@ -148,6 +148,7 @@ export interface DashboardOut {
   results: DashboardResultOut[];
   stats?: StudentDashboardStatsOut;
   notifications: DashboardNotificationOut[];
+  unread_count: number;  // Total unread announcements (not limited to top 3)
 }
 
 // Announcement types

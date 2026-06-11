@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
-import { getCourses, getCourseDetail } from '../client'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getCourses, getCourseDetail, joinCourse } from '../client'
 
 export function useCourses() {
   return useQuery({
@@ -14,5 +14,17 @@ export function useCourseDetail(id: number) {
     queryKey: ['course', id],
     queryFn: () => getCourseDetail(id),
     enabled: !!id,
+  })
+}
+
+export function useJoinCourse() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (inviteCode: string) => joinCourse(inviteCode),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['courses'] })
+      queryClient.invalidateQueries({ queryKey: ['course'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
   })
 }

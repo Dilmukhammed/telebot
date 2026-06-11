@@ -196,12 +196,39 @@ async def get_dashboard(
         for n, u in raw_notifications
     ]
 
+    # Count ALL unread announcements (not just top 3) for the badge
+    all_unread_query = (
+        select(Notification.id)
+        .where(
+            or_(
+                Notification.target_type.in_(visible_types),
+                Notification.id.in_(course_recipient_subq),
+            ),
+            Notification.sender_id != user.id,  # Exclude own announcements
+        )
+    )
+    all_unread_res = await db.execute(all_unread_query)
+    all_notif_ids = [row[0] for row in all_unread_res.all()]
+
+    unread_count = 0
+    if all_notif_ids:
+        read_all_res = await db.execute(
+            select(NotificationRead.notification_id)
+            .where(
+                NotificationRead.user_id == user.id,
+                NotificationRead.notification_id.in_(all_notif_ids),
+            )
+        )
+        all_read_set = {row[0] for row in read_all_res.all()}
+        unread_count = sum(1 for nid in all_notif_ids if nid not in all_read_set)
+
     return DashboardOut(
         profile=profile,
         lessons=lessons,
         results=dashboard_results,
         stats=student_stats,
         notifications=dashboard_notifications,
+        unread_count=unread_count,
     )
 
 
@@ -224,6 +251,8 @@ class AnnouncementDetailOut(BaseModel):
     sent_at: str
     sender_name: Optional[str] = None
     sender_role: Optional[str] = None
+    sender_id: Optional[int] = None
+    is_read: bool = False
 
 
 @router.get("/announcements", response_model=list[AnnouncementOut])
@@ -311,6 +340,18 @@ async def get_announcement_detail(
         raise HTTPException(status_code=404, detail="Announcement not found")
 
     notification, sender = row
+
+    # Check read status for current user
+    read_result = await db.execute(
+        select(NotificationRead.id)
+        .where(
+            NotificationRead.notification_id == notification.id,
+            NotificationRead.user_id == user.id,
+        )
+        .limit(1)
+    )
+    is_read = read_result.scalar_one_or_none() is not None
+
     return AnnouncementDetailOut(
         id=notification.id,
         title=notification.title,
@@ -318,6 +359,8 @@ async def get_announcement_detail(
         sent_at=_to_tashkent_iso(notification.sent_at),
         sender_name=sender.first_name if sender else None,
         sender_role=sender.role if sender else None,
+        sender_id=notification.sender_id,
+        is_read=is_read,
     )
 
 

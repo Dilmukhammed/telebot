@@ -9,6 +9,9 @@ from config import settings
 
 logger = logging.getLogger("telegram_auth")
 
+# Maximum age of initData in seconds (1 hour, per Telegram recommendation)
+AUTH_DATE_MAX_AGE = 3600
+
 
 def parse_init_data(init_data: str) -> dict:
     """Parse initData string into key-value dict, handling URL encoding."""
@@ -44,12 +47,11 @@ def validate_init_data(init_data: str) -> dict:
 
     initData format: key=value&key2=value2&...
     """
-    logger.info(f"validate_init_data called, raw_length={len(init_data)}")
-    logger.info(f"init_data raw: {init_data[:300]}")
+    logger.debug("validate_init_data called, raw_length=%d", len(init_data))
 
     # Parse the init_data string
     vals = parse_init_data(init_data)
-    logger.info(f"Parsed keys: {list(vals.keys())}")
+    logger.debug("Parsed keys: %s", list(vals.keys()))
 
     if not vals:
         raise ValueError("Empty or unparseable initData")
@@ -57,7 +59,7 @@ def validate_init_data(init_data: str) -> dict:
     # Extract hash parameter
     received_hash = vals.pop("hash", None)
     if not received_hash:
-        logger.error(f"No 'hash' key found. Available keys: {list(vals.keys())}")
+        logger.error("No 'hash' key found. Available keys: %s", list(vals.keys()))
         raise ValueError("No hash in initData")
 
     # Sort keys alphabetically and create data_check_string (use unquoted values)
@@ -69,17 +71,14 @@ def validate_init_data(init_data: str) -> dict:
     # Generate hash = HMAC-SHA256(data_check_string, secret_key)
     computed_hash = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
 
-    logger.info(f"Received hash: {received_hash}")
-    logger.info(f"Computed hash: {computed_hash}")
-
-    # Compare with provided hash
-    if computed_hash != received_hash:
+    # Timing-safe comparison to prevent timing attacks
+    if not hmac.compare_digest(computed_hash, received_hash):
         raise ValueError("Invalid hash")
 
-    # Check auth_date is not older than 86400 seconds (24 hours)
+    # Check auth_date is not older than AUTH_DATE_MAX_AGE seconds
     auth_date = int(vals.get("auth_date", 0))
-    if time.time() - auth_date > 86400:
-        raise ValueError("Data expired (>24h)")
+    if time.time() - auth_date > AUTH_DATE_MAX_AGE:
+        raise ValueError(f"Data expired (>{AUTH_DATE_MAX_AGE}s)")
 
     # Parse user JSON from dict
     user = loads(unquote(vals.get("user", "{}")))

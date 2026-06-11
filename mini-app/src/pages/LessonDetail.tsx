@@ -1,8 +1,16 @@
 import { useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useLessonDetail, useLessonAttendance, useCreateMaterial, useUploadMaterial, useDeleteMaterial } from '../api/hooks'
-import { markLessonStatus, markAttendance, updateLesson } from '../api/client'
+import {
+  useLessonDetail,
+  useLessonAttendance,
+  useCreateMaterial,
+  useUploadMaterial,
+  useDeleteMaterial,
+  useMarkLessonStatus,
+  useMarkAttendance,
+  useUpdateLesson,
+} from '../api/hooks'
 import type { AttendanceRecordIn, MaterialCreate } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import MaterialCard from '../components/MaterialCard'
@@ -36,6 +44,9 @@ export default function LessonDetail() {
   const createMaterial = useCreateMaterial()
   const uploadMaterial = useUploadMaterial()
   const deleteMaterial = useDeleteMaterial()
+  const markStatusMutation = useMarkLessonStatus()
+  const markAttendanceMutation = useMarkAttendance()
+  const updateLessonMutation = useUpdateLesson()
 
   const handleMaterialSubmit = (data: MaterialCreate & { file?: File }) => {
     if (data.type === 'file' && data.file) {
@@ -60,11 +71,8 @@ export default function LessonDetail() {
     if (!lesson) return
     setSavingStatus(true)
     try {
-      await markLessonStatus(lesson.id, lesson.date, status)
-      await refetchLesson()
-      if (status === 'happened') {
-        await refetchAttendance()
-      }
+      await markStatusMutation.mutateAsync({ lessonId: lesson.id, date: lesson.date, status })
+      // React Query hooks handle all cache invalidation (lesson, teacher-dashboard, calendar, admin-lessons)
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : t('common.error'))
     } finally {
@@ -75,14 +83,13 @@ export default function LessonDetail() {
   const handleToggleAttendance = async (userId: number) => {
     if (!attendance) return
     setAttendanceSaved(false)
-    // Toggle and save immediately
     const records: AttendanceRecordIn[] = attendance.records.map((r) => ({
       user_id: r.user_id,
       present: r.user_id === userId ? !r.present : r.present,
     }))
     try {
-      await markAttendance(lesson!.id, lesson!.date, records)
-      await refetchAttendance()
+      await markAttendanceMutation.mutateAsync({ lessonId: lesson!.id, date: lesson!.date, records })
+      // React Query hooks handle all cache invalidation (lesson-attendance, lesson, teacher-dashboard)
       setAttendanceSaved(true)
       if ((window as any).Telegram?.WebApp) {
         (window as any).Telegram.WebApp.HapticFeedback.notificationOccurred('success')
@@ -101,8 +108,7 @@ export default function LessonDetail() {
         user_id: r.user_id,
         present: r.present,
       }))
-      await markAttendance(lesson.id, lesson.date, records)
-      await refetchAttendance()
+      await markAttendanceMutation.mutateAsync({ lessonId: lesson.id, date: lesson.date, records })
       setAttendanceError(null)
       setAttendanceSaved(true)
       if ((window as any).Telegram?.WebApp) {
@@ -124,8 +130,8 @@ export default function LessonDetail() {
     setSavingEdit(true)
     setEditError(null)
     try {
-      await updateLesson(lesson.id, { custom_title: editTitle.trim() || null })
-      await refetchLesson()
+      await updateLessonMutation.mutateAsync({ lessonId: lesson.id, custom_title: editTitle.trim() || null })
+      // React Query hooks handle all cache invalidation (lesson, course, teacher-dashboard, admin-lessons)
       setShowTitleModal(false)
     } catch (e: unknown) {
       setEditError(e instanceof Error ? e.message : t('common.error'))
@@ -140,8 +146,7 @@ export default function LessonDetail() {
     setEditError(null)
     try {
       const planJson = JSON.stringify(editPlan.filter(item => item.title.trim()))
-      await updateLesson(lesson.id, { lesson_plan: planJson })
-      await refetchLesson()
+      await updateLessonMutation.mutateAsync({ lessonId: lesson.id, lesson_plan: planJson })
       setShowPlanModal(false)
     } catch (e: unknown) {
       setEditError(e instanceof Error ? e.message : t('common.error'))

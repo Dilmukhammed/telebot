@@ -1207,6 +1207,18 @@ async def mark_attendance(
     if not lesson_status or lesson_status.status != "happened":
         raise HTTPException(status_code=400, detail="Mark lesson as happened first")
 
+    # Validate that all user_ids are enrolled in this lesson
+    enrolled_result = await db.execute(
+        select(LessonEnrollment.user_id).where(LessonEnrollment.lesson_id == lesson_id)
+    )
+    enrolled_user_ids = {row[0] for row in enrolled_result.all()}
+    for record in data.records:
+        if record.user_id not in enrolled_user_ids:
+            raise HTTPException(
+                status_code=400,
+                detail=f"User {record.user_id} is not enrolled in this lesson"
+            )
+
     # Upsert attendance records
     for record in data.records:
         att_result = await db.execute(

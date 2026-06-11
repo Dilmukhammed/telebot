@@ -5,6 +5,6 @@ export function useDashboard() {
   return useQuery({
     queryKey: ['dashboard'],
     queryFn: getDashboard,
-    staleTime: 60_000, // дашборд — 1 минута
+    staleTime: 15_000, // 15s — dashboard has notifications that need freshness
   })
 }

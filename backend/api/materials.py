@@ -39,9 +39,28 @@ async def list_materials(
     user: User = Depends(get_telegram_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List materials filtered by subject_id and/or lesson_id."""
+    """List materials filtered by subject_id and/or lesson_id.
+
+    Students can only see materials for courses they are enrolled in.
+    Teachers and admins can see all materials.
+    """
     if subject_id is None and lesson_id is None:
         raise HTTPException(status_code=400, detail="Provide subject_id or lesson_id")
+
+    # Enrollment check: students must be enrolled in the course
+    if user.role == "student" and subject_id is not None:
+        from models import LessonEnrollment, Lesson as LessonModel
+        enrolled = await db.execute(
+            select(LessonEnrollment.id)
+            .join(LessonModel, LessonModel.id == LessonEnrollment.lesson_id)
+            .where(
+                LessonModel.subject_id == subject_id,
+                LessonEnrollment.user_id == user.id,
+            )
+            .limit(1)
+        )
+        if not enrolled.scalar_one_or_none():
+            raise HTTPException(status_code=403, detail="Not enrolled in this course")
 
     query = select(Material)
     if subject_id is not None:
@@ -118,8 +137,11 @@ async def upload_material(
         if subject_id is None:
             subject_id = lesson.subject_id
 
-    # Read file bytes
+    # Read file bytes with size limit (50 MB)
+    MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
     file_bytes = await file.read()
+    if len(file_bytes) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)} MB")
     file_size = len(file_bytes)
     file_name = file.filename or "upload"
 

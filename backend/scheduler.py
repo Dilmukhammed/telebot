@@ -1,4 +1,5 @@
 import datetime as dt
+import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import and_, select
@@ -6,6 +7,8 @@ from sqlalchemy import and_, select
 from bot.bot import bot
 from database import async_session_maker
 from models import Registration, Subject, Test, Lesson, LessonEnrollment, User, LessonStatus
+
+logger = logging.getLogger(__name__)
 
 
 scheduler = AsyncIOScheduler()
@@ -17,9 +20,15 @@ def get_now():
     return dt.datetime.now(tashkent_tz).replace(tzinfo=None)
 
 
+def get_now_utc():
+    """Get current UTC time as a naive datetime (for comparing with DB-stored UTC datetimes)."""
+    return dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+
+
 async def send_reminders():
     """Find tests starting in ~1 hour and send reminders to registered students."""
-    now = get_now()
+    # Test.datetime is stored in naive UTC, so compare against UTC
+    now = get_now_utc()
     window_start = now + dt.timedelta(minutes=45)
     window_end = now + dt.timedelta(minutes=75)
 
@@ -66,8 +75,8 @@ async def send_reminders():
                 message = f"🔔 Напоминание: тест по {subject_name} начнётся через 1 час ({test_time})"
                 try:
                      await bot.send_message(chat_id=reg.telegram_id, text=message)
-                except Exception:
-                     pass  # Skip failed sends (user blocked bot, etc.)
+                except Exception as e:
+                     logger.warning("Failed to send test reminder to %s: %s", reg.telegram_id, e)
 
                 # Mark reminder as sent
                 reg.reminder_sent = True
@@ -174,8 +183,8 @@ async def send_lesson_reminders():
                 )
                 try:
                     await bot.send_message(chat_id=user.telegram_id, text=message)
-                except Exception:
-                    pass  # Skip failed sends
+                except Exception as e:
+                    logger.warning("Failed to send lesson reminder to %s: %s", user.telegram_id, e)
 
                 # Mark reminder as sent
                 enrollment.reminder_sent = True
@@ -309,8 +318,8 @@ async def send_lesson_status_prompt():
                     reply_markup=kb,
                 )
                 _sent_prompts.add((lesson.id, today_str))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to send lesson status prompt to teacher %s: %s", lesson.teacher_id, e)
 
 
 def start_scheduler():
