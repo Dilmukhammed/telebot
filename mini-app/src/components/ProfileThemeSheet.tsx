@@ -20,11 +20,12 @@ interface ProfileThemeSheetProps {
 
 export default function ProfileThemeSheet({ open, theme, saving, onClose, onSave }: ProfileThemeSheetProps) {
   const { t } = useTranslation()
-  const [draft, setDraft] = useState(() => normalizeProfileTheme(theme))
+  const safeTheme = normalizeProfileTheme(theme)
+  const [draft, setDraft] = useState(safeTheme)
 
   useEffect(() => {
     if (open) setDraft(normalizeProfileTheme(theme))
-  }, [open, theme])
+  }, [open, theme?.card_theme, theme?.status_emoji, theme?.status_text])
 
   if (!open) return null
 

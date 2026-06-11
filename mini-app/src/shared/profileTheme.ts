@@ -81,8 +81,9 @@ export const PROFILE_CARD_PRESETS: Record<ProfileCardThemeId, ThemePreset> = {
 }
 
 export function normalizeProfileTheme(theme?: ProfileThemeOut | null): ProfileThemeOut {
-  const cardTheme = PROFILE_CARD_THEME_IDS.includes((theme?.card_theme || 'default') as ProfileCardThemeId)
-    ? (theme!.card_theme as ProfileCardThemeId)
+  const requested = theme?.card_theme || 'default'
+  const cardTheme: ProfileCardThemeId = PROFILE_CARD_THEME_IDS.includes(requested as ProfileCardThemeId)
+    ? (requested as ProfileCardThemeId)
     : 'default'
   return {
     card_theme: cardTheme,
