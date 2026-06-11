@@ -414,26 +414,40 @@ export default function CourseDetail() {
 
 export function TodayLessonCard({ lesson, durationMinutes, onClick }: { lesson: CourseLessonOut; durationMinutes: number; onClick?: () => void }) {
   const { t } = useTranslation()
+  const frozen = lesson.is_frozen
   return (
-    <div className={styles.todayCard} onClick={onClick} style={{ cursor: onClick ? 'pointer' : undefined }}>
+    <div
+      className={`${styles.todayCard} ${frozen ? styles.frozenCard : ''}`}
+      onClick={frozen ? undefined : onClick}
+      style={{ cursor: frozen ? 'default' : onClick ? 'pointer' : undefined }}
+    >
       <div className={styles.todayCardDecor} />
       <div className={styles.todayCardContent}>
         <div className={styles.todayCardHeader}>
           <div>
-            <span className={styles.liveBadge}>{t('courseDetail.liveBadge', { time: lesson.time })}</span>
+            {frozen ? (
+              <span className={styles.frozenBadge}>
+                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>ac_unit</span>
+                {t('courseDetail.frozenBadge')}
+              </span>
+            ) : (
+              <span className={styles.liveBadge}>{t('courseDetail.liveBadge', { time: lesson.time })}</span>
+            )}
             <h3 className={styles.todayTitle}>{lesson.title}</h3>
           </div>
           <span className={styles.roomBadge}>{lesson.room}</span>
         </div>
         <div className={styles.todayCardFooter}>
           <div className={styles.durationInfo}>
-            <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)', fontSize: '18px' }}>schedule</span>
+            <span className="material-symbols-outlined" style={{ color: frozen ? 'var(--color-on-surface-variant)' : 'var(--color-primary)', fontSize: '18px' }}>schedule</span>
             <span>{durationMinutes} {t('courseDetail.minutes')}</span>
           </div>
-          <button className={styles.materialsButton}>
-            <span>{t('courses.open')}</span>
-            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>chevron_right</span>
-          </button>
+          {!frozen && (
+            <button className={styles.materialsButton}>
+              <span>{t('courses.open')}</span>
+              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>chevron_right</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -442,21 +456,30 @@ export function TodayLessonCard({ lesson, durationMinutes, onClick }: { lesson: 
 
 export function UpcomingLessonCard({ lesson, monthNames, onClick }: { lesson: CourseLessonOut; monthNames: string[]; onClick?: () => void }) {
   const { t } = useTranslation()
+  const frozen = lesson.is_frozen
   const date = new Date(lesson.date + 'T00:00:00')
   const dayName = t(`courseDetail.daysShort.${lesson.day_of_week}`, { defaultValue: lesson.day_name })
   return (
-    <div className={styles.upcomingCard} onClick={onClick} style={{ cursor: onClick ? 'pointer' : undefined }}>
-      <div className={styles.dateBox}>
-        <span className={styles.dateMonth}>{monthNames[date.getMonth()]}</span>
-        <span className={styles.dateDay}>{date.getDate()}</span>
+    <div
+      className={`${styles.upcomingCard} ${frozen ? styles.frozenCard : ''}`}
+      onClick={frozen ? undefined : onClick}
+      style={{ cursor: frozen ? 'default' : onClick ? 'pointer' : undefined }}
+    >
+      <div className={frozen ? styles.dateBoxMuted : styles.dateBox}>
+        <span className={frozen ? styles.dateMonthMuted : styles.dateMonth}>{monthNames[date.getMonth()]}</span>
+        <span className={frozen ? styles.dateDayMuted : styles.dateDay}>{date.getDate()}</span>
       </div>
       <div className={styles.upcomingInfo}>
-        <h3 className={styles.upcomingTitle}>{lesson.title}</h3>
-        <p className={styles.upcomingMeta}>{dayName} • {lesson.time}</p>
+        <h3 className={frozen ? styles.pastTitle : styles.upcomingTitle}>{lesson.title}</h3>
+        <p className={styles.upcomingMeta}>
+          {frozen ? t('courseDetail.frozenBadge') : `${dayName} • ${lesson.time}`}
+        </p>
       </div>
-      <span className="material-symbols-outlined" style={{ color: 'var(--color-on-surface-variant)', opacity: 0.7 }}>
-        chevron_right
-      </span>
+      {!frozen && (
+        <span className="material-symbols-outlined" style={{ color: 'var(--color-on-surface-variant)', opacity: 0.7 }}>
+          chevron_right
+        </span>
+      )}
     </div>
   )
 }

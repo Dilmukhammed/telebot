@@ -355,10 +355,12 @@ export default function AdminCourseDetail() {
           <>
             <div className={styles.tabSectionHeader}>
               <h2 className={styles.sectionTitle}>{t('courseDetail.lessons')}</h2>
-              <button className={`${styles.adminChipBtn} ${styles.adminChipBtnPrimary}`} onClick={openCreateLesson}>
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add</span>
-                {t('admin.course_detail.lesson')}
-              </button>
+              {!isArchived && (
+                <button className={`${styles.adminChipBtn} ${styles.adminChipBtnPrimary}`} onClick={openCreateLesson}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add</span>
+                  {t('admin.course_detail.lesson')}
+                </button>
+              )}
             </div>
 
             {todayLessons.length > 0 && (
@@ -372,7 +374,7 @@ export default function AdminCourseDetail() {
                     key={`${lesson.id}-${lesson.date}`}
                     lesson={lesson}
                     durationMinutes={course.duration_minutes}
-                    onClick={() => navigate(`/admin/lessons/${lesson.id}?date=${lesson.date}`)}
+                    onClick={lesson.is_frozen ? undefined : () => navigate(`/admin/lessons/${lesson.id}?date=${lesson.date}`)}
                   />
                 ))}
               </section>
@@ -387,7 +389,7 @@ export default function AdminCourseDetail() {
                       key={`${lesson.id}-${lesson.date}`}
                       lesson={lesson}
                       monthNames={monthNames}
-                      onClick={() => navigate(`/admin/lessons/${lesson.id}?date=${lesson.date}`)}
+                      onClick={lesson.is_frozen ? undefined : () => navigate(`/admin/lessons/${lesson.id}?date=${lesson.date}`)}
                     />
                   ))}
                 </div>
@@ -450,10 +452,12 @@ export default function AdminCourseDetail() {
           <section className={styles.aboutSection}>
             <div className={styles.tabSectionHeader}>
               <h3 className={styles.aboutLabel} style={{ margin: 0 }}>{t('courseDetail.about')}</h3>
-              <button className={styles.adminChipBtn} onClick={openSubjectEdit}>
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
-                {t('admin.course_detail.edit_course')}
-              </button>
+              {!isArchived && (
+                <button className={styles.adminChipBtn} onClick={openSubjectEdit}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
+                  {t('admin.course_detail.edit_course')}
+                </button>
+              )}
             </div>
 
             <div className={styles.aboutCard}>
@@ -497,7 +501,7 @@ export default function AdminCourseDetail() {
                 {scheduleSlots.map(slot => {
                   const dayName = t(`courseDetail.daysShort.${slot.day_of_week}`)
                   return (
-                    <div key={slot.id} className={styles.scheduleItem} style={{ gap: '8px' }}>
+                    <div key={slot.id} className={`${styles.scheduleItem} ${isArchived ? styles.scheduleItemFrozen : ''}`} style={{ gap: '8px' }}>
                       <span className={styles.scheduleDay}>{dayName}</span>
                       <span className={styles.scheduleTime}>{slot.time}</span>
                       <span className={styles.scheduleRoom}>{slot.room}</span>
@@ -506,20 +510,22 @@ export default function AdminCourseDetail() {
                           {slot.teacher_name}
                         </span>
                       )}
-                      <button
-                        type="button"
-                        className={styles.adminChipBtn}
-                        style={{ marginLeft: 'auto', flexShrink: 0, padding: '4px 10px' }}
-                        onClick={() => openScheduleEdit({
-                          id: slot.id,
-                          day_of_week: slot.day_of_week,
-                          time: slot.time,
-                          room: slot.room,
-                          teacher_id: 'teacher_id' in slot ? slot.teacher_id ?? undefined : undefined,
-                        })}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>edit</span>
-                      </button>
+                      {!isArchived && (
+                        <button
+                          type="button"
+                          className={styles.adminChipBtn}
+                          style={{ marginLeft: 'auto', flexShrink: 0, padding: '4px 10px' }}
+                          onClick={() => openScheduleEdit({
+                            id: slot.id,
+                            day_of_week: slot.day_of_week,
+                            time: slot.time,
+                            room: slot.room,
+                            teacher_id: 'teacher_id' in slot ? slot.teacher_id ?? undefined : undefined,
+                          })}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>edit</span>
+                        </button>
+                      )}
                     </div>
                   )
                 })}
@@ -613,10 +619,12 @@ export default function AdminCourseDetail() {
           <div className={styles.studentsTab}>
             <div className={styles.tabSectionHeader}>
               <h2 className={styles.sectionTitle}>{t('courseDetail.studentsTab')}</h2>
-              <button className={`${styles.adminChipBtn} ${styles.adminChipBtnPrimary}`} onClick={() => { setShowEnrollModal(true); setEnrollFilter('') }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>person_add</span>
-                {t('admin.course_detail.add')}
-              </button>
+              {!isArchived && (
+                <button className={`${styles.adminChipBtn} ${styles.adminChipBtnPrimary}`} onClick={() => { setShowEnrollModal(true); setEnrollFilter('') }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>person_add</span>
+                  {t('admin.course_detail.add')}
+                </button>
+              )}
             </div>
 
             {studentsLoading ? (
@@ -642,19 +650,21 @@ export default function AdminCourseDetail() {
                       </div>
                     </div>
                     <div className={styles.studentCardActions}>
-                      <button
-                        className={styles.iconBtn}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setStudentToUnenroll({
-                            id: student.id,
-                            name: student.first_name || (student.username ? `@${student.username}` : `#${student.id}`),
-                          })
-                        }}
-                        title={t('admin.course_detail.unenroll')}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person_remove</span>
-                      </button>
+                      {!isArchived && (
+                        <button
+                          className={styles.iconBtn}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setStudentToUnenroll({
+                              id: student.id,
+                              name: student.first_name || (student.username ? `@${student.username}` : `#${student.id}`),
+                            })
+                          }}
+                          title={t('admin.course_detail.unenroll')}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person_remove</span>
+                        </button>
+                      )}
                       <span className="material-symbols-outlined" style={{ color: 'var(--color-on-surface-variant)', opacity: 0.7 }}>
                         chevron_right
                       </span>

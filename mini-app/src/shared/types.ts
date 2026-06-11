@@ -256,6 +256,7 @@ export interface CourseLessonOut {
   teacher_name: string;
   status: 'today' | 'upcoming' | 'past';
   date: string;
+  is_frozen?: boolean;
 }
 
 export interface CourseDetailOut {
@@ -269,6 +270,8 @@ export interface CourseDetailOut {
   duration_minutes: number;
   start_date?: string | null;
   invite_code?: string | null;
+  is_archived?: boolean;
+  archived_at?: string | null;
   lessons: CourseLessonOut[];
 }
 
@@ -547,6 +550,7 @@ export interface AdminSubjectDetailOut {
   duration_weeks?: number;
   start_date?: string;
   is_archived: boolean;
+  archived_at?: string | null;
   invite_code?: string | null;
   lessons: AdminLessonOut[];
   students: UserOut[];

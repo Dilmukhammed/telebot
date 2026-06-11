@@ -626,7 +626,7 @@ async def create_availability_request(
                 text=(
                     f"📅 <b>Запрос на открытие слота</b>\n\n"
                     f"Предмет: <b>{subject_name}</b>\n"
-                    f"Дата: <b>{data.date}</b> ({day_name})\n"
+                    f"Дата: <b>{req_date.strftime('%d.%m.%Y')}</b> ({day_name})\n"
                     f"Время: <b>{data.start_time} — {data.end_time}</b>\n\n"
                     f"Админ просит открыть слот для переноса урока.\n"
                     f"Нажмите «Согласовать», чтобы открыть слот на это время."

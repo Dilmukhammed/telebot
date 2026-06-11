@@ -316,16 +316,29 @@ async def get_course_detail(
         course_lesson_out_cls=CourseLessonOut,
     )
 
+    archived_date = subject.archived_at.date() if subject.archived_at else None
+    if subject.is_archived:
+        frozen_lessons = []
+        for inst in course_lessons:
+            inst_date = datetime.strptime(inst.date, "%Y-%m-%d").date()
+            is_frozen = inst.status != "past" and (
+                archived_date is None or inst_date >= archived_date
+            )
+            frozen_lessons.append(inst.model_copy(update={"is_frozen": is_frozen}))
+        course_lessons = frozen_lessons
+
     # Get teacher name from users table (current name, not denormalized)
+    teacher_slot = active_slots[0] if active_slots else (lessons[0] if lessons else None)
     teacher_name = ""
-    if active_slots and active_slots[0].teacher_id:
-        teacher_result = await db.execute(select(User).where(User.id == active_slots[0].teacher_id))
+    if teacher_slot and teacher_slot.teacher_id:
+        teacher_result = await db.execute(select(User).where(User.id == teacher_slot.teacher_id))
         teacher = teacher_result.scalar_one_or_none()
         if teacher:
             teacher_name = f"{teacher.first_name or ''} {teacher.last_name or ''}".strip() or (teacher.username or "")
-    if not teacher_name:
-        teacher_name = active_slots[0].teacher_name if active_slots else ""
-    location = active_slots[0].location if active_slots else None
+    if not teacher_name and teacher_slot:
+        teacher_name = teacher_slot.teacher_name or ""
+    location = teacher_slot.location if teacher_slot else None
+    slot_count = len(active_slots) if active_slots else len({l.slot_group_id or l.id for l in lessons})
 
     return CourseDetailOut(
         id=subject.id,
@@ -333,11 +346,13 @@ async def get_course_detail(
         teacher_name=teacher_name,
         description=subject.description or "",
         location=location,
-        lesson_count=len(active_slots),
+        lesson_count=slot_count,
         duration_weeks=subject.duration_weeks,
         duration_minutes=subject.duration_minutes or 90,
         start_date=subject.start_date.strftime("%Y-%m-%d") if subject.start_date else None,
         invite_code=subject.invite_code,
+        is_archived=subject.is_archived or False,
+        archived_at=subject.archived_at.strftime("%Y-%m-%d %H:%M:%S") if subject.archived_at else None,
         lessons=course_lessons,
     )
 

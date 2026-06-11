@@ -172,6 +172,7 @@
     "weeks": "weeks",
     "minutes": "min",
     "completed": "Completed",
+    "frozenBadge": "Frozen",
     "inviteCode": "Invite code",
     "copiedToClipboard": "Code copied to clipboard",
     "deleteConfirmTitle": "Delete Material",
