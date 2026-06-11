@@ -24,8 +24,8 @@ export default function LessonDetail() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const date = searchParams.get('date')
-  const { data: lesson, isLoading, error, refetch: refetchLesson } = useLessonDetail(Number(id || '0'), date || undefined)
-  const { data: attendance, refetch: refetchAttendance } = useLessonAttendance(
+  const { data: lesson, isLoading, error } = useLessonDetail(Number(id || '0'), date || undefined)
+  const { data: attendance } = useLessonAttendance(
     lesson?.is_teacher && lesson?.lesson_status === 'happened' ? lesson.id : 0,
     lesson?.date || ''
   )

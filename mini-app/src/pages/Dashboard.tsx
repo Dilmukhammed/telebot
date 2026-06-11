@@ -6,7 +6,6 @@ import { CENTER, getLocalized } from '../config'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './Dashboard.module.css'
-import { useUser } from '../context/UserContext'
 
 /** Safe countdown — never produces NaN, works on iOS/Safari */
 function LessonCountdown({ date, time }: { date?: string; time?: string }) {
@@ -94,7 +93,6 @@ const isLessonOngoing = (dateStr?: string, timeStr?: string): boolean => {
 export default function Dashboard() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const { user } = useUser()
   const { data, isLoading, error, refetch } = useDashboard()
   const [refreshing, setRefreshing] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
