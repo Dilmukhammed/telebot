@@ -10,6 +10,7 @@ import {
 } from '../api/client'
 import type { SearchResultOut, UserOut, ScheduleSlot } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
+import TimePicker from '../components/TimePicker'
 import styles from './AdminCourses.module.css'
 
 type Tab = 'all' | 'search' | 'archive'
@@ -379,10 +380,9 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
               <div className={styles.formRow2}>
                 <div className={styles.formGroup}>
                   <label>{t('admin.courses.time_label')}</label>
-                  <input
-                    type="time"
+                  <TimePicker
                     value={scheduleTime}
-                    onChange={e => setScheduleTime(e.target.value)}
+                    onChange={val => setScheduleTime(val)}
                   />
                 </div>
                 <div className={styles.formGroup}>
@@ -592,11 +592,11 @@ function SearchView() {
         <div className={styles.timeRow}>
           <div className={styles.field}>
             <label className={styles.fieldLabel}>{t('admin.courses.time_from_label')}</label>
-            <input type="time" className={styles.timeInput} value={timeFrom} onChange={e => setTimeFrom(e.target.value)} />
+            <TimePicker value={timeFrom} onChange={val => setTimeFrom(val)} />
           </div>
           <div className={styles.field}>
             <label className={styles.fieldLabel}>{t('admin.courses.time_to_label')}</label>
-            <input type="time" className={styles.timeInput} value={timeTo} onChange={e => setTimeTo(e.target.value)} />
+            <TimePicker value={timeTo} onChange={val => setTimeTo(val)} />
           </div>
         </div>
 

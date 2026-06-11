@@ -5,6 +5,7 @@ import { useAvailability, useCreateAvailability, useDeleteAvailability } from '.
 import { useUser } from '../context/UserContext'
 import { CENTER } from '../config'
 import SiteHeader from '../components/SiteHeader'
+import TimePicker from '../components/TimePicker'
 import { Loading } from '../shared/components'
 import styles from './Profile.module.css'
 
@@ -388,19 +389,17 @@ export default function Profile() {
               </div>
 
               <label className={styles.slotLabel}>{t('profile.startTime')}</label>
-              <input
-                type="time"
+              <TimePicker
                 className={styles.slotTimeInput}
                 value={slotStart}
-                onChange={(e) => setSlotStart(e.target.value)}
+                onChange={val => setSlotStart(val)}
               />
 
               <label className={styles.slotLabel}>{t('profile.endTime')}</label>
-              <input
-                type="time"
+              <TimePicker
                 className={styles.slotTimeInput}
                 value={slotEnd}
-                onChange={(e) => setSlotEnd(e.target.value)}
+                onChange={val => setSlotEnd(val)}
               />
 
               <button

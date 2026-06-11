@@ -2,8 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import type { MaterialCreate } from '../shared/types'
-import { uploadMaterialWithProgress } from '../api/client'
-import { useCreateMaterial } from '../api/hooks/useMaterials'
+import { uploadMaterialWithProgress, createMaterial, deleteMaterial } from '../api/client'
 import styles from './MaterialForm.module.css'
 
 interface MaterialFormProps {
@@ -30,7 +29,6 @@ function fileNameToTitle(name: string): string {
 export default function MaterialForm({ subjectId, lessonId, onClose }: MaterialFormProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const createMaterial = useCreateMaterial()
 
   const [type, setType] = useState<MaterialCreate['type']>('link')
   const [title, setTitle] = useState('')
@@ -42,15 +40,30 @@ export default function MaterialForm({ subjectId, lessonId, onClose }: MaterialF
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [nonFileSaved, setNonFileSaved] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const uploadGeneration = useRef(0)
+  const pendingMaterialIdRef = useRef<number | null>(null)
+  const sessionOpenRef = useRef(true)
 
   const invalidateMaterials = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['materials'] })
     queryClient.invalidateQueries({ queryKey: ['lesson'] })
     queryClient.invalidateQueries({ queryKey: ['course'] })
   }, [queryClient])
+
+  const discardPendingMaterial = useCallback(async () => {
+    const id = pendingMaterialIdRef.current
+    pendingMaterialIdRef.current = null
+    if (id === null) return
+    try {
+      await deleteMaterial(id)
+      invalidateMaterials()
+    } catch {
+      /* best effort */
+    }
+  }, [invalidateMaterials])
 
   const startFileUpload = useCallback(async (selectedFile: File, uploadTitle: string) => {
     const generation = ++uploadGeneration.current
@@ -59,7 +72,7 @@ export default function MaterialForm({ subjectId, lessonId, onClose }: MaterialF
     setUploadError(null)
 
     try {
-      await uploadMaterialWithProgress(
+      const result = await uploadMaterialWithProgress(
         selectedFile,
         uploadTitle,
         subjectId,
@@ -68,23 +81,53 @@ export default function MaterialForm({ subjectId, lessonId, onClose }: MaterialF
           if (generation === uploadGeneration.current) setUploadProgress(percent)
         },
       )
-      if (generation === uploadGeneration.current) {
-        setUploadProgress(100)
-        setUploadStatus('complete')
-        invalidateMaterials()
+
+      if (generation !== uploadGeneration.current) {
+        await deleteMaterial(result.id).catch(() => {})
+        return
       }
+
+      if (!sessionOpenRef.current) {
+        await deleteMaterial(result.id).catch(() => {})
+        return
+      }
+
+      pendingMaterialIdRef.current = result.id
+      setUploadProgress(100)
+      setUploadStatus('complete')
     } catch (e: unknown) {
       if (generation === uploadGeneration.current) {
         setUploadStatus('error')
         setUploadError(e instanceof Error ? e.message : t('materialForm.uploadError'))
       }
     }
-  }, [subjectId, lessonId, invalidateMaterials, t])
+  }, [subjectId, lessonId, t])
 
-  const handleFileSelect = (selected: File | null) => {
+  const handleDismiss = useCallback(async (confirmed: boolean) => {
+    sessionOpenRef.current = false
+    uploadGeneration.current++
+
+    if (confirmed) {
+      pendingMaterialIdRef.current = null
+      invalidateMaterials()
+      onClose()
+      return
+    }
+
+    await discardPendingMaterial()
+    onClose()
+  }, [discardPendingMaterial, invalidateMaterials, onClose])
+
+  const handleFileSelect = async (selected: File | null) => {
     if (!selected) return
+
+    if (pendingMaterialIdRef.current !== null) {
+      await discardPendingMaterial()
+    }
+
     setFile(selected)
     setNonFileSaved(false)
+    uploadGeneration.current++
 
     const uploadTitle = title.trim() || fileNameToTitle(selected.name)
     if (!title.trim()) setTitle(uploadTitle)
@@ -92,9 +135,14 @@ export default function MaterialForm({ subjectId, lessonId, onClose }: MaterialF
     startFileUpload(selected, uploadTitle)
   }
 
-  const handleTypeChange = (newType: MaterialCreate['type']) => {
-    if (newType !== 'file') {
+  const handleTypeChange = async (newType: MaterialCreate['type']) => {
+    if (newType !== type) {
       uploadGeneration.current++
+      if (pendingMaterialIdRef.current !== null) {
+        await discardPendingMaterial()
+      }
+    }
+    if (newType !== 'file') {
       setUploadStatus('idle')
       setUploadProgress(0)
       setUploadError(null)
@@ -106,7 +154,7 @@ export default function MaterialForm({ subjectId, lessonId, onClose }: MaterialF
 
   const handleNonFileSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim() || createMaterial.isPending) return
+    if (!title.trim() || isSaving) return
 
     const data: MaterialCreate = { title: title.trim(), type }
     if (type === 'text') {
@@ -119,12 +167,15 @@ export default function MaterialForm({ subjectId, lessonId, onClose }: MaterialF
     if (subjectId !== undefined) data.subject_id = subjectId
     if (lessonId !== undefined) data.lesson_id = lessonId
 
+    setIsSaving(true)
     try {
-      await createMaterial.mutateAsync(data)
+      const result = await createMaterial(data)
+      pendingMaterialIdRef.current = result.id
       setNonFileSaved(true)
-      invalidateMaterials()
     } catch {
-      /* createMaterial surfaces via isError if needed */
+      /* ignore */
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -142,11 +193,19 @@ export default function MaterialForm({ subjectId, lessonId, onClose }: MaterialF
   const isFileUploading = type === 'file' && uploadStatus === 'uploading'
 
   useEffect(() => {
-    return () => { uploadGeneration.current++ }
-  }, [])
+    return () => {
+      sessionOpenRef.current = false
+      uploadGeneration.current++
+      const id = pendingMaterialIdRef.current
+      pendingMaterialIdRef.current = null
+      if (id !== null) {
+        deleteMaterial(id).then(() => invalidateMaterials()).catch(() => {})
+      }
+    }
+  }, [invalidateMaterials])
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    <div className={styles.overlay} onClick={() => { void handleDismiss(false) }}>
       <div className={styles.sheet} onClick={(e) => e.stopPropagation()}>
         <div className={styles.handle} />
         <h3 className={styles.heading}>{t('materialForm.title')}</h3>
@@ -270,24 +329,24 @@ export default function MaterialForm({ subjectId, lessonId, onClose }: MaterialF
           )}
 
           <div className={styles.actions}>
-            <button type="button" className={styles.cancelBtn} onClick={onClose}>
+            <button type="button" className={styles.cancelBtn} onClick={() => { void handleDismiss(false) }}>
               {t('common.cancel')}
             </button>
             {type === 'file' ? (
-              <button type="button" className={styles.submitBtn} disabled={!canContinue} onClick={onClose}>
+              <button type="button" className={styles.submitBtn} disabled={!canContinue} onClick={() => { void handleDismiss(true) }}>
                 {t('materialForm.continue')}
               </button>
             ) : canContinue ? (
-              <button type="button" className={styles.submitBtn} onClick={onClose}>
+              <button type="button" className={styles.submitBtn} onClick={() => { void handleDismiss(true) }}>
                 {t('materialForm.continue')}
               </button>
             ) : (
               <button
                 type="submit"
                 className={styles.submitBtn}
-                disabled={!isValid() || createMaterial.isPending}
+                disabled={!isValid() || isSaving}
               >
-                {createMaterial.isPending ? t('materialForm.saving') : t('materialForm.add')}
+                {isSaving ? t('materialForm.saving') : t('materialForm.add')}
               </button>
             )}
           </div>

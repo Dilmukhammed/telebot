@@ -5,6 +5,7 @@ import { useAdminLessons } from '../api/hooks'
 import { rescheduleLesson, cancelAdminLesson, markAdminLessonStatus } from '../api/client'
 import type { AdminLessonOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
+import TimePicker from '../components/TimePicker'
 import { Loading } from '../shared/components'
 import { langToLocale } from '../shared/utils/formatDate'
 import styles from './AdminCalendar.module.css'
@@ -461,11 +462,9 @@ export default function AdminCalendar() {
                 </div>
                 <div className={styles.modalField}>
                   <label className={styles.modalFieldLabel}>{t('admin.calendar.new_time_optional')}</label>
-                  <input
-                    type="time"
-                    className={styles.modalInput}
+                  <TimePicker
                     value={newTime}
-                    onChange={e => setNewTime(e.target.value)}
+                    onChange={val => setNewTime(val)}
                   />
                 </div>
                 {actionError && <p className={styles.modalError}>{actionError}</p>}
