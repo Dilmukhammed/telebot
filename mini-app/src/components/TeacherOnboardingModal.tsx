@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getMe, completeOnboarding } from '../api/client'
-import type { UserOut } from '../shared/types'
+import { completeOnboarding } from '../api/client'
+import { useUser } from '../context/UserContext'
 import styles from './OnboardingModal.module.css'
 
 interface TeacherOnboardingModalProps {
@@ -11,21 +11,12 @@ interface TeacherOnboardingModalProps {
 
 export default function TeacherOnboardingModal({ isOpen, onClose }: TeacherOnboardingModalProps) {
   const { t } = useTranslation()
-  const [user, setUser] = useState<UserOut | null>(null)
+  const { user } = useUser()
   const [loading, setLoading] = useState(false)
   const [phoneShared, setPhoneShared] = useState(false)
   const [sharedPhone, setSharedPhone] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-
-  useEffect(() => {
-    if (isOpen) {
-      getMe().then(u => {
-        setUser(u)
-        // Don't set phoneShared here - user must share phone manually
-      }).catch(console.error)
-    }
-  }, [isOpen])
 
   if (!isOpen) return null
 

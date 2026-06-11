@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import type { ProfileThemeOut } from '../shared/types'
 import {
@@ -21,6 +22,7 @@ export default function ProfileThemeSheet({ open, initialTheme, onChange, onClos
   const { t } = useTranslation()
   const [draft, setDraft] = useState(() => normalizeProfileTheme(initialTheme))
   const draftRef = useRef(draft)
+  const closingRef = useRef(false)
 
   const apply = (next: ProfileThemeOut) => {
     draftRef.current = next
@@ -30,14 +32,26 @@ export default function ProfileThemeSheet({ open, initialTheme, onChange, onClos
 
   useEffect(() => {
     if (open) {
+      closingRef.current = false
       const next = normalizeProfileTheme(initialTheme)
       apply(next)
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps -- reset only when sheet opens
 
-  const requestClose = () => onClose(draftRef.current)
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [open])
 
-  if (!open) return null
+  const requestClose = () => {
+    if (closingRef.current) return
+    closingRef.current = true
+    onClose(draftRef.current)
+  }
 
   const setCardTheme = (card_theme: ProfileCardThemeId) => {
     apply({ ...draftRef.current, card_theme })
@@ -55,14 +69,22 @@ export default function ProfileThemeSheet({ open, initialTheme, onChange, onClos
     apply({ ...draftRef.current, status_text: status_text || undefined })
   }
 
-  return (
-    <div className={styles.overlay} onClick={requestClose}>
-      <div className={styles.sheet} onClick={(e) => e.stopPropagation()}>
+  if (!open) return null
+
+  return createPortal(
+    <div className={styles.overlay}>
+      <button
+        type="button"
+        className={styles.backdrop}
+        onClick={requestClose}
+        aria-label={t('common.close', { defaultValue: 'Закрыть' })}
+      />
+      <div className={styles.sheet}>
         <div className={styles.handle} />
         <div className={styles.header}>
           <h3 className={styles.title}>{t('profile.customize')}</h3>
-          <button type="button" className={styles.closeBtn} onClick={requestClose} aria-label={t('common.close', { defaultValue: 'Закрыть' })}>
-            <span className="material-symbols-outlined">close</span>
+          <button type="button" className={styles.doneBtn} onClick={requestClose}>
+            {t('profile.done')}
           </button>
         </div>
 
@@ -115,7 +137,7 @@ export default function ProfileThemeSheet({ open, initialTheme, onChange, onClos
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
-                ;(e.target as HTMLInputElement).blur()
+                requestClose()
               }
             }}
             placeholder={t('profile.statusPlaceholder')}
@@ -124,6 +146,7 @@ export default function ProfileThemeSheet({ open, initialTheme, onChange, onClos
           />
         </section>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

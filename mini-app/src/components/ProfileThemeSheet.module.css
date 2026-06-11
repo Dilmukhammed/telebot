@@ -1,14 +1,27 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 1000;
+  z-index: 2000;
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  pointer-events: auto;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .sheet {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 600px;
   max-height: 85vh;
@@ -41,17 +54,21 @@
   color: var(--color-on-surface);
 }
 
-.closeBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
+.doneBtn {
   border: none;
-  background: transparent;
-  border-radius: 50%;
-  color: var(--color-on-surface-variant);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  font-family: inherit;
+  padding: 8px 16px;
+  border-radius: 999px;
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+.doneBtn:active {
+  opacity: 0.9;
 }
 
 .section {

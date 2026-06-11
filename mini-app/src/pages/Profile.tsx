@@ -98,10 +98,10 @@ export default function Profile() {
   }, [])
 
   const handleCloseThemeSheet = useCallback(async (finalTheme: ProfileThemeOut) => {
-    setShowThemeSheet(false)
-    setThemePreview(null)
     if (!user) return
     const toSave = normalizeProfileTheme(finalTheme)
+    setShowThemeSheet(false)
+    setThemePreview(toSave)
     try {
       await updateProfileTheme({
         card_theme: toSave.card_theme,
@@ -109,8 +109,10 @@ export default function Profile() {
         status_text: toSave.status_text ?? null,
       })
       await refreshUser()
+      setThemePreview(null)
     } catch (err) {
       alert(err instanceof Error ? err.message : t('common.error'))
+      setThemePreview(normalizeProfileTheme(user.profile_theme))
     }
   }, [refreshUser, t, user])
 
