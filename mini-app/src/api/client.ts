@@ -14,11 +14,25 @@ function getAuthHeaders(): Record<string, string> {
     'Content-Type': 'application/json',
   }
 
-  // Send initData for HMAC validation on server.
-  // X-Telegram-User fallback removed — it had no signature and allowed impersonation.
+  // Primary: send initData for HMAC validation on server
   const initData = WebApp.initData
   if (initData) {
     headers['X-Telegram-Init-Data'] = initData
+  }
+
+  // Fallback: send user info directly from WebApp SDK
+  // Used when initData is empty (dev/tunnel mode) or HMAC fails.
+  // Server only trusts this header in DEV_MODE.
+  const user = (WebApp as any).initDataUnsafe?.user
+    || (window as any).Telegram?.WebApp?.initDataUnsafe?.user
+  if (user) {
+    const userJson = JSON.stringify({
+      id: user.id,
+      username: user.username || '',
+      first_name: user.first_name || '',
+      photo_url: user.photo_url || '',
+    })
+    headers['X-Telegram-User'] = btoa(unescape(encodeURIComponent(userJson)))
   }
 
   return headers

@@ -5,6 +5,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from json import loads
+from base64 import b64decode
 
 from database import get_db
 from models import Admin, User
@@ -70,6 +71,7 @@ async def get_telegram_user(
     3. DEV_MODE: mock user fallback
     """
     x_telegram_init_data = request.headers.get("X-Telegram-Init-Data")
+    x_telegram_user = request.headers.get("X-Telegram-User")
 
     telegram_data = None
 
@@ -81,9 +83,26 @@ async def get_telegram_user(
         except ValueError as e:
             logger.warning("HMAC validation failed: %s", e)
 
-    # Step 2: X-Telegram-User header — REMOVED for security
-    # This header had no cryptographic signature and allowed any attacker to
-    # impersonate any user by crafting a Base64 JSON blob.
+    # Step 2: X-Telegram-User header (DEV_MODE only)
+    # In production, this header is NOT trusted — it has no cryptographic signature.
+    # In DEV_MODE, it serves as a fallback when HMAC fails (e.g. bot token mismatch).
+    if not telegram_data and settings.DEV_MODE and x_telegram_user:
+        try:
+            decoded = b64decode(x_telegram_user).decode('utf-8')
+            user_data = loads(decoded)
+            if user_data.get("id"):
+                telegram_data = {
+                    "telegram_id": user_data["id"],
+                    "username": user_data.get("username"),
+                    "first_name": user_data.get("first_name"),
+                    "last_name": user_data.get("last_name"),
+                    "language_code": user_data.get("language_code", "ru"),
+                    "is_premium": user_data.get("is_premium", False),
+                    "photo_url": user_data.get("photo_url"),
+                }
+                logger.info("DEV_MODE: user from X-Telegram-User header")
+        except Exception as e:
+            logger.warning("DEV_MODE: failed to parse X-Telegram-User: %s", e)
 
     # Step 3: DEV_MODE - try to extract user from initData without hash
     if not telegram_data and settings.DEV_MODE and x_telegram_init_data:
