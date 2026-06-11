@@ -117,17 +117,18 @@ export default function AdminCalendar() {
   })
 
   const [weekOffset, setWeekOffset] = useState(0)
-  const [filterMode, setFilterMode] = useState<'all' | 'teacher' | 'student'>('all')
+  const [filterMode, setFilterMode] = useState<'teacher' | 'student'>('teacher')
   const [selectedUserId, setSelectedUserId] = useState<number | undefined>(undefined)
 
   const { data: teachers } = useAdminUsers('teacher', { enabled: filterMode === 'teacher' })
   const { data: students } = useAdminUsers('student', { enabled: filterMode === 'student' })
 
+  const hasUserSelected = !!selectedUserId
   const { data: lessons, isLoading, refetch } = useAdminLessons({
     week_offset: weekOffset,
     ...(filterMode === 'teacher' && selectedUserId ? { teacher_id: selectedUserId } : {}),
     ...(filterMode === 'student' && selectedUserId ? { student_id: selectedUserId } : {}),
-  })
+  }, { enabled: hasUserSelected })
   const lessonList = lessons ?? []
   const [view, setView] = useState<'day' | 'week'>(searchParams.get('view') === 'week' ? 'week' : 'day')
   const [selectedDay, setSelectedDay] = useState(0)
@@ -217,7 +218,7 @@ export default function AdminCalendar() {
       {/* User Filter Bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', background: 'var(--color-surface-container-high, #e8e0ec)', borderRadius: 20, overflow: 'hidden' }}>
-          {(['all', 'teacher', 'student'] as const).map(mode => (
+          {(['teacher', 'student'] as const).map(mode => (
             <button
               key={mode}
               onClick={() => { setFilterMode(mode); setSelectedUserId(undefined) }}
@@ -233,7 +234,7 @@ export default function AdminCalendar() {
                 transition: 'background 0.15s, color 0.15s',
               }}
             >
-              {mode === 'all' ? t('admin.calendar.filter_all', 'Все') : mode === 'teacher' ? t('admin.calendar.filter_teacher', 'Репетитор') : t('admin.calendar.filter_student', 'Ученик')}
+              {mode === 'teacher' ? t('admin.calendar.filter_teacher', 'Репетитор') : t('admin.calendar.filter_student', 'Ученик')}
             </button>
           ))}
         </div>
@@ -332,6 +333,18 @@ export default function AdminCalendar() {
         </div>
       )}
 
+      {/* Prompt to select user */}
+      {!hasUserSelected && (
+        <div className={styles.emptyState} style={{ padding: '48px 16px', textAlign: 'center' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>person_search</span>
+          <p style={{ marginTop: 12, color: 'var(--color-on-surface-variant)', fontSize: 14 }}>
+            {filterMode === 'teacher'
+              ? t('admin.calendar.select_teacher_prompt', 'Выберите репетитора для просмотра расписания')
+              : t('admin.calendar.select_student_prompt', 'Выберите ученика для просмотра расписания')}
+          </p>
+        </div>
+      )}
+
       {/* View Toggle */}
       <div className={styles.viewToggle}>
         <button className={`${styles.viewButton} ${view === 'day' ? styles.viewButtonActive : ''}`} onClick={() => setView('day')}>
@@ -343,7 +356,7 @@ export default function AdminCalendar() {
       </div>
 
       {/* Day View */}
-      {view === 'day' && (
+      {hasUserSelected && view === 'day' && (
         <>
           <div className={styles.weekStrip}>
             {weekDates.map((date, i) => (
@@ -380,7 +393,7 @@ export default function AdminCalendar() {
       )}
 
       {/* Week View */}
-      {view === 'week' && (
+      {hasUserSelected && view === 'week' && (
         <div className={styles.weekContainer}>
           <div className={styles.weekHeader}>
             <div className={styles.timeGutter} />

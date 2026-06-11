@@ -65,12 +65,13 @@ export function prefetchAdminLessons(qc: QueryClient, filters: AdminLessonsFilte
   })
 }
 
-export function useAdminLessons(filters: AdminLessonsFilters) {
+export function useAdminLessons(filters: AdminLessonsFilters, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: adminLessonsQueryKey(filters),
     queryFn: () => getAdminLessons(filters),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
+    enabled: options?.enabled ?? true,
   })
 }
 
