@@ -147,7 +147,7 @@ class UpdateNameData(BaseModel):
     last_name: Optional[str] = Field(default=None, max_length=100)
 
 
-@user_router.api_route("/me/profile-theme", methods=["PUT", "PATCH"], response_model=UserOut)
+@user_router.api_route("/me/profile-theme", methods=["POST", "PUT", "PATCH"], response_model=UserOut)
 async def update_profile_theme(
     data: ProfileThemeUpdate,
     user: User = Depends(get_telegram_user),

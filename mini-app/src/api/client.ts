@@ -285,7 +285,7 @@ export function updateProfileTheme(data: {
   status_text?: string | null
 }): Promise<UserOut> {
   return api<UserOut>('/api/users/me/profile-theme', {
-    method: 'PUT',
+    method: 'POST',
     body: JSON.stringify(data),
   })
 }
