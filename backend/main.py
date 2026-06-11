@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import asyncio
+import logging
 import os
 
 from fastapi import FastAPI, Request
@@ -14,6 +15,8 @@ from bot.bot import bot_router, bot, dp
 from scheduler import start_scheduler, stop_scheduler
 from seed import seed as seed_db
 from migrations import run_migrations, ensure_critical_schema
+
+startup_logger = logging.getLogger("startup")
 
 
 def _build_cors_origins() -> list[str]:
@@ -83,12 +86,20 @@ async def lifespan(app: FastAPI):
 
         await conn.run_sync(Base.metadata.create_all)
 
-    async with engine.begin() as conn:
-        await run_migrations(conn, engine.dialect.name)
+    dialect = engine.dialect.name
 
-    # Separate transaction so a failed optional migration cannot roll back required columns.
     async with engine.begin() as conn:
-        await ensure_critical_schema(conn, engine.dialect.name)
+        await ensure_critical_schema(conn, dialect)
+
+    try:
+        async with engine.connect() as conn:
+            conn = await conn.execution_options(isolation_level="AUTOCOMMIT")
+            await run_migrations(conn, dialect)
+    except Exception as exc:
+        startup_logger.exception("Schema migration error (non-fatal): %s", exc)
+
+    async with engine.begin() as conn:
+        await ensure_critical_schema(conn, dialect)
 
     await seed_db()
     # Start reminder scheduler

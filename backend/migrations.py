@@ -91,7 +91,6 @@ async def ensure_critical_schema(conn: AsyncConnection, dialect: str) -> None:
 
 async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
     logger.info("Running schema migrations (dialect=%s)", dialect)
-    await ensure_critical_schema(conn, dialect)
 
     if dialect == "postgresql":
         for table_name in ("users", "registrations", "admins"):
@@ -146,7 +145,10 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
                 text("CREATE UNIQUE INDEX IF NOT EXISTS ix_subjects_invite_code ON subjects (invite_code)")
             )
 
-        await _backfill_invite_codes(conn)
+        try:
+            await _backfill_invite_codes(conn)
+        except Exception as exc:
+            logger.warning("invite code backfill skipped: %s", exc)
 
     if dialect == "postgresql":
         for idx_name, table, col in [
@@ -306,27 +308,29 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
                 logger.info("Adding lessons.%s", col)
                 await conn.execute(text(f"ALTER TABLE lessons ADD COLUMN {col} {col_type}"))
 
-        # Backfill: each lesson is its own slot group, effective from subject start or created_at
-        await conn.execute(text("""
-            UPDATE lessons
-            SET slot_group_id = id
-            WHERE slot_group_id IS NULL
-        """))
-        if dialect == "postgresql":
-            await conn.execute(text("""
-                UPDATE lessons l
-                SET effective_from = COALESCE(
-                    (SELECT s.start_date::date FROM subjects s WHERE s.id = l.subject_id),
-                    l.created_at::date
-                )
-                WHERE l.effective_from IS NULL
-            """))
-        else:
+        try:
             await conn.execute(text("""
                 UPDATE lessons
-                SET effective_from = date(created_at)
-                WHERE effective_from IS NULL
+                SET slot_group_id = id
+                WHERE slot_group_id IS NULL
             """))
+            if dialect == "postgresql":
+                await conn.execute(text("""
+                    UPDATE lessons l
+                    SET effective_from = COALESCE(
+                        (SELECT s.start_date::date FROM subjects s WHERE s.id = l.subject_id),
+                        l.created_at::date
+                    )
+                    WHERE l.effective_from IS NULL
+                """))
+            else:
+                await conn.execute(text("""
+                    UPDATE lessons
+                    SET effective_from = date(created_at)
+                    WHERE effective_from IS NULL
+                """))
+        except Exception as exc:
+            logger.warning("lessons schedule backfill skipped: %s", exc)
 
     if await _table_exists(conn, "materials", dialect) and dialect == "postgresql":
         try:
@@ -363,5 +367,4 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
         except Exception as exc:
             logger.warning("materials type constraint migration skipped: %s", exc)
 
-    await ensure_critical_schema(conn, dialect)
     logger.info("Schema migrations complete")
