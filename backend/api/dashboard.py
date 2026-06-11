@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 from typing import Optional
+import logging
 
 from database import get_db
-from models import User, Lesson, LessonEnrollment, Registration, Result, Subject, Test, Notification, NotificationRecipient, NotificationRead, Attendance, LessonStatus, TeacherAvailability
+from models import User, Lesson, LessonEnrollment, Registration, Result, Subject, Test, Notification, NotificationRecipient, NotificationRead, NotificationAttachment, Attendance, LessonStatus, TeacherAvailability
 from schemas import DashboardOut, DashboardProfileOut, DashboardLessonOut, DashboardResultOut, DashboardNotificationOut
 from api.deps import get_telegram_user
 
@@ -233,6 +234,15 @@ async def get_dashboard(
 
 
 # Announcement schemas
+class AnnouncementAttachmentOut(BaseModel):
+    id: int
+    title: str
+    type: str  # "file" or "link"
+    url: Optional[str] = None
+    file_name: Optional[str] = None
+    file_size: Optional[int] = None
+
+
 class AnnouncementOut(BaseModel):
     id: int
     title: Optional[str] = None
@@ -242,6 +252,7 @@ class AnnouncementOut(BaseModel):
     sender_role: Optional[str] = None
     sender_id: Optional[int] = None
     is_read: bool = False
+    attachments: list[AnnouncementAttachmentOut] = []
 
 
 class AnnouncementDetailOut(BaseModel):
@@ -253,6 +264,7 @@ class AnnouncementDetailOut(BaseModel):
     sender_role: Optional[str] = None
     sender_id: Optional[int] = None
     is_read: bool = False
+    attachments: list[AnnouncementAttachmentOut] = []
 
 
 @router.get("/announcements", response_model=list[AnnouncementOut])
@@ -295,6 +307,16 @@ async def get_announcements(
         )
         read_set = {row[0] for row in read_result.all()}
 
+    # Load attachments for all announcements
+    attachments_by_notif: dict[int, list] = {}
+    if notification_ids:
+        att_result = await db.execute(
+            select(NotificationAttachment)
+            .where(NotificationAttachment.notification_id.in_(notification_ids))
+        )
+        for att in att_result.scalars().all():
+            attachments_by_notif.setdefault(att.notification_id, []).append(att)
+
     return [
         AnnouncementOut(
             id=n.id,
@@ -305,6 +327,13 @@ async def get_announcements(
             sender_role=u.role if u else None,
             sender_id=n.sender_id,
             is_read=n.id in read_set,
+            attachments=[
+                AnnouncementAttachmentOut(
+                    id=a.id, title=a.title, type=a.type, url=a.url,
+                    file_name=a.file_name, file_size=a.file_size,
+                )
+                for a in attachments_by_notif.get(n.id, [])
+            ],
         )
         for n, u in raw
     ]
@@ -352,6 +381,19 @@ async def get_announcement_detail(
     )
     is_read = read_result.scalar_one_or_none() is not None
 
+    # Load attachments
+    att_result = await db.execute(
+        select(NotificationAttachment)
+        .where(NotificationAttachment.notification_id == notification.id)
+    )
+    attachments = [
+        AnnouncementAttachmentOut(
+            id=a.id, title=a.title, type=a.type, url=a.url,
+            file_name=a.file_name, file_size=a.file_size,
+        )
+        for a in att_result.scalars().all()
+    ]
+
     return AnnouncementDetailOut(
         id=notification.id,
         title=notification.title,
@@ -361,6 +403,7 @@ async def get_announcement_detail(
         sender_role=sender.role if sender else None,
         sender_id=notification.sender_id,
         is_read=is_read,
+        attachments=attachments,
     )
 
 
@@ -597,3 +640,115 @@ async def get_calendar(
             day.available_slots = avail_by_day.get(day.day_of_week, [])
 
     return CalendarWeekOut(days=days)
+
+
+# ── Announcement Attachment Endpoints ──────────────────────────────
+
+@router.post("/announcements/attachments/upload")
+async def upload_announcement_attachment(
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    user: User = Depends(get_telegram_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a file for an announcement attachment. Returns attachment ID.
+
+    The attachment is NOT linked to any notification yet — the caller should
+    pass the returned ID in `attachment_ids` when creating the announcement.
+    """
+    if user.role not in ("teacher", "admin"):
+        raise HTTPException(status_code=403, detail="Only teachers and admins can upload attachments")
+
+    import google_drive
+
+    # Read file with size limit (50 MB)
+    MAX_FILE_SIZE = 50 * 1024 * 1024
+    file_bytes = await file.read()
+    if len(file_bytes) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is 50 MB")
+
+    file_name = file.filename or "upload"
+
+    # Upload to Google Drive
+    try:
+        google_file_id, download_url = await google_drive.upload_file(
+            file_bytes=file_bytes,
+            file_name=file_name,
+            mime_type=file.content_type or "application/octet-stream",
+        )
+    except Exception as exc:
+        logging.getLogger(__name__).error("Google Drive upload failed: %s", exc)
+        raise HTTPException(status_code=500, detail="File upload failed")
+
+    # Create attachment record (notification_id will be set later when announcement is created)
+    # Use a temporary notification_id of 0 — we'll update it during announcement creation
+    attachment = NotificationAttachment(
+        notification_id=0,  # Placeholder — updated during announcement creation
+        title=title,
+        type="file",
+        url=download_url,
+        file_name=file_name,
+        file_size=len(file_bytes),
+        google_file_id=google_file_id,
+    )
+    db.add(attachment)
+    await db.commit()
+    await db.refresh(attachment)
+
+    return {"id": attachment.id, "title": title, "type": "file", "url": download_url, "file_name": file_name, "file_size": len(file_bytes)}
+
+
+class LinkAttachmentIn(BaseModel):
+    title: str
+    url: str
+
+
+@router.post("/announcements/attachments/link")
+async def create_link_attachment(
+    data: LinkAttachmentIn,
+    user: User = Depends(get_telegram_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a link attachment for an announcement. Returns attachment ID."""
+    if user.role not in ("teacher", "admin"):
+        raise HTTPException(status_code=403, detail="Only teachers and admins can create attachments")
+
+    attachment = NotificationAttachment(
+        notification_id=0,  # Placeholder — updated during announcement creation
+        title=data.title,
+        type="link",
+        url=data.url,
+    )
+    db.add(attachment)
+    await db.commit()
+    await db.refresh(attachment)
+
+    return {"id": attachment.id, "title": data.title, "type": "link", "url": data.url}
+
+
+@router.delete("/announcements/attachments/{attachment_id}")
+async def delete_announcement_attachment(
+    attachment_id: int,
+    user: User = Depends(get_telegram_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete an announcement attachment."""
+    attachment = await db.get(NotificationAttachment, attachment_id)
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+
+    # Only allow deletion if notification_id is 0 (not yet linked) or user is the sender
+    if attachment.notification_id != 0:
+        notif = await db.get(Notification, attachment.notification_id)
+        if notif and notif.sender_id != user.id and user.role != "admin":
+            raise HTTPException(status_code=403, detail="Not allowed")
+
+    # Delete from Google Drive if applicable
+    if attachment.google_file_id:
+        import google_drive
+        await google_drive.delete_file(attachment.google_file_id)
+
+    await db.delete(attachment)
+    await db.commit()
+
+    return {"ok": True}

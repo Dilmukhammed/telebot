@@ -180,11 +180,62 @@ export function createAnnouncement(data: {
   target_type: 'course' | 'students'
   course_ids?: number[]
   student_ids?: number[]
+  attachment_ids?: number[]
 }): Promise<AnnouncementOut> {
   return api<AnnouncementOut>('/api/teacher/announcements', {
     method: 'POST',
     body: JSON.stringify(data),
   })
+}
+
+export async function uploadAnnouncementAttachment(file: File, title: string): Promise<{ id: number; title: string; type: string; url: string; file_name: string; file_size: number }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('title', title)
+
+  const url = `${BASE_URL}/api/dashboard/announcements/attachments/upload`
+  const authHeaders = getAuthHeaders()
+  const { 'Content-Type': _, ...headers } = authHeaders
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+      signal: controller.signal,
+      cache: 'no-store',
+    })
+
+    if (!response.ok) {
+      let message = `Error (${response.status})`
+      try {
+        const body = await response.json()
+        if (body.detail) message = body.detail
+      } catch { /* ignore */ }
+      throw new Error(message)
+    }
+
+    return response.json()
+  } catch (err: any) {
+    if (err.name === 'AbortError') throw new Error('Request timed out')
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+export function createAnnouncementLinkAttachment(title: string, url: string): Promise<{ id: number; title: string; type: string; url: string }> {
+  return api('/api/dashboard/announcements/attachments/link', {
+    method: 'POST',
+    body: JSON.stringify({ title, url }),
+  })
+}
+
+export function deleteAnnouncementAttachment(id: number): Promise<void> {
+  return api<void>(`/api/dashboard/announcements/attachments/${id}`, { method: 'DELETE' })
 }
 
 export function getTeacherCourses(): Promise<{ id: number; name: string; student_count: number }[]> {

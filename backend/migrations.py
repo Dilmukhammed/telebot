@@ -228,4 +228,43 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
                 text("CREATE INDEX IF NOT EXISTS ix_materials_created_by ON materials (created_by)")
             )
 
+    if not await _table_exists(conn, "notification_attachments", dialect):
+        logger.info("Creating notification_attachments table")
+        if dialect == "postgresql":
+            await conn.execute(text("""
+                CREATE TABLE notification_attachments (
+                    id SERIAL PRIMARY KEY,
+                    notification_id INTEGER NOT NULL REFERENCES notifications(id),
+                    title VARCHAR NOT NULL,
+                    type VARCHAR NOT NULL,
+                    url VARCHAR,
+                    file_name VARCHAR,
+                    file_size INTEGER,
+                    google_file_id VARCHAR,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    CHECK (type IN ('file', 'link'))
+                )
+            """))
+            await conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_notification_attachments_notification_id ON notification_attachments (notification_id)")
+            )
+        else:
+            await conn.execute(text("""
+                CREATE TABLE notification_attachments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    notification_id INTEGER NOT NULL REFERENCES notifications(id),
+                    title VARCHAR NOT NULL,
+                    type VARCHAR NOT NULL,
+                    url VARCHAR,
+                    file_name VARCHAR,
+                    file_size INTEGER,
+                    google_file_id VARCHAR,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CHECK (type IN ('file', 'link'))
+                )
+            """))
+            await conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_notification_attachments_notification_id ON notification_attachments (notification_id)")
+            )
+
     logger.info("Schema migrations complete")

@@ -163,6 +163,27 @@ class NotificationRecipient(Base):
     user: Mapped["User"] = relationship("User")
 
 
+class NotificationAttachment(Base):
+    """File or link attached to a notification/announcement."""
+    __tablename__ = "notification_attachments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    notification_id: Mapped[int] = mapped_column(Integer, ForeignKey("notifications.id"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    type: Mapped[str] = mapped_column(String, nullable=False)  # "file" or "link"
+    url: Mapped[str | None] = mapped_column(String, nullable=True)  # Google Drive link or external URL
+    file_name: Mapped[str | None] = mapped_column(String, nullable=True)  # Original filename
+    file_size: Mapped[int | None] = mapped_column(Integer, nullable=True)  # Bytes
+    google_file_id: Mapped[str | None] = mapped_column(String, nullable=True)  # Google Drive file ID
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
+
+    notification: Mapped["Notification"] = relationship("Notification", backref="attachments")
+
+    __table_args__ = (
+        CheckConstraint("type IN ('file', 'link')", name="ck_attachment_type"),
+    )
+
+
 class NotificationRead(Base):
     """Track which user read which notification and when."""
     __tablename__ = "notification_reads"

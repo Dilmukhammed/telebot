@@ -152,6 +152,15 @@ export interface DashboardOut {
 }
 
 // Announcement types
+export interface AnnouncementAttachmentOut {
+  id: number;
+  title: string;
+  type: 'file' | 'link';
+  url?: string;
+  file_name?: string;
+  file_size?: number;
+}
+
 export interface AnnouncementOut {
   id: number;
   title?: string;
@@ -162,6 +171,7 @@ export interface AnnouncementOut {
   recipient_count?: number;
   sender_id?: number;
   is_read?: boolean;
+  attachments?: AnnouncementAttachmentOut[];
 }
 
 export interface AnnouncementRecipient {
@@ -486,6 +496,7 @@ export interface AdminAnnouncementCreate {
   target_id?: number;
   course_ids?: number[];
   student_ids?: number[];
+  attachment_ids?: number[];
 }
 
 export interface AdminAnnouncementOut {

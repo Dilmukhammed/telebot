@@ -75,6 +75,56 @@ export default function AnnouncementDetail() {
           <p className={styles.message}>{announcement.message}</p>
         </div>
 
+        {/* Attachments */}
+        {announcement.attachments && announcement.attachments.length > 0 && (
+          <div className={styles.card} style={{ marginTop: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-primary)' }}>attach_file</span>
+              <span style={{ fontSize: '14px', fontWeight: 600 }}>
+                {t('announcements.attachments', { defaultValue: 'Вложения' })} ({announcement.attachments.length})
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {announcement.attachments.map((att) => (
+                <a
+                  key={att.id}
+                  href={att.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    padding: '10px 12px', borderRadius: '10px',
+                    background: 'var(--color-surface-variant, #f5f5f5)',
+                    textDecoration: 'none', color: 'inherit',
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--color-primary)' }}>
+                    {att.type === 'file' ? 'description' : 'link'}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '14px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {att.title}
+                    </div>
+                    {att.file_name && att.file_name !== att.title && (
+                      <div style={{ fontSize: '12px', color: 'var(--color-on-surface-variant)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {att.file_name}
+                      </div>
+                    )}
+                  </div>
+                  {att.file_size && (
+                    <span style={{ fontSize: '12px', color: 'var(--color-on-surface-variant)', whiteSpace: 'nowrap' }}>
+                      {att.file_size > 1024 * 1024
+                        ? `${(att.file_size / (1024 * 1024)).toFixed(1)} MB`
+                        : `${(att.file_size / 1024).toFixed(0)} KB`}
+                    </span>
+                  )}
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-on-surface-variant)' }}>open_in_new</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Recipients section (only for teacher's own announcements) */}
         {recipients.length > 0 && (
           <div className={styles.recipientsSection}>

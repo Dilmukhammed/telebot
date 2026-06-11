@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 
 from database import get_db
-from models import User, Lesson, LessonEnrollment, Subject, Attendance, Notification, NotificationRecipient, NotificationRead, LessonStatus, EnrollmentRequest
+from models import User, Lesson, LessonEnrollment, Subject, Attendance, Notification, NotificationRecipient, NotificationRead, NotificationAttachment, LessonStatus, EnrollmentRequest
 from api.deps import require_teacher
 
 router = APIRouter(prefix="/teacher", tags=["teacher"])
@@ -829,6 +829,19 @@ async def create_announcement(
     db.add(notification)
     await db.commit()
     await db.refresh(notification)
+
+    # Link pre-uploaded attachments to this notification
+    if data.attachment_ids:
+        att_result = await db.execute(
+            select(NotificationAttachment)
+            .where(
+                NotificationAttachment.id.in_(data.attachment_ids),
+                NotificationAttachment.notification_id == 0,  # Only unlinked attachments
+            )
+        )
+        for att in att_result.scalars().all():
+            att.notification_id = notification.id
+        await db.commit()
 
     # Store individual recipients
     recipient_ids = []

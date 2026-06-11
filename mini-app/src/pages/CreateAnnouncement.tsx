@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useTeacherCourses } from '../api/hooks'
-import { getCourseStudents, createAnnouncement } from '../api/client'
+import { getCourseStudents, createAnnouncement, uploadAnnouncementAttachment, createAnnouncementLinkAttachment, deleteAnnouncementAttachment } from '../api/client'
 import { useQueryClient } from '@tanstack/react-query'
+import type { AnnouncementAttachmentOut } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
 import { Loading } from '../shared/components'
 import styles from './CreateAnnouncement.module.css'
@@ -12,6 +13,15 @@ interface Student {
   id: number
   first_name?: string
   username?: string
+}
+
+interface PendingAttachment {
+  id: number
+  title: string
+  type: 'file' | 'link'
+  url?: string
+  file_name?: string
+  file_size?: number
 }
 
 export default function CreateAnnouncement() {
@@ -28,6 +38,12 @@ export default function CreateAnnouncement() {
   const [selectedStudents, setSelectedStudents] = useState<number[]>([])
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([])
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [showLinkInput, setShowLinkInput] = useState(false)
+  const [linkTitle, setLinkTitle] = useState('')
+  const [linkUrl, setLinkUrl] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (targetType === 'students' && courses.length > 0) {
@@ -58,6 +74,41 @@ export default function CreateAnnouncement() {
     )
   }
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingFile(true)
+    try {
+      const result = await uploadAnnouncementAttachment(file, file.name)
+      setAttachments(prev => [...prev, { id: result.id, title: result.title, type: 'file', url: result.url, file_name: result.file_name, file_size: result.file_size }])
+    } catch (err: any) {
+      setError(err.message || t('common.error'))
+    } finally {
+      setUploadingFile(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleAddLink = async () => {
+    if (!linkTitle.trim() || !linkUrl.trim()) return
+    try {
+      const result = await createAnnouncementLinkAttachment(linkTitle.trim(), linkUrl.trim())
+      setAttachments(prev => [...prev, { id: result.id, title: result.title, type: 'link', url: result.url }])
+      setLinkTitle('')
+      setLinkUrl('')
+      setShowLinkInput(false)
+    } catch (err: any) {
+      setError(err.message || t('common.error'))
+    }
+  }
+
+  const handleRemoveAttachment = async (id: number) => {
+    try {
+      await deleteAnnouncementAttachment(id)
+    } catch { /* ignore — attachment may not exist on server yet */}
+    setAttachments(prev => prev.filter(a => a.id !== id))
+  }
+
   const handleSend = async () => {
     if (!message.trim()) {
       setError(t('createAnnouncement.messageRequired'))
@@ -82,6 +133,7 @@ export default function CreateAnnouncement() {
         target_type: targetType,
         course_ids: targetType === 'course' ? selectedCourses : undefined,
         student_ids: targetType === 'students' ? selectedStudents : undefined,
+        attachment_ids: attachments.length > 0 ? attachments.map(a => a.id) : undefined,
       })
       // Invalidate announcement caches so the list refreshes
       queryClient.invalidateQueries({ queryKey: ['announcements'] })
@@ -201,6 +253,98 @@ export default function CreateAnnouncement() {
             </div>
           </div>
         )}
+
+        {/* Attachments */}
+        <div className={styles.field}>
+          <label className={styles.label}>{t('createAnnouncement.attachments', { defaultValue: 'Вложения' })}</label>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              style={{ display: 'none' }}
+              onChange={handleFileUpload}
+            />
+            <button
+              type="button"
+              className={styles.targetButton}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingFile}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>upload_file</span>
+              {uploadingFile ? t('common.loading') : t('createAnnouncement.attachFile', { defaultValue: 'Файл' })}
+            </button>
+            <button
+              type="button"
+              className={styles.targetButton}
+              onClick={() => setShowLinkInput(!showLinkInput)}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>link</span>
+              {t('createAnnouncement.attachLink', { defaultValue: 'Ссылка' })}
+            </button>
+          </div>
+
+          {showLinkInput && (
+            <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <input
+                type="text"
+                className={styles.input}
+                placeholder={t('createAnnouncement.linkTitle', { defaultValue: 'Название ссылки' })}
+                value={linkTitle}
+                onChange={(e) => setLinkTitle(e.target.value)}
+              />
+              <input
+                type="url"
+                className={styles.input}
+                placeholder="https://..."
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+              />
+              <button
+                type="button"
+                className={styles.targetButton}
+                onClick={handleAddLink}
+                disabled={!linkTitle.trim() || !linkUrl.trim()}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                {t('common.add', { defaultValue: 'Добавить' })}
+              </button>
+            </div>
+          )}
+
+          {attachments.length > 0 && (
+            <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {attachments.map((att) => (
+                <div
+                  key={att.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '8px 12px', borderRadius: '8px',
+                    background: 'var(--color-surface-variant, #f5f5f5)',
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-primary)' }}>
+                    {att.type === 'file' ? 'description' : 'link'}
+                  </span>
+                  <span style={{ flex: 1, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {att.title}
+                  </span>
+                  {att.file_size && (
+                    <span style={{ fontSize: '12px', color: 'var(--color-on-surface-variant)', whiteSpace: 'nowrap' }}>
+                      {(att.file_size / 1024).toFixed(0)} KB
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAttachment(att.id)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-error, #ba1a1a)' }}>close</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {error && <p className={styles.error}>{error}</p>}
 

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 from database import get_db
 from models import (
     User, Lesson, LessonEnrollment, Subject, LessonStatus,
-    Notification, NotificationRecipient, TeacherAvailability, Test,
+    Notification, NotificationRecipient, NotificationAttachment, TeacherAvailability, Test,
     Attendance, AuditLog,
 )
 from api.users import user_to_dict
@@ -566,6 +566,19 @@ async def create_announcement(
     # Single commit for all changes
     await db.commit()
     await db.refresh(notification)
+
+    # Link pre-uploaded attachments to this notification
+    if data.attachment_ids:
+        att_result = await db.execute(
+            select(NotificationAttachment)
+            .where(
+                NotificationAttachment.id.in_(data.attachment_ids),
+                NotificationAttachment.notification_id == 0,  # Only unlinked attachments
+            )
+        )
+        for att in att_result.scalars().all():
+            att.notification_id = notification.id
+        await db.commit()
 
     # Send Telegram messages
     if recipient_ids:

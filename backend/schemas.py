@@ -283,6 +283,15 @@ class DashboardNotificationOut(BaseModel):
     is_read: bool = False
 
 
+class NotificationAttachmentOut(BaseModel):
+    id: int
+    title: str
+    type: str  # "file" or "link"
+    url: Optional[str] = None
+    file_name: Optional[str] = None
+    file_size: Optional[int] = None
+
+
 class DashboardOut(BaseModel):
     profile: DashboardProfileOut
     lessons: list[DashboardLessonOut]
@@ -298,6 +307,7 @@ class NotificationCreate(BaseModel):
     target_type: str = Field(pattern="^(course|students)$")
     course_ids: Optional[list[int]] = None  # subject_ids for "course" (multiple)
     student_ids: Optional[list[int]] = None  # for "students"
+    attachment_ids: Optional[list[int]] = None  # IDs of pre-uploaded NotificationAttachment rows
 
 
 class SubjectUpdate(BaseModel):
@@ -412,6 +422,7 @@ class AdminAnnouncementCreate(BaseModel):
     target_id: Optional[int] = None  # teacher_id for teacher_courses
     course_ids: Optional[list[int]] = None
     student_ids: Optional[list[int]] = None
+    attachment_ids: Optional[list[int]] = None  # IDs of pre-uploaded NotificationAttachment rows
 
 
 class AdminAnnouncementOut(BaseModel):
