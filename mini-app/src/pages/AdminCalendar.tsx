@@ -216,70 +216,45 @@ export default function AdminCalendar() {
       <SiteHeader title={t('admin.courses.schedule')} onBack={() => navigate('/dashboard')} />
 
       {/* User Filter Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', background: 'var(--color-surface-container-high, #e8e0ec)', borderRadius: 20, overflow: 'hidden' }}>
+      <div className={styles.filterPanel}>
+        <div className={styles.filterModeToggle}>
           {(['teacher', 'student'] as const).map(mode => (
             <button
               key={mode}
               onClick={() => { setFilterMode(mode); setSelectedUserId(undefined) }}
-              style={{
-                padding: '6px 14px',
-                border: 'none',
-                borderRadius: 20,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-                background: filterMode === mode ? 'var(--color-primary)' : 'transparent',
-                color: filterMode === mode ? 'var(--color-on-primary)' : 'var(--color-on-surface-variant)',
-                transition: 'background 0.15s, color 0.15s',
-              }}
+              className={`${styles.filterModeButton} ${filterMode === mode ? styles.filterModeButtonActive : ''}`}
             >
               {mode === 'teacher' ? t('admin.calendar.filter_teacher', 'Репетитор') : t('admin.calendar.filter_student', 'Ученик')}
             </button>
           ))}
         </div>
 
-        {filterMode === 'teacher' && (
-          <select
-            value={selectedUserId ?? ''}
-            onChange={e => setSelectedUserId(e.target.value ? Number(e.target.value) : undefined)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 12,
-              border: '1px solid var(--color-outline-variant, #c9c0d0)',
-              background: 'var(--color-surface, #fdf8ff)',
-              color: 'var(--color-on-surface)',
-              fontSize: 13,
-              minWidth: 140,
-            }}
-          >
-            <option value="">{t('admin.calendar.select_teacher', 'Выберите репетитора')}</option>
-            {(teachers ?? []).map(u => (
-              <option key={u.id} value={u.id}>{u.first_name} {u.last_name ?? ''}</option>
-            ))}
-          </select>
-        )}
-
-        {filterMode === 'student' && (
-          <select
-            value={selectedUserId ?? ''}
-            onChange={e => setSelectedUserId(e.target.value ? Number(e.target.value) : undefined)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 12,
-              border: '1px solid var(--color-outline-variant, #c9c0d0)',
-              background: 'var(--color-surface, #fdf8ff)',
-              color: 'var(--color-on-surface)',
-              fontSize: 13,
-              minWidth: 140,
-            }}
-          >
-            <option value="">{t('admin.calendar.select_student', 'Выберите ученика')}</option>
-            {(students ?? []).map(u => (
-              <option key={u.id} value={u.id}>{u.first_name} {u.last_name ?? ''}</option>
-            ))}
-          </select>
-        )}
+        <div className={styles.selectWrapper}>
+          {filterMode === 'teacher' ? (
+            <select
+              className={styles.filterSelect}
+              value={selectedUserId ?? ''}
+              onChange={e => setSelectedUserId(e.target.value ? Number(e.target.value) : undefined)}
+            >
+              <option value="">{t('admin.calendar.select_teacher', 'Выберите репетитора')}</option>
+              {(teachers ?? []).map(u => (
+                <option key={u.id} value={u.id}>{u.first_name} {u.last_name ?? ''}</option>
+              ))}
+            </select>
+          ) : (
+            <select
+              className={styles.filterSelect}
+              value={selectedUserId ?? ''}
+              onChange={e => setSelectedUserId(e.target.value ? Number(e.target.value) : undefined)}
+            >
+              <option value="">{t('admin.calendar.select_student', 'Выберите ученика')}</option>
+              {(students ?? []).map(u => (
+                <option key={u.id} value={u.id}>{u.first_name} {u.last_name ?? ''}</option>
+              ))}
+            </select>
+          )}
+          <span className={`material-symbols-outlined ${styles.selectIcon}`}>expand_more</span>
+        </div>
       </div>
 
       {/* Calendar Navigation */}
