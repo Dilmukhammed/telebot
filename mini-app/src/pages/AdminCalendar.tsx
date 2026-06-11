@@ -532,7 +532,7 @@ export default function AdminCalendar() {
                           {t('admin.calendar.cancel')}
                         </button>
                       </div>
-                      <div className={styles.slotModalActions} style={{ marginTop: 8 }}>
+                      <div className={styles.slotModalActions}>
                         <button className={styles.slotModalCancel} onClick={() => { setModalType('reschedule'); setActionError(''); setShowRequestSlot(false); setRequestSent(false); setNewDate(selectedLesson?.date || ''); setNewTime(selectedLesson?.time || '') }}>
                           <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>schedule</span>
                           {t('admin.calendar.reschedule')}
@@ -540,7 +540,7 @@ export default function AdminCalendar() {
                       </div>
                     </>
                   )}
-                  <div className={styles.slotModalActions} style={{ marginTop: canMarkStatus ? 8 : 0 }}>
+                  <div className={styles.slotModalActions}>
                     <button className={styles.slotModalCancel} onClick={() => navigate(`/admin/lessons/${selectedLesson.id}?date=${selectedLesson.date}`)}>
                       <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>open_in_new</span>
                       {t('admin.calendar.open_lesson')}
@@ -615,7 +615,7 @@ export default function AdminCalendar() {
                 )}
                 {actionError && <p className={styles.modalError}>{actionError}</p>}
                 {showRequestSlot && !requestSent && (
-                  <div className={styles.slotModalActions} style={{ marginTop: 8 }}>
+                  <div className={styles.slotModalActions}>
                     <button
                       className={styles.slotModalConfirm}
                       onClick={handleRequestSlot}

@@ -808,6 +808,7 @@
 .slotModalActions {
   display: flex;
   gap: var(--spacing-sm);
+  margin-top: 10px;
 }
 
 .slotModalCancel {
