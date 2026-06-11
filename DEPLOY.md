@@ -26,6 +26,8 @@ git push -u origin main
    - `DATABASE_URL` = `postgresql+asyncpg://<user>:<pass>@<host>:<port>/<db>`
    - `ADMIN_JWT_SECRET` = случайная строка **минимум 32 символа** (обязательно, без неё бэкенд не стартует). Сгенерировать: `python -c "import secrets; print(secrets.token_urlsafe(48))"`
    - `ADMIN_PASSWORD` = `<ПАРОЛЬ_АДМИНА>`
+   - `WEBAPP_URL` = URL Vercel (добавь после деплоя фронта — см. шаг 3; также включает origin в CORS)
+   - `CORS_ORIGINS` = опционально, доп. домены через запятую
 6. Deploy! Railway даст URL типа `https://zuhrabot-production.up.railway.app`
 
 ## 2. Frontend (mini-app) → Vercel
@@ -39,12 +41,15 @@ git push -u origin main
    - `VITE_API_URL` = `https://zuhrabot-production.up.railway.app` (URL Railway)
 6. Deploy! Vercel даст URL типа `https://zuhrabot.vercel.app`
 
-## 3. Обнови WEBAPP_URL
+## 3. Обнови WEBAPP_URL (обязательно)
 
 После деплоя mini-app:
 1. Вернись в Railway → Variables
-2. Добавь `WEBAPP_URL` = URL от Vercel (например `https://zuhrabot.vercel.app`)
+2. Добавь `WEBAPP_URL` = URL от Vercel (например `https://telebot-blush.vercel.app`)
 3. Redeploy backend
+
+Без `WEBAPP_URL` браузер блокирует запросы с Vercel (в логах: `OPTIONS /api/users/me 400`).
+Бэкенд также автоматически разрешает все `*.vercel.app` в CORS.
 
 ## 4. Проверь
 

@@ -8,11 +8,31 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy import text
 
 from database import engine, Base
+from config import settings
 from api.router import api_router
 from bot.bot import bot_router, bot, dp
 from scheduler import start_scheduler, stop_scheduler
 from seed import seed as seed_db
 from migrations import run_migrations
+
+
+def _build_cors_origins() -> list[str]:
+    """Merge CORS_ORIGINS env with WEBAPP_URL so mini-app can call the API."""
+    origins: list[str] = []
+    cors_origins_str = os.environ.get("CORS_ORIGINS", "")
+    if cors_origins_str:
+        origins.extend(
+            o.strip().rstrip("/")
+            for o in cors_origins_str.split(",")
+            if o.strip()
+        )
+    if settings.WEBAPP_URL:
+        webapp = settings.WEBAPP_URL.strip().rstrip("/")
+        if webapp and webapp not in origins:
+            origins.append(webapp)
+    if not origins:
+        origins = ["http://localhost:5173", "http://localhost:3000"]
+    return origins
 
 
 class CacheControlMiddleware(BaseHTTPMiddleware):
@@ -44,8 +64,7 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
 
         return response
 
-cors_origins_str = os.environ.get("CORS_ORIGINS", "")
-cors_origins = [o.strip() for o in cors_origins_str.split(",") if o.strip()] if cors_origins_str else []
+cors_origins = _build_cors_origins()
 debug = os.environ.get("DEBUG", "false").lower() in ("true", "1", "yes")
 
 
@@ -77,6 +96,7 @@ async def lifespan(app: FastAPI):
             print(f"Bot polling error: {e}")
 
     bot_task = asyncio.create_task(start_bot())
+    print(f"[startup] CORS allowed origins: {cors_origins}")
     print("Backend started, bot connecting in background...")
     yield
     # Shutdown
@@ -91,10 +111,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="EduCenter API", version="1.0.0", lifespan=lifespan, debug=debug)
 
-# CORS middleware — only allow specific origins in production
+# CORS — WEBAPP_URL + CORS_ORIGINS; also allow Vercel preview/production hosts
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins if cors_origins else ["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=cors_origins,
+    allow_origin_regex=r"https://[\w.-]+\.vercel\.app",
     allow_methods=["*"],
     allow_headers=["*"],
 )
