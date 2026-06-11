@@ -24,3 +24,6 @@ _(пока пусто)_
 - Admin calendar: пустой по умолчанию, нужно выбрать репетитора/ученика
 - Admin calendar: открытые слоты (availability) при просмотре репетитора
 - Admin calendar: фильтр по start_date курса
+- Availability request system: admin → teacher → approve/reject via Telegram
+- TeacherAvailability: specific_date для одноразовых слотов
+- Reschedule: проверка recurring + date-specific слотов
