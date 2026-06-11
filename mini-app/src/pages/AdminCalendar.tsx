@@ -478,37 +478,45 @@ export default function AdminCalendar() {
       {selectedLesson && (
         <div className={styles.slotModalOverlay} onClick={() => { setSelectedLesson(null); setModalType('options') }}>
           <div className={styles.slotModal} onClick={e => e.stopPropagation()}>
-            {modalType === 'options' && (
-              <>
-                <span className="material-symbols-outlined" style={{ fontSize: '40px', color: 'var(--color-primary)' }}>event_note</span>
-                <h3 className={styles.slotModalTitle}>{selectedLesson.subject_name}</h3>
-                <p className={styles.slotModalText}>
-                  {selectedLesson.teacher_name} · {selectedLesson.time} — {selectedLesson.end_time}
-                </p>
-                <div className={styles.slotModalActions}>
-                  <button className={styles.slotModalConfirm} onClick={() => { setModalType('status'); setActionError('') }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>check_circle</span>
-                    {t('admin.calendar.status_happened')}
-                  </button>
-                  <button className={styles.slotModalDelete} onClick={() => { setModalType('cancel'); setActionError('') }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>cancel</span>
-                    {t('admin.calendar.cancel')}
-                  </button>
-                </div>
-                <div className={styles.slotModalActions} style={{ marginTop: 8 }}>
-                  <button className={styles.slotModalCancel} onClick={() => { setModalType('reschedule'); setActionError(''); setNewDate(selectedLesson?.date || ''); setNewTime(selectedLesson?.time || '') }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>schedule</span>
-                    {t('admin.calendar.reschedule')}
-                  </button>
-                </div>
-                <div className={styles.slotModalActions} style={{ marginTop: 8 }}>
-                  <button className={styles.slotModalCancel} onClick={() => navigate(`/admin/lessons/${selectedLesson.id}?date=${selectedLesson.date}`)}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>open_in_new</span>
-                    {t('admin.calendar.open_lesson')}
-                  </button>
-                </div>
-              </>
-            )}
+            {modalType === 'options' && (() => {
+              const modalStatus = getLessonStatus(selectedLesson, todayStr)
+              const canMarkStatus = modalStatus === 'unmarked' || modalStatus === 'today'
+              return (
+                <>
+                  <span className="material-symbols-outlined" style={{ fontSize: '40px', color: 'var(--color-primary)' }}>event_note</span>
+                  <h3 className={styles.slotModalTitle}>{selectedLesson.subject_name}</h3>
+                  <p className={styles.slotModalText}>
+                    {selectedLesson.teacher_name} · {selectedLesson.time} — {selectedLesson.end_time}
+                  </p>
+                  {canMarkStatus && (
+                    <>
+                      <div className={styles.slotModalActions}>
+                        <button className={styles.slotModalConfirm} onClick={() => { setModalType('status'); setActionError('') }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>check_circle</span>
+                          {t('admin.calendar.status_happened')}
+                        </button>
+                        <button className={styles.slotModalDelete} onClick={() => { setModalType('cancel'); setActionError('') }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>cancel</span>
+                          {t('admin.calendar.cancel')}
+                        </button>
+                      </div>
+                      <div className={styles.slotModalActions} style={{ marginTop: 8 }}>
+                        <button className={styles.slotModalCancel} onClick={() => { setModalType('reschedule'); setActionError(''); setNewDate(selectedLesson?.date || ''); setNewTime(selectedLesson?.time || '') }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>schedule</span>
+                          {t('admin.calendar.reschedule')}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  <div className={styles.slotModalActions} style={{ marginTop: canMarkStatus ? 8 : 0 }}>
+                    <button className={styles.slotModalCancel} onClick={() => navigate(`/admin/lessons/${selectedLesson.id}?date=${selectedLesson.date}`)}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: 4 }}>open_in_new</span>
+                      {t('admin.calendar.open_lesson')}
+                    </button>
+                  </div>
+                </>
+              )
+            })()}
 
             {modalType === 'status' && (
               <>
