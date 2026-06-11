@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -13,6 +13,7 @@ import {
 import {
   updateSubject,
   adminCreateLesson,
+  adminUpdateLessonSchedule,
   adminEnrollStudent,
   adminUnenrollStudent,
   archiveAdminSubject,
@@ -39,6 +40,14 @@ const MONTH_NAMES = {
   uz: ['YAN', 'FEV', 'MAR', 'APR', 'MAY', 'IYU', 'IYUL', 'AVG', 'SEN', 'OKT', 'NOY', 'DEK'],
 }
 
+function todayIsoDate(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export default function AdminCourseDetail() {
   const { t, i18n } = useTranslation()
   const { id } = useParams<{ id: string }>()
@@ -51,6 +60,7 @@ export default function AdminCourseDetail() {
   const { data: students = [], isLoading: studentsLoading, refetch: refetchStudents } = useCourseStudents(isValidId ? courseId : 0)
   const { data: auditLogs = [] } = useAdminAuditLog({ entity_type: 'subject', entity_id: courseId, limit: 20 })
   const { data: allStudents = [] } = useAdminUsers('student')
+  const { data: teachers = [] } = useAdminUsers('teacher')
 
   const [activeTab, setActiveTab] = useState<Tab>('lessons')
   const [copied, setCopied] = useState(false)
@@ -63,7 +73,7 @@ export default function AdminCourseDetail() {
 
   // Subject edit modal
   const [showSubjectEdit, setShowSubjectEdit] = useState(false)
-  const [subjectForm, setSubjectForm] = useState({ name: '', description: '', start_date: '', duration_weeks: '', duration_minutes: '' })
+  const [subjectForm, setSubjectForm] = useState({ name: '', description: '', duration_weeks: '', duration_minutes: '' })
   const [isIndefinite, setIsIndefinite] = useState(false)
   const [subjectSubmitting, setSubjectSubmitting] = useState(false)
   const [subjectError, setSubjectError] = useState('')
@@ -73,6 +83,19 @@ export default function AdminCourseDetail() {
   const [lessonForm, setLessonForm] = useState({ teacher_name: '', teacher_id: '', day_of_week: '0', time: '', room: '', max_capacity: '15' })
   const [lessonSubmitting, setLessonSubmitting] = useState(false)
   const [lessonError, setLessonError] = useState('')
+
+  // Edit schedule slot modal
+  const [showScheduleEdit, setShowScheduleEdit] = useState(false)
+  const [scheduleForm, setScheduleForm] = useState({
+    lessonId: 0,
+    day_of_week: '0',
+    time: '',
+    room: '',
+    teacher_id: '',
+    effective_from: todayIsoDate(),
+  })
+  const [scheduleSubmitting, setScheduleSubmitting] = useState(false)
+  const [scheduleError, setScheduleError] = useState('')
 
   // Enroll modal
   const [showEnrollModal, setShowEnrollModal] = useState(false)
@@ -87,7 +110,24 @@ export default function AdminCourseDetail() {
   const lang = i18n.language as 'ru' | 'en' | 'uz'
   const monthNames = MONTH_NAMES[lang] || MONTH_NAMES.ru
 
-  const lessonSlotIds = course ? [...new Set(course.lessons.map(l => l.id))] : []
+  const scheduleSlots = useMemo(() => {
+    if (adminMeta?.lessons?.length) return adminMeta.lessons
+    if (!course) return []
+    const map = new Map<number, (typeof course.lessons)[0]>()
+    for (const l of course.lessons) {
+      if (!map.has(l.id)) map.set(l.id, l)
+    }
+    return [...map.values()].map(l => ({
+      id: l.id,
+      day_of_week: l.day_of_week,
+      time: l.time,
+      room: l.room,
+      teacher_name: l.teacher_name,
+      teacher_id: undefined as number | undefined,
+    }))
+  }, [adminMeta, course])
+
+  const lessonSlotIds = scheduleSlots.map(s => s.id)
 
   const refetchAll = async () => {
     await Promise.all([refetchCourse(), refetchAdmin(), refetchStudents()])
@@ -106,7 +146,6 @@ export default function AdminCourseDetail() {
     setSubjectForm({
       name: course.name,
       description: course.description || '',
-      start_date: course.start_date || '',
       duration_weeks: indefinite ? '' : (course.duration_weeks?.toString() || ''),
       duration_minutes: course.duration_minutes?.toString() || '90',
     })
@@ -122,7 +161,6 @@ export default function AdminCourseDetail() {
       const data: Record<string, unknown> = {}
       if (subjectForm.name) data.name = subjectForm.name
       data.description = subjectForm.description || null
-      if (subjectForm.start_date) data.start_date = subjectForm.start_date
       data.duration_weeks = isIndefinite ? null : (subjectForm.duration_weeks ? Number(subjectForm.duration_weeks) : null)
       if (subjectForm.duration_minutes) data.duration_minutes = Number(subjectForm.duration_minutes)
       await updateSubject(course.id, data)
@@ -132,6 +170,40 @@ export default function AdminCourseDetail() {
       setSubjectError(e instanceof Error ? e.message : t('admin.course_detail.save_error'))
     } finally {
       setSubjectSubmitting(false)
+    }
+  }
+
+  const openScheduleEdit = (slot: { id: number; day_of_week: number; time: string; room: string; teacher_id?: number }) => {
+    setScheduleForm({
+      lessonId: slot.id,
+      day_of_week: String(slot.day_of_week),
+      time: slot.time,
+      room: slot.room,
+      teacher_id: slot.teacher_id ? String(slot.teacher_id) : '',
+      effective_from: todayIsoDate(),
+    })
+    setScheduleError('')
+    setShowScheduleEdit(true)
+  }
+
+  const handleScheduleSave = async () => {
+    if (!scheduleForm.lessonId || !scheduleForm.time || !scheduleForm.room || !scheduleForm.effective_from) return
+    setScheduleSubmitting(true)
+    setScheduleError('')
+    try {
+      await adminUpdateLessonSchedule(scheduleForm.lessonId, {
+        day_of_week: Number(scheduleForm.day_of_week),
+        time: scheduleForm.time,
+        room: scheduleForm.room,
+        teacher_id: scheduleForm.teacher_id ? Number(scheduleForm.teacher_id) : undefined,
+        effective_from: scheduleForm.effective_from,
+      })
+      setShowScheduleEdit(false)
+      await refetchAll()
+    } catch (e: unknown) {
+      setScheduleError(e instanceof Error ? e.message : t('admin.course_detail.save_error'))
+    } finally {
+      setScheduleSubmitting(false)
     }
   }
 
@@ -250,16 +322,16 @@ export default function AdminCourseDetail() {
           {t('courseDetail.materials')}
         </button>
         <button
-          className={`${styles.tabButton} ${activeTab === 'about' ? styles.tabButtonActive : ''}`}
-          onClick={() => setActiveTab('about')}
-        >
-          {t('courseDetail.about')}
-        </button>
-        <button
           className={`${styles.tabButton} ${activeTab === 'students' ? styles.tabButtonActive : ''}`}
           onClick={() => setActiveTab('students')}
         >
           {t('courseDetail.studentsTab')}
+        </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'about' ? styles.tabButtonActive : ''}`}
+          onClick={() => setActiveTab('about')}
+        >
+          {t('courseDetail.about')}
         </button>
       </nav>
 
@@ -414,21 +486,39 @@ export default function AdminCourseDetail() {
             <div className={styles.aboutCard}>
               <h3 className={styles.aboutLabel}>{t('courseDetail.schedule')}</h3>
               <div className={styles.scheduleList}>
-                {course.lessons
-                  .filter((lesson, index, self) =>
-                    index === self.findIndex(l => l.day_of_week === lesson.day_of_week && l.time === lesson.time)
+                {scheduleSlots.map(slot => {
+                  const dayName = t(`courseDetail.daysShort.${slot.day_of_week}`)
+                  return (
+                    <div key={slot.id} className={styles.scheduleItem} style={{ gap: '8px' }}>
+                      <span className={styles.scheduleDay}>{dayName}</span>
+                      <span className={styles.scheduleTime}>{slot.time}</span>
+                      <span className={styles.scheduleRoom}>{slot.room}</span>
+                      {'teacher_name' in slot && slot.teacher_name && (
+                        <span className={styles.scheduleRoom} style={{ marginLeft: 0, flex: 1, textAlign: 'left' }}>
+                          {slot.teacher_name}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        className={styles.adminChipBtn}
+                        style={{ marginLeft: 'auto', flexShrink: 0, padding: '4px 10px' }}
+                        onClick={() => openScheduleEdit({
+                          id: slot.id,
+                          day_of_week: slot.day_of_week,
+                          time: slot.time,
+                          room: slot.room,
+                          teacher_id: 'teacher_id' in slot ? slot.teacher_id ?? undefined : undefined,
+                        })}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>edit</span>
+                      </button>
+                    </div>
                   )
-                  .map(lesson => {
-                    const dayName = t(`courseDetail.daysShort.${lesson.day_of_week}`, { defaultValue: lesson.day_name })
-                    return (
-                      <div key={`${lesson.day_of_week}-${lesson.time}`} className={styles.scheduleItem}>
-                        <span className={styles.scheduleDay}>{dayName}</span>
-                        <span className={styles.scheduleTime}>{lesson.time}</span>
-                        <span className={styles.scheduleRoom}>{lesson.room}</span>
-                      </div>
-                    )
-                  })}
+                })}
               </div>
+              <p style={{ fontSize: 'var(--font-xs)', color: 'var(--color-on-surface-variant)', margin: '8px 0 0' }}>
+                {t('admin.course_detail.schedule_future_hint')}
+              </p>
               <div className={styles.aboutDivider} />
               <div className={styles.aboutDetailsGrid}>
                 <div className={styles.aboutDetail}>
@@ -630,10 +720,6 @@ export default function AdminCourseDetail() {
                 <label className={modalStyles.fieldLabel}>{t('admin.course_detail.course_description')}</label>
                 <input className={modalStyles.timeInput} value={subjectForm.description} onChange={e => setSubjectForm(p => ({ ...p, description: e.target.value }))} />
               </div>
-              <div className={modalStyles.field}>
-                <label className={modalStyles.fieldLabel}>{t('admin.course_detail.start_date')}</label>
-                <input type="date" className={modalStyles.timeInput} value={subjectForm.start_date} onChange={e => setSubjectForm(p => ({ ...p, start_date: e.target.value }))} />
-              </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <div className={modalStyles.field} style={{ flex: 1 }}>
                   <label className={modalStyles.fieldLabel}>{t('admin.course_detail.weeks')}</label>
@@ -652,6 +738,73 @@ export default function AdminCourseDetail() {
                 <button className={modalStyles.modalBtnSecondary} onClick={() => setShowSubjectEdit(false)} style={{ flex: 1 }}>{t('common.cancel')}</button>
                 <button className={modalStyles.modalBtn} onClick={handleSubjectSave} style={{ flex: 1 }} disabled={subjectSubmitting}>
                   {subjectSubmitting ? t('admin.course_detail.saving') : t('common.save')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showScheduleEdit && (
+        <div className={modalStyles.modalOverlay} onClick={() => setShowScheduleEdit(false)}>
+          <div className={modalStyles.modal} onClick={e => e.stopPropagation()}>
+            <div className={modalStyles.modalHandle} />
+            <div className={modalStyles.modalHeader}>
+              <h3 className={modalStyles.modalTitle}>{t('admin.course_detail.edit_schedule')}</h3>
+              <button className={modalStyles.modalClose} onClick={() => setShowScheduleEdit(false)}>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            </div>
+            {scheduleError && <div className={modalStyles.modalError}>{scheduleError}</div>}
+            <div className={modalStyles.modalActions}>
+              <div className={modalStyles.field}>
+                <label className={modalStyles.fieldLabel}>{t('admin.course_detail.schedule_effective_from')}</label>
+                <input
+                  type="date"
+                  className={modalStyles.timeInput}
+                  value={scheduleForm.effective_from}
+                  min={todayIsoDate()}
+                  onChange={e => setScheduleForm(p => ({ ...p, effective_from: e.target.value }))}
+                />
+                <span style={{ fontSize: 'var(--font-xs)', color: 'var(--color-on-surface-variant)' }}>
+                  {t('admin.course_detail.schedule_effective_from_hint')}
+                </span>
+              </div>
+              <div className={modalStyles.field}>
+                <label className={modalStyles.fieldLabel}>{t('admin.course_detail.teacher')}</label>
+                <select
+                  className={modalStyles.timeInput}
+                  value={scheduleForm.teacher_id}
+                  onChange={e => setScheduleForm(p => ({ ...p, teacher_id: e.target.value }))}
+                >
+                  <option value="">{t('admin.course_detail.select_teacher')}</option>
+                  {teachers.map(teacher => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.first_name} {teacher.last_name || ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={modalStyles.field}>
+                <label className={modalStyles.fieldLabel}>{t('admin.course_detail.day_of_week')}</label>
+                <select className={modalStyles.timeInput} value={scheduleForm.day_of_week} onChange={e => setScheduleForm(p => ({ ...p, day_of_week: e.target.value }))}>
+                  {dayNames.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <div className={modalStyles.field} style={{ flex: 1 }}>
+                  <label className={modalStyles.fieldLabel}>{t('admin.course_detail.time')}</label>
+                  <TimePicker value={scheduleForm.time} onChange={val => setScheduleForm(p => ({ ...p, time: val }))} />
+                </div>
+                <div className={modalStyles.field} style={{ flex: 1 }}>
+                  <label className={modalStyles.fieldLabel}>{t('admin.course_detail.room')}</label>
+                  <input className={modalStyles.timeInput} value={scheduleForm.room} onChange={e => setScheduleForm(p => ({ ...p, room: e.target.value }))} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className={modalStyles.modalBtnSecondary} onClick={() => setShowScheduleEdit(false)} style={{ flex: 1 }}>{t('common.cancel')}</button>
+                <button className={modalStyles.modalBtn} onClick={handleScheduleSave} style={{ flex: 1 }} disabled={scheduleSubmitting || !scheduleForm.time || !scheduleForm.room || !scheduleForm.effective_from}>
+                  {scheduleSubmitting ? t('admin.course_detail.saving') : t('common.save')}
                 </button>
               </div>
             </div>

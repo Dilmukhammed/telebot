@@ -87,12 +87,6 @@ export default function CourseDetail() {
         >
           {t('courseDetail.materials')}
         </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'about' ? styles.tabButtonActive : ''}`}
-          onClick={() => setActiveTab('about')}
-        >
-          {t('courseDetail.about')}
-        </button>
         {isTeacherOrAdmin && (
           <button
             className={`${styles.tabButton} ${activeTab === 'students' ? styles.tabButtonActive : ''}`}
@@ -101,6 +95,12 @@ export default function CourseDetail() {
             {t('courseDetail.studentsTab')}
           </button>
         )}
+        <button
+          className={`${styles.tabButton} ${activeTab === 'about' ? styles.tabButtonActive : ''}`}
+          onClick={() => setActiveTab('about')}
+        >
+          {t('courseDetail.about')}
+        </button>
       </nav>
 
       <main className={styles.main}>

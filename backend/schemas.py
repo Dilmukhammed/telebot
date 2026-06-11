@@ -324,6 +324,16 @@ class LessonUpdateIn(BaseModel):
     lesson_plan: Optional[str] = None  # JSON string of [{"title", "description"}]
 
 
+class AdminLessonScheduleUpdate(BaseModel):
+    """Update recurring slot schedule/teacher; applies from effective_from (default: today)."""
+    day_of_week: Optional[int] = Field(default=None, ge=0, le=6)
+    time: Optional[str] = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    room: Optional[str] = Field(default=None, max_length=100)
+    teacher_id: Optional[int] = None
+    teacher_name: Optional[str] = Field(default=None, max_length=200)
+    effective_from: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
 class LessonStatusIn(BaseModel):
     lesson_id: int
     date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
@@ -476,6 +486,7 @@ class AdminSubjectOut(BaseModel):
     student_count: int = 0
     teacher_names: list[str] = []
     is_archived: bool = False
+    is_deleted: bool = False
     invite_code: Optional[str] = None
 
 
@@ -487,6 +498,7 @@ class AdminSubjectDetailOut(BaseModel):
     duration_weeks: Optional[int] = None
     start_date: Optional[str] = None
     is_archived: bool = False
+    is_deleted: bool = False
     invite_code: Optional[str] = None
     lessons: list[AdminLessonOut] = []
     students: list[UserOut] = []

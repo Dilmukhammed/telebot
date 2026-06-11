@@ -32,6 +32,8 @@ class Subject(Base):
     duration_minutes: Mapped[int] = mapped_column(Integer, default=90)  # Lesson duration in minutes
     start_date: Mapped[dt.datetime | None] = mapped_column(DateTime, default=utcnow, nullable=True)  # Course start date
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, index=True)  # Archived courses hidden from students/teachers
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)  # Soft-deleted courses hidden from everyone
+    deleted_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)  # When the course was deleted
     invite_code: Mapped[str | None] = mapped_column(String(6), unique=True, nullable=True, index=True)  # Short code for student enrollment
 
     tests: Mapped[list["Test"]] = relationship("Test", back_populates="subject")
@@ -53,6 +55,9 @@ class Lesson(Base):
     lesson_plan: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON: [{"title": "...", "description": "..."}]
     custom_title: Mapped[str | None] = mapped_column(String, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    effective_from: Mapped[dt.date | None] = mapped_column(Date, nullable=True, index=True)
+    effective_until: Mapped[dt.date | None] = mapped_column(Date, nullable=True, index=True)
+    slot_group_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("lessons.id"), nullable=True, index=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
 
     subject: Mapped["Subject"] = relationship("Subject", back_populates="lessons")

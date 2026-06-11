@@ -511,6 +511,20 @@ export function adminCreateLesson(subjectId: number, data: { teacher_name: strin
   })
 }
 
+export function adminUpdateLessonSchedule(lessonId: number, data: {
+  day_of_week?: number
+  time?: string
+  room?: string
+  teacher_id?: number
+  teacher_name?: string
+  effective_from?: string
+}): Promise<AdminLessonOut> {
+  return api<AdminLessonOut>(`/api/admin/lessons/${lessonId}/schedule`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
 export function getAdminAuditLog(params?: { entity_type?: string; entity_id?: number; limit?: number }): Promise<AuditLogOut[]> {
   const searchParams = new URLSearchParams()
   if (params?.entity_type) searchParams.append('entity_type', params.entity_type)

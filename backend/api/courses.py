@@ -102,10 +102,9 @@ async def get_lesson_detail(
 ):
     """Get detailed lesson information."""
     # Get lesson
-    result = await db.execute(
-        select(Lesson)
-        .where(Lesson.id == lesson_id, Lesson.is_active == True)
-    )
+    from lesson_schedule import resolve_lesson_for_date
+
+    result = await db.execute(select(Lesson).where(Lesson.id == lesson_id))
     lesson = result.scalar_one_or_none()
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
@@ -139,6 +138,10 @@ async def get_lesson_detail(
             lesson_date = _get_next_date(lesson.day_of_week).date()
     else:
         lesson_date = _get_next_date(lesson.day_of_week).date()
+
+    resolved = await resolve_lesson_for_date(db, lesson_id, lesson_date)
+    if resolved:
+        lesson = resolved
 
     if lesson_date == today:
         current_time_str = _get_tashkent_now().strftime("%H:%M")
@@ -251,16 +254,20 @@ async def get_course_detail(
     if not subject:
         raise HTTPException(status_code=404, detail="Course not found")
 
-    # Get lessons
+    from lesson_schedule import generate_instances_for_course
+
+    # All slot versions (active + historical) for correct past/future display
     lessons_result = await db.execute(
         select(Lesson)
-        .where(Lesson.subject_id == course_id, Lesson.is_active == True)
+        .where(Lesson.subject_id == course_id)
         .order_by(Lesson.day_of_week, Lesson.time)
     )
     lessons = lessons_result.scalars().all()
-
     today = _get_tashkent_now().date()
-    today_weekday = today.weekday()
+    active_slots = [
+        l for l in lessons
+        if l.is_active and (l.effective_until is None or l.effective_until >= today)
+    ]
 
     # Determine the range of weeks to generate
     course_start = subject.start_date.date() if subject.start_date else None
@@ -282,59 +289,21 @@ async def get_course_detail(
         weeks_needed = ((today + timedelta(weeks=4) - start_monday).days + 6) // 7
         weeks_needed = max(weeks_needed, 4)
 
-    # Generate multiple instances per recurring lesson
-    course_lessons = []
+    course_lessons = generate_instances_for_course(
+        lessons=lessons,
+        start_monday=start_monday,
+        weeks_needed=weeks_needed,
+        course_start=course_start,
+        course_end=course_end,
+        today=today,
+        duration_minutes=subject.duration_minutes or 90,
+        calculate_end_time=_calculate_end_time,
+        day_names_short=DAY_NAMES_SHORT_RU,
+        course_lesson_out_cls=CourseLessonOut,
+    )
 
-    for lesson in lessons:
-        for week in range(weeks_needed):
-            instance_date = start_monday + timedelta(days=lesson.day_of_week + week * 7)
-
-            # Skip if before course start
-            if course_start and instance_date < course_start:
-                continue
-            # Skip if after course end
-            if course_end and instance_date >= course_end:
-                continue
-
-            # Determine status
-            end_time_str = _calculate_end_time(lesson.time, subject.duration_minutes or 90)
-            if instance_date == today:
-                current_time_str = _get_tashkent_now().strftime("%H:%M")
-                if current_time_str > end_time_str:
-                    status = "past"
-                else:
-                    status = "today"
-            elif instance_date > today:
-                status = "upcoming"
-            else:
-                status = "past"
-
-            course_lessons.append(CourseLessonOut(
-                id=lesson.id,
-                lesson_number=0,  # Will be assigned after sorting
-                title="",  # Will be assigned after sorting
-                day_name=DAY_NAMES_SHORT_RU[lesson.day_of_week],
-                day_of_week=lesson.day_of_week,
-                time=lesson.time,
-                end_time=end_time_str,
-                room=lesson.room,
-                location=lesson.location,
-                teacher_name=lesson.teacher_name,
-                status=status,
-                date=instance_date.strftime("%Y-%m-%d"),
-            ))
-
-    # Sort by date
-    course_lessons.sort(key=lambda x: x.date)
-
-    # Assign sequential numbers after sorting
-    for i, lesson in enumerate(course_lessons):
-        lesson.lesson_number = i + 1
-        lesson.title = f"Занятие {i + 1}"
-
-    # Get teacher name and location from first lesson
-    teacher_name = lessons[0].teacher_name if lessons else ""
-    location = lessons[0].location if lessons else None
+    teacher_name = active_slots[0].teacher_name if active_slots else ""
+    location = active_slots[0].location if active_slots else None
 
     return CourseDetailOut(
         id=subject.id,
@@ -342,7 +311,7 @@ async def get_course_detail(
         teacher_name=teacher_name,
         description=subject.description or "",
         location=location,
-        lesson_count=len(lessons),
+        lesson_count=len(active_slots),
         duration_weeks=subject.duration_weeks,
         duration_minutes=subject.duration_minutes or 90,
         start_date=subject.start_date.strftime("%Y-%m-%d") if subject.start_date else None,

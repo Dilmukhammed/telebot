@@ -108,6 +108,21 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
             logger.info("Adding subjects.invite_code")
             await conn.execute(text("ALTER TABLE subjects ADD COLUMN invite_code VARCHAR(6)"))
 
+        if not await _column_exists(conn, "subjects", "is_deleted", dialect):
+            logger.info("Adding subjects.is_deleted")
+            if dialect == "postgresql":
+                await conn.execute(
+                    text("ALTER TABLE subjects ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE")
+                )
+            else:
+                await conn.execute(
+                    text("ALTER TABLE subjects ADD COLUMN is_deleted BOOLEAN DEFAULT 0")
+                )
+
+        if not await _column_exists(conn, "subjects", "deleted_at", dialect):
+            logger.info("Adding subjects.deleted_at")
+            await conn.execute(text("ALTER TABLE subjects ADD COLUMN deleted_at TIMESTAMP"))
+
         if dialect == "postgresql":
             await conn.execute(
                 text("CREATE UNIQUE INDEX IF NOT EXISTS ix_subjects_invite_code ON subjects (invite_code)")
@@ -266,5 +281,37 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
             await conn.execute(
                 text("CREATE INDEX IF NOT EXISTS ix_notification_attachments_notification_id ON notification_attachments (notification_id)")
             )
+
+    if await _table_exists(conn, "lessons", dialect):
+        for col, col_type in [
+            ("effective_from", "DATE"),
+            ("effective_until", "DATE"),
+            ("slot_group_id", "INTEGER"),
+        ]:
+            if not await _column_exists(conn, "lessons", col, dialect):
+                logger.info("Adding lessons.%s", col)
+                await conn.execute(text(f"ALTER TABLE lessons ADD COLUMN {col} {col_type}"))
+
+        # Backfill: each lesson is its own slot group, effective from subject start or created_at
+        await conn.execute(text("""
+            UPDATE lessons
+            SET slot_group_id = id
+            WHERE slot_group_id IS NULL
+        """))
+        if dialect == "postgresql":
+            await conn.execute(text("""
+                UPDATE lessons l
+                SET effective_from = COALESCE(
+                    (SELECT s.start_date::date FROM subjects s WHERE s.id = l.subject_id),
+                    l.created_at::date
+                )
+                WHERE l.effective_from IS NULL
+            """))
+        else:
+            await conn.execute(text("""
+                UPDATE lessons
+                SET effective_from = date(created_at)
+                WHERE effective_from IS NULL
+            """))
 
     logger.info("Schema migrations complete")

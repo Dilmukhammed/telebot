@@ -14,7 +14,7 @@ from database import get_db
 from models import (
     User, Lesson, LessonEnrollment, Subject, LessonStatus,
     Notification, NotificationRecipient, NotificationAttachment, TeacherAvailability, Test,
-    Attendance, AuditLog,
+    Attendance, AuditLog, utcnow,
 )
 from api.users import user_to_dict
 from schemas import (
@@ -26,6 +26,7 @@ from schemas import (
     AttendanceBulkIn, AttendanceListOut, AttendanceRecordOut,
     AdminLessonCreate, EnrollStudentIn, AuditLogOut, CancelLessonIn,
     AdminSubjectCreate, AdminSubjectUpdate, ScheduleTimeSlot,
+    AdminLessonScheduleUpdate,
 )
 from api.deps import require_admin
 
@@ -765,7 +766,7 @@ async def get_admin_subjects(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Subject).where(Subject.is_archived == archived).order_by(Subject.name)
+        select(Subject).where(Subject.is_archived == archived, Subject.is_deleted == False).order_by(Subject.name)
     )
     subjects = result.scalars().all()
 
@@ -1187,6 +1188,39 @@ async def unarchive_subject(
     return {"ok": True, "archived": False}
 
 
+@router.delete("/subjects/{subject_id}")
+async def delete_subject(
+    subject_id: int,
+    admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Soft-delete an archived course. Must be archived first."""
+    result = await db.execute(select(Subject).where(Subject.id == subject_id))
+    subject = result.scalar_one_or_none()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    if subject.is_deleted:
+        raise HTTPException(status_code=400, detail="Already deleted")
+    if not subject.is_archived:
+        raise HTTPException(status_code=400, detail="Archive the course before deleting")
+
+    subject.is_deleted = True
+    subject.deleted_at = utcnow()
+
+    # Ensure all lessons are deactivated
+    lessons_result = await db.execute(
+        select(Lesson).where(Lesson.subject_id == subject_id)
+    )
+    for lesson in lessons_result.scalars().all():
+        lesson.is_active = False
+
+    admin_id = admin.id if hasattr(admin, "id") else None
+    await _log_audit(db, "subject", subject_id, "delete",
+                     "is_deleted", "false", "true", admin_id)
+    await db.commit()
+    return {"ok": True}
+
+
 # ── Mark Lesson Status ───────────────────────────────────────────────
 
 @router.post("/lessons/{lesson_id}/status")
@@ -1427,6 +1461,9 @@ async def admin_create_lesson(
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
 
+    today = _get_tashkent_now().date()
+    effective_from = subject.start_date.date() if subject.start_date else today
+
     lesson = Lesson(
         subject_id=subject_id,
         teacher_id=data.teacher_id,
@@ -1436,9 +1473,11 @@ async def admin_create_lesson(
         room=data.room,
         location=data.location,
         max_capacity=data.max_capacity,
+        effective_from=effective_from,
     )
     db.add(lesson)
-    await db.flush()  # flush to get lesson.id without committing
+    await db.flush()
+    lesson.slot_group_id = lesson.id
 
     admin_id = admin.id if hasattr(admin, 'id') else None
     await _log_audit(db, "lesson", lesson.id, "create", None, None,
@@ -1462,6 +1501,123 @@ async def admin_create_lesson(
         student_count=0,
         lesson_status=None,
         date="",
+    )
+
+
+# ── Update Lesson Schedule (future-only) ─────────────────────────────
+
+@router.patch("/lessons/{lesson_id}/schedule", response_model=AdminLessonOut)
+async def admin_update_lesson_schedule(
+    lesson_id: int,
+    data: AdminLessonScheduleUpdate,
+    admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update slot schedule/teacher; closes current version and opens a new one from effective_from."""
+    lesson = (await db.execute(select(Lesson).where(Lesson.id == lesson_id))).scalar_one_or_none()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    subject = (await db.execute(select(Subject).where(Subject.id == lesson.subject_id))).scalar_one_or_none()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    today = _get_tashkent_now().date()
+    if data.effective_from:
+        try:
+            effective_from = datetime.strptime(data.effective_from, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid effective_from date")
+    else:
+        effective_from = today
+
+    if effective_from < today:
+        raise HTTPException(status_code=400, detail="effective_from cannot be in the past")
+
+    new_day = data.day_of_week if data.day_of_week is not None else lesson.day_of_week
+    new_time = data.time if data.time is not None else lesson.time
+    new_room = data.room if data.room is not None else lesson.room
+    new_teacher_id = data.teacher_id if data.teacher_id is not None else lesson.teacher_id
+
+    if data.teacher_name is not None:
+        new_teacher_name = data.teacher_name.strip()
+    elif data.teacher_id is not None:
+        teacher = (await db.execute(select(User).where(User.id == data.teacher_id))).scalar_one_or_none()
+        if not teacher:
+            raise HTTPException(status_code=404, detail="Teacher not found")
+        new_teacher_name = f"{teacher.first_name or ''} {teacher.last_name or ''}".strip() or (teacher.username or "")
+    else:
+        new_teacher_name = lesson.teacher_name
+
+    unchanged = (
+        new_day == lesson.day_of_week
+        and new_time == lesson.time
+        and new_room == lesson.room
+        and new_teacher_id == lesson.teacher_id
+        and new_teacher_name == lesson.teacher_name
+    )
+    if unchanged:
+        raise HTTPException(status_code=400, detail="No schedule changes provided")
+
+    group_id = lesson.slot_group_id or lesson.id
+    until = effective_from - timedelta(days=1)
+    if lesson.effective_until is None or lesson.effective_until > until:
+        lesson.effective_until = until
+    lesson.is_active = False
+
+    new_lesson = Lesson(
+        subject_id=lesson.subject_id,
+        teacher_id=new_teacher_id,
+        teacher_name=new_teacher_name,
+        day_of_week=new_day,
+        time=new_time,
+        room=new_room,
+        location=lesson.location,
+        max_capacity=lesson.max_capacity,
+        lesson_plan=lesson.lesson_plan,
+        custom_title=lesson.custom_title,
+        is_active=True,
+        effective_from=effective_from,
+        slot_group_id=group_id,
+    )
+    db.add(new_lesson)
+    await db.flush()
+
+    enrollments = (await db.execute(
+        select(LessonEnrollment).where(LessonEnrollment.lesson_id == lesson_id)
+    )).scalars().all()
+    for enr in enrollments:
+        exists = await db.execute(
+            select(LessonEnrollment).where(
+                and_(LessonEnrollment.lesson_id == new_lesson.id, LessonEnrollment.user_id == enr.user_id)
+            )
+        )
+        if not exists.scalar_one_or_none():
+            db.add(LessonEnrollment(lesson_id=new_lesson.id, user_id=enr.user_id))
+
+    admin_id = admin.id if hasattr(admin, "id") else None
+    await _log_audit(
+        db, "lesson", new_lesson.id, "schedule_update", None, None,
+        f"{new_teacher_name} {_DAY_NAMES[new_day]} {new_time} from {effective_from}", admin_id,
+    )
+    await db.commit()
+    await db.refresh(new_lesson)
+
+    end_time = _calculate_end_time(new_lesson.time, subject.duration_minutes or 90)
+    return AdminLessonOut(
+        id=new_lesson.id,
+        subject_id=subject.id,
+        subject_name=subject.name,
+        teacher_name=new_lesson.teacher_name,
+        teacher_id=new_lesson.teacher_id,
+        day_of_week=new_lesson.day_of_week,
+        day_name=DAY_NAMES_SHORT_RU[new_lesson.day_of_week],
+        time=new_lesson.time,
+        end_time=end_time,
+        room=new_lesson.room,
+        student_count=len(enrollments),
+        lesson_status=None,
+        date=effective_from.strftime("%Y-%m-%d"),
     )
 
 
