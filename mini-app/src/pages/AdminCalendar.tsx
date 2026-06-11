@@ -93,7 +93,6 @@ const getLessonStatus = (lesson: AdminLessonOut, todayStr: string): string => {
   if (lesson.lesson_status === 'happened') return 'completed'
   if (lesson.lesson_status === 'cancelled') return 'cancelled'
   if (lesson.date === todayStr) return 'today'
-  if (lesson.lesson_status === 'rescheduled') return 'rescheduled'
   if (lesson.date < todayStr) return 'unmarked'
   return 'planned'
 }
@@ -514,20 +513,13 @@ export default function AdminCalendar() {
             {modalType === 'options' && (() => {
               const modalStatus = getLessonStatus(selectedLesson, todayStr)
               const canMarkStatus = modalStatus === 'unmarked' || modalStatus === 'today'
-              const isRescheduledModal = modalStatus === 'rescheduled'
               return (
                 <>
-                  <span className="material-symbols-outlined" style={{ fontSize: '40px', color: isRescheduledModal ? '#d97706' : 'var(--color-primary)' }}>{isRescheduledModal ? 'schedule' : 'event_note'}</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '40px', color: 'var(--color-primary)' }}>event_note</span>
                   <h3 className={styles.slotModalTitle}>{selectedLesson.subject_name}</h3>
                   <p className={styles.slotModalText}>
                     {selectedLesson.teacher_name} · {selectedLesson.time} — {selectedLesson.end_time}
                   </p>
-                  {isRescheduledModal && (
-                    <p className={styles.slotModalText} style={{ color: '#d97706', fontWeight: 600 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px', verticalAlign: 'middle', marginRight: 4 }}>schedule</span>
-                      Перенесён на эту дату
-                    </p>
-                  )}
                   {canMarkStatus && (
                     <>
                       <div className={styles.slotModalActions}>
@@ -801,7 +793,7 @@ function AdminLessonCard({ lesson, todayStr, onClick }: { lesson: AdminLessonOut
   const isUnmarked = status === 'unmarked'
   const isCancelled = status === 'cancelled'
   const isRescheduled = status === 'rescheduled'
-  const isActionable = isUnmarked || status === 'today' || status === 'rescheduled'
+  const isActionable = isUnmarked || status === 'today'
 
   const borderColor = isCancelled ? 'var(--color-error, #ba1a1a)'
     : isRescheduled ? '#d97706'
@@ -857,7 +849,7 @@ function AdminLessonBlock({ lesson, todayStr, onClick }: { lesson: AdminLessonOu
   const isUnmarked = status === 'unmarked'
   const isCancelled = status === 'cancelled'
   const isRescheduled = status === 'rescheduled'
-  const isActionable = isUnmarked || status === 'today' || status === 'rescheduled'
+  const isActionable = isUnmarked || status === 'today'
 
   const bgVar = isCancelled
     ? 'var(--color-surface-container-high)'

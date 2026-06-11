@@ -327,7 +327,7 @@ async def get_admin_lessons(
         status = ls.status if ls else None
         end_time = _calculate_end_time(lesson.time, subject.duration_minutes or 90)
 
-        # If rescheduled to a different date, show on override date instead
+        # If rescheduled to a different date, show on override date as normal lesson
         if status == "rescheduled" and ls and ls.override_date:
             override_date = ls.override_date
             override_time = ls.override_time or lesson.time
@@ -335,6 +335,13 @@ async def get_admin_lessons(
             override_dow = override_date.weekday()
             override_date_str = override_date.strftime("%Y-%m-%d")
             slots = avail_by_day.get(override_dow, []) + avail_by_date.get(override_date_str, [])
+            # Determine normal status based on the override date
+            if override_date == today:
+                override_status = "today"
+            elif override_date < today:
+                override_status = "unmarked"
+            else:
+                override_status = "planned"
             out.append(AdminLessonOut(
                 id=lesson.id,
                 subject_id=subject.id,
@@ -347,7 +354,7 @@ async def get_admin_lessons(
                 end_time=override_end,
                 room=lesson.room,
                 student_count=student_count or 0,
-                lesson_status="rescheduled",
+                lesson_status=override_status,
                 date=override_date_str,
                 available_slots=slots,
             ))

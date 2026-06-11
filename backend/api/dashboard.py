@@ -581,22 +581,28 @@ async def get_calendar(
             date_str = date.isoformat()
             ls = lesson_statuses.get((lesson.id, date_str))
 
-            # If rescheduled to a different date in this week, skip original and add to override day
+            # If rescheduled to a different date in this week, skip original and add to override day as normal lesson
             if ls == "rescheduled":
                 resched = rescheduled_map.get((lesson.id, date_str))
                 if resched:
                     override_date_str, override_time = resched
-                    # Find the override day index in this week
                     override_day = None
                     for j, wd in enumerate(week_dates):
                         if wd.isoformat() == override_date_str:
                             override_day = j
                             break
                     if override_day is not None:
-                        # Show on override date instead
                         duration = subject.duration_minutes or 90
                         t_name = teachers_map.get(lesson.teacher_id, lesson.teacher_name) if lesson.teacher_id else lesson.teacher_name
                         override_time_str = override_time or lesson.time
+                        override_date = week_dates[override_day]
+                        # Determine normal status based on the override date
+                        if override_date == today:
+                            ostatus = "today"
+                        elif override_date < today:
+                            ostatus = "unmarked"
+                        else:
+                            ostatus = "planned"
                         if override_day not in lessons_by_day:
                             lessons_by_day[override_day] = []
                         lessons_by_day[override_day].append(CalendarLessonOut(
@@ -607,7 +613,7 @@ async def get_calendar(
                             time=override_time_str,
                             end_time=_calculate_end_time(override_time_str, duration),
                             room=lesson.room,
-                            status="rescheduled",
+                            status=ostatus,
                         ))
                 continue  # Skip original date
 
