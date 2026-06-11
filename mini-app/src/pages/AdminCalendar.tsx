@@ -333,6 +333,16 @@ export default function AdminCalendar() {
         </div>
       )}
 
+      {/* View Toggle */}
+      <div className={styles.viewToggle}>
+        <button className={`${styles.viewButton} ${view === 'day' ? styles.viewButtonActive : ''}`} onClick={() => setView('day')}>
+          {t('calendar.dayView')}
+        </button>
+        <button className={`${styles.viewButton} ${view === 'week' ? styles.viewButtonActive : ''}`} onClick={() => setView('week')}>
+          {t('calendar.weekView')}
+        </button>
+      </div>
+
       {/* Prompt to select user */}
       {!hasUserSelected && (
         <div className={styles.emptyState} style={{ padding: '48px 16px', textAlign: 'center' }}>
@@ -344,16 +354,6 @@ export default function AdminCalendar() {
           </p>
         </div>
       )}
-
-      {/* View Toggle */}
-      <div className={styles.viewToggle}>
-        <button className={`${styles.viewButton} ${view === 'day' ? styles.viewButtonActive : ''}`} onClick={() => setView('day')}>
-          {t('calendar.dayView')}
-        </button>
-        <button className={`${styles.viewButton} ${view === 'week' ? styles.viewButtonActive : ''}`} onClick={() => setView('week')}>
-          {t('calendar.weekView')}
-        </button>
-      </div>
 
       {/* Day View */}
       {hasUserSelected && view === 'day' && (
