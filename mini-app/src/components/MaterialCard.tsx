@@ -123,8 +123,14 @@ export default function MaterialCard({ material, canDelete, onDelete }: Material
   const youtubeId = material.type === 'youtube' ? getYoutubeId(material.url) : null
   const isVideo = material.type === 'video' || (material.type === 'youtube' && youtubeId)
 
+  // Google Drive webContentLink uses export=download which forces download instead of inline display.
+  // Convert to direct URL for <img src> compatibility.
+  const imageUrl = material.url?.includes('drive.google.com')
+    ? material.url.replace('&export=download', '').replace('?export=download', '')
+    : material.url
+
   const handleCardClick = () => {
-    if (material.type === 'image' && material.url) {
+    if (material.type === 'image' && imageUrl) {
       setIsPlayerOpen(true)
     } else if (isVideo) {
       setIsPlayerOpen(true)
@@ -140,7 +146,7 @@ export default function MaterialCard({ material, canDelete, onDelete }: Material
       <>
         <div className={`${styles.card} ${styles.imageCard}`} onClick={handleCardClick}>
           <div className={styles.imageThumbnailWrap}>
-            <img src={material.url} alt={material.title} className={styles.imageThumbnail} loading="lazy" />
+            <img src={imageUrl} alt={material.title} className={styles.imageThumbnail} loading="lazy" />
             <div className={styles.imageBadge}>
               <span className="material-symbols-outlined">photo_camera</span>
               {t('materialCard.photo', { defaultValue: 'Фото' })}
@@ -166,7 +172,7 @@ export default function MaterialCard({ material, canDelete, onDelete }: Material
               <button className={styles.modalClose} onClick={() => setIsPlayerOpen(false)}>
                 <span className="material-symbols-outlined">close</span>
               </button>
-              <img src={material.url} alt={material.title} className={styles.imageModalImg} />
+              <img src={imageUrl} alt={material.title} className={styles.imageModalImg} />
               <p className={styles.imageModalCaption}>{material.title}</p>
             </div>
           </div>

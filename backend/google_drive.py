@@ -126,7 +126,7 @@ def _upload_file_sync(
     media = MediaIoBaseUpload(
         io.BytesIO(file_bytes),
         mimetype=mime_type,
-        resumable=True,
+        resumable=len(file_bytes) > 5 * 1024 * 1024,
     )
 
     created = (
@@ -138,15 +138,26 @@ def _upload_file_sync(
     file_id = created["id"]
     web_view_link = created.get("webViewLink", "")
 
-    # Make file publicly readable via link
-    service.permissions().create(
-        fileId=file_id,
-        body={"role": "reader", "type": "anyone"},
-    ).execute()
+    try:
+        service.permissions().create(
+            fileId=file_id,
+            body={"role": "reader", "type": "anyone"},
+        ).execute()
+    except Exception as exc:
+        logger.warning("Drive public permission failed for %s: %s", file_id, exc)
 
-    # Get the direct download link
-    file_info = service.files().get(fileId=file_id, fields="webContentLink").execute()
-    download_link = file_info.get("webContentLink", web_view_link)
+    # For images, use a direct URL that works as <img src> (no download redirect)
+    if mime_type.startswith("image/"):
+        direct_url = f"https://drive.google.com/uc?id={file_id}"
+        logger.info("Uploaded image to Google Drive: %s (%s)", file_name, file_id)
+        return file_id, direct_url
+
+    download_link = web_view_link
+    try:
+        file_info = service.files().get(fileId=file_id, fields="webContentLink").execute()
+        download_link = file_info.get("webContentLink") or web_view_link
+    except Exception as exc:
+        logger.warning("Drive webContentLink fetch failed for %s: %s", file_id, exc)
 
     logger.info("Uploaded file to Google Drive: %s (%s)", file_name, file_id)
     return file_id, download_link
