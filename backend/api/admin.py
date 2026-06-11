@@ -565,11 +565,12 @@ async def create_availability_request(
         raise HTTPException(status_code=400, detail="Lesson has no teacher assigned")
 
     # Check for existing pending request
+    req_date = datetime.strptime(data.date, "%Y-%m-%d").date()
     existing = (await db.execute(
         select(AvailabilityRequest).where(
             and_(
                 AvailabilityRequest.lesson_id == data.lesson_id,
-                AvailabilityRequest.date == data.date,
+                AvailabilityRequest.date == req_date,
                 AvailabilityRequest.start_time == data.start_time,
                 AvailabilityRequest.status == "pending",
             )
@@ -583,7 +584,7 @@ async def create_availability_request(
         lesson_id=data.lesson_id,
         teacher_id=lesson.teacher_id,
         requested_by=admin_id,
-        date=data.date,
+        date=req_date,
         start_time=data.start_time,
         end_time=data.end_time,
     )
