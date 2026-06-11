@@ -495,7 +495,6 @@ async def reschedule_lesson(
         raise HTTPException(status_code=400, detail="Cannot reschedule a completed lesson")
 
     # Check teacher availability at new date/time
-    warning = None
     if lesson.teacher_id:
         new_day_of_week = new_date.weekday()  # 0=Monday
         avail_q = select(TeacherAvailability).where(
@@ -508,16 +507,15 @@ async def reschedule_lesson(
         avail_slots = (await db.execute(avail_q)).scalars().all()
 
         if not avail_slots:
-            warning = "У репетитора нет открытых слотов на этот день"
+            raise HTTPException(status_code=400, detail="У репетитора нет открытых слотов на этот день")
         elif data.new_time:
-            # Check if new_time falls within any slot
             new_time_str = data.new_time[:5]  # "HH:MM"
             in_slot = any(
                 slot.start_time <= new_time_str < slot.end_time
                 for slot in avail_slots
             )
             if not in_slot:
-                warning = "Время не попадает в открытый слот репетитора"
+                raise HTTPException(status_code=400, detail="Время не попадает в открытый слот репетитора")
 
     # Cancel the original date
     if existing:
@@ -542,7 +540,7 @@ async def reschedule_lesson(
     admin_id = admin.id if hasattr(admin, 'id') else None
     await _log_audit(db, "lesson", lesson_id, "reschedule", "lesson_status", None, f"to {data.new_date}", admin_id)
     await db.commit()
-    return {"ok": True, "original_date": original_date.strftime("%Y-%m-%d"), "new_date": data.new_date, "warning": warning}
+    return {"ok": True, "original_date": original_date.strftime("%Y-%m-%d"), "new_date": data.new_date}
 
 
 # ── Cancel Lesson ─────────────────────────────────────────────────────

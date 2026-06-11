@@ -390,8 +390,8 @@ export function adminSearchCourses(params: { days: number[]; time_from: string; 
   return api<SearchResultOut>(`/api/admin/search?${searchParams.toString()}`)
 }
 
-export function rescheduleLesson(lessonId: number, data: { date: string; new_date: string; new_time?: string }): Promise<{ ok: boolean; warning?: string }> {
-  return api<{ ok: boolean; warning?: string }>(`/api/admin/lessons/${lessonId}/reschedule`, {
+export function rescheduleLesson(lessonId: number, data: { date: string; new_date: string; new_time?: string }): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/admin/lessons/${lessonId}/reschedule`, {
     method: 'POST',
     body: JSON.stringify(data),
   })
