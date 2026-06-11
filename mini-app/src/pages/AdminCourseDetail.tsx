@@ -891,10 +891,6 @@ export default function AdminCourseDetail() {
                   <input className={modalStyles.timeInput} value={lessonForm.room} onChange={e => setLessonForm(p => ({ ...p, room: e.target.value }))} />
                 </div>
               </div>
-              <div className={modalStyles.field}>
-                <label className={modalStyles.fieldLabel}>{t('admin.course_detail.max_students')}</label>
-                <input type="number" min="1" className={modalStyles.timeInput} value={lessonForm.max_capacity} onChange={e => setLessonForm(p => ({ ...p, max_capacity: e.target.value }))} />
-              </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button className={modalStyles.modalBtnSecondary} onClick={() => setShowCreateLesson(false)} style={{ flex: 1 }}>{t('common.cancel')}</button>
                 <button className={modalStyles.modalBtn} onClick={handleCreateLesson} style={{ flex: 1 }} disabled={lessonSubmitting || !lessonForm.teacher_name || !lessonForm.time || !lessonForm.room}>
