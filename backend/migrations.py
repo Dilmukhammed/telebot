@@ -80,8 +80,18 @@ async def _backfill_invite_codes(conn: AsyncConnection) -> None:
     logger.info("Backfilled invite codes for %d subject(s)", len(subject_ids))
 
 
+async def ensure_critical_schema(conn: AsyncConnection, dialect: str) -> None:
+    """Idempotent columns required by current models. Safe to run every startup."""
+    if not await _table_exists(conn, "subjects", dialect):
+        return
+    if not await _column_exists(conn, "subjects", "google_drive_folder_id", dialect):
+        logger.info("Adding subjects.google_drive_folder_id (critical)")
+        await conn.execute(text("ALTER TABLE subjects ADD COLUMN google_drive_folder_id VARCHAR"))
+
+
 async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
     logger.info("Running schema migrations (dialect=%s)", dialect)
+    await ensure_critical_schema(conn, dialect)
 
     if dialect == "postgresql":
         for table_name in ("users", "registrations", "admins"):
@@ -320,24 +330,38 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
 
     if await _table_exists(conn, "materials", dialect) and dialect == "postgresql":
         try:
-            await conn.execute(text("""
-                DO $$ DECLARE r record;
-                BEGIN
-                  FOR r IN (
-                    SELECT conname FROM pg_constraint
-                    WHERE conrelid = 'materials'::regclass AND contype = 'c'
-                      AND pg_get_constraintdef(oid) LIKE '%type IN%'
-                  ) LOOP
-                    EXECUTE 'ALTER TABLE materials DROP CONSTRAINT ' || quote_ident(r.conname);
-                  END LOOP;
-                END $$;
+            constraint_check = await conn.execute(text("""
+                SELECT pg_get_constraintdef(oid) AS def
+                FROM pg_constraint
+                WHERE conrelid = 'materials'::regclass
+                  AND contype = 'c'
+                  AND pg_get_constraintdef(oid) LIKE '%type IN%'
+                LIMIT 1
             """))
-            await conn.execute(text("""
-                ALTER TABLE materials ADD CONSTRAINT ck_material_type
-                CHECK (type IN ('file', 'image', 'video', 'youtube', 'link', 'text'))
-            """))
-            logger.info("Updated materials type check constraint (added image)")
+            constraint_row = constraint_check.first()
+            constraint_def = constraint_row[0] if constraint_row else ""
+            if constraint_row and "'image'" in constraint_def:
+                logger.debug("materials type constraint already includes image")
+            else:
+                await conn.execute(text("""
+                    DO $$ DECLARE r record;
+                    BEGIN
+                      FOR r IN (
+                        SELECT conname FROM pg_constraint
+                        WHERE conrelid = 'materials'::regclass AND contype = 'c'
+                          AND pg_get_constraintdef(oid) LIKE '%type IN%'
+                      ) LOOP
+                        EXECUTE 'ALTER TABLE materials DROP CONSTRAINT ' || quote_ident(r.conname);
+                      END LOOP;
+                    END $$;
+                """))
+                await conn.execute(text("""
+                    ALTER TABLE materials ADD CONSTRAINT ck_material_type
+                    CHECK (type IN ('file', 'image', 'video', 'youtube', 'link', 'text'))
+                """))
+                logger.info("Updated materials type check constraint (added image)")
         except Exception as exc:
-            logger.debug("materials type constraint migration skipped: %s", exc)
+            logger.warning("materials type constraint migration skipped: %s", exc)
 
+    await ensure_critical_schema(conn, dialect)
     logger.info("Schema migrations complete")

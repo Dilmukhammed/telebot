@@ -13,7 +13,7 @@ from api.router import api_router
 from bot.bot import bot_router, bot, dp
 from scheduler import start_scheduler, stop_scheduler
 from seed import seed as seed_db
-from migrations import run_migrations
+from migrations import run_migrations, ensure_critical_schema
 
 
 def _build_cors_origins() -> list[str]:
@@ -82,7 +82,13 @@ async def lifespan(app: FastAPI):
             print("[startup] All tables cleared.")
 
         await conn.run_sync(Base.metadata.create_all)
+
+    async with engine.begin() as conn:
         await run_migrations(conn, engine.dialect.name)
+
+    # Separate transaction so a failed optional migration cannot roll back required columns.
+    async with engine.begin() as conn:
+        await ensure_critical_schema(conn, engine.dialect.name)
 
     await seed_db()
     # Start reminder scheduler
