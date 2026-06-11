@@ -1,7 +1,9 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useQueryClient } from '@tanstack/react-query'
 import { useUser } from '../context/UserContext'
+import { prefetchAdminLessons } from '../api/hooks'
 import styles from './BottomNavBar.module.css'
 
 const STUDENT_TABS = [
@@ -30,8 +32,15 @@ const BottomNavBar = React.memo(function BottomNavBar() {
   const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const { user } = useUser()
   const role = user?.role ?? null
+
+  useEffect(() => {
+    if (role === 'admin') {
+      void prefetchAdminLessons(qc)
+    }
+  }, [role, qc])
 
   if (location.pathname === '/') return null
 
@@ -55,7 +64,12 @@ const BottomNavBar = React.memo(function BottomNavBar() {
             <button
               key={tab.path}
               className={`${styles.tab} ${isActive ? styles.tabActive : ''}`}
-              onClick={() => navigate(tab.path)}
+              onClick={() => {
+                if (isAdmin && tab.path === '/admin/calendar') {
+                  void prefetchAdminLessons(qc)
+                }
+                navigate(tab.path)
+              }}
             >
               <div className={styles.iconContainer}>
                 <span

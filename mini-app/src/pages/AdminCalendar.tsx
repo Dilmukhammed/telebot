@@ -120,10 +120,10 @@ export default function AdminCalendar() {
   const [filterMode, setFilterMode] = useState<'all' | 'teacher' | 'student'>('all')
   const [selectedUserId, setSelectedUserId] = useState<number | undefined>(undefined)
 
-  const { data: teachers } = useAdminUsers(filterMode === 'teacher' ? 'teacher' : undefined)
-  const { data: students } = useAdminUsers(filterMode === 'student' ? 'student' : undefined)
+  const { data: teachers } = useAdminUsers('teacher', { enabled: filterMode === 'teacher' })
+  const { data: students } = useAdminUsers('student', { enabled: filterMode === 'student' })
 
-  const { data: lessons, isPending, refetch } = useAdminLessons({
+  const { data: lessons, isLoading, refetch } = useAdminLessons({
     week_offset: weekOffset,
     ...(filterMode === 'teacher' && selectedUserId ? { teacher_id: selectedUserId } : {}),
     ...(filterMode === 'student' && selectedUserId ? { student_id: selectedUserId } : {}),
@@ -206,7 +206,7 @@ export default function AdminCalendar() {
     }
   }
 
-  if (isPending) {
+  if (isLoading) {
     return <Loading fullPage message={t('common.loading')} />
   }
 

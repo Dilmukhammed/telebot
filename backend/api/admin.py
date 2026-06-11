@@ -219,11 +219,20 @@ async def get_admin_lessons(
         .scalar_subquery()
     )
 
+    # Build date filter: for each day_of_week (0-6), compute the instance date
+    # and collect them into a CASE expression for the JOIN condition
+    from sqlalchemy import case
+    day_date_pairs = [(d, (start_monday + timedelta(days=d)).strftime("%Y-%m-%d")) for d in range(7)]
+    date_case = case(
+        {d: date_str for d, date_str in day_date_pairs},
+        value=Lesson.day_of_week,
+    )
+
     # Join with LessonStatus and enrollment count in single query
     query = query.add_columns(LessonStatus, enrollment_count_sq.label("student_count"))
     query = query.outerjoin(LessonStatus, and_(
         LessonStatus.lesson_id == Lesson.id,
-        LessonStatus.date == start_monday + timedelta(days=Lesson.day_of_week)
+        LessonStatus.date == date_case,
     ))
 
     query = query.offset(skip).limit(limit)

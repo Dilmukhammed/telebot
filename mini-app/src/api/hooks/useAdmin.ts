@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   getAdminStats,
@@ -70,7 +70,7 @@ export function useAdminLessons(filters: AdminLessonsFilters) {
     queryKey: adminLessonsQueryKey(filters),
     queryFn: () => getAdminLessons(filters),
     staleTime: 60_000,
-    placeholderData: keepPreviousData,
+    placeholderData: (prev) => prev,
   })
 }
 
@@ -252,11 +252,12 @@ export function useAdminCreateLesson() {
 }
 
 // ── Users ──
-export function useAdminUsers(role?: string) {
+export function useAdminUsers(role?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['admin-users', role],
     queryFn: () => getAdminUsers({ role }),
     staleTime: 30_000,
+    enabled: options?.enabled ?? true,
   })
 }
 
