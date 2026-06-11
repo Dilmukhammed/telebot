@@ -52,8 +52,8 @@ export default function TimePicker({ value, onChange, className, disabled }: Tim
   const getCoordinates = (angleDegrees: number, radius: number) => {
     const angleRadians = ((angleDegrees - 90) * Math.PI) / 180;
     return {
-      x: 110 + radius * Math.cos(angleRadians),
-      y: 110 + radius * Math.sin(angleRadians),
+      x: 100 + radius * Math.cos(angleRadians),
+      y: 100 + radius * Math.sin(angleRadians),
     };
   };
 
@@ -61,7 +61,7 @@ export default function TimePicker({ value, onChange, className, disabled }: Tim
   const outerHours = Array.from({ length: 12 }, (_, i) => {
     const val = i + 1; // 1 to 12
     const angle = val * 30;
-    const { x, y } = getCoordinates(angle, 82);
+    const { x, y } = getCoordinates(angle, 74);
     const label = String(val).padStart(2, '0');
     return { label, val, x, y };
   });
@@ -69,7 +69,7 @@ export default function TimePicker({ value, onChange, className, disabled }: Tim
   const innerHours = Array.from({ length: 12 }, (_, i) => {
     const val = i === 11 ? 0 : i + 13; // 13 to 23, and 00
     const angle = (i + 1) * 30;
-    const { x, y } = getCoordinates(angle, 50);
+    const { x, y } = getCoordinates(angle, 46);
     const label = String(val).padStart(2, '0');
     return { label, val, x, y };
   });
@@ -78,28 +78,28 @@ export default function TimePicker({ value, onChange, className, disabled }: Tim
   const minutesList = Array.from({ length: 12 }, (_, i) => {
     const val = i * 5;
     const angle = i * 30;
-    const { x, y } = getCoordinates(angle, 82);
+    const { x, y } = getCoordinates(angle, 74);
     const label = String(val).padStart(2, '0');
     return { label, val, x, y };
   });
 
   // Calculate clock hand coordinates
-  let handX = 110;
-  let handY = 110;
-  let handRadius = 82;
+  let handX = 100;
+  let handY = 100;
+  let handRadius = 74;
 
   if (mode === 'hours') {
     const hVal = parseInt(tempHour, 10);
     const isInner = hVal === 0 || (hVal >= 13 && hVal <= 23);
     const angle = (isInner ? (hVal === 0 ? 12 : hVal - 12) : hVal) * 30;
-    handRadius = isInner ? 50 : 82;
+    handRadius = isInner ? 46 : 74;
     const coords = getCoordinates(angle, handRadius);
     handX = coords.x;
     handY = coords.y;
   } else {
     const mVal = parseInt(tempMinute, 10);
     const angle = mVal * 6; // 360 / 60 = 6 degrees per minute
-    const coords = getCoordinates(angle, 82);
+    const coords = getCoordinates(angle, 74);
     handX = coords.x;
     handY = coords.y;
   }
@@ -184,11 +184,11 @@ export default function TimePicker({ value, onChange, className, disabled }: Tim
             <div className={styles.analogWrapper}>
               <div className={styles.clockFace}>
                 {/* SVG for Clock Hand */}
-                <svg className={styles.clockSvg} width="220" height="220">
-                  <circle cx="110" cy="110" r="5" fill="var(--color-primary)" />
+                <svg className={styles.clockSvg} width="200" height="200">
+                  <circle cx="100" cy="100" r="5" fill="var(--color-primary)" />
                   <line
-                    x1="110"
-                    y1="110"
+                    x1="100"
+                    y1="100"
                     x2={handX}
                     y2={handY}
                     stroke="var(--color-primary)"
