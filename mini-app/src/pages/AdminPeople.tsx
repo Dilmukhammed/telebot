@@ -61,7 +61,7 @@ export default function AdminPeople() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title={t('admin.people.title')} onBack={() => navigate('/dashboard')} hideProfile />
+      <SiteHeader title={t('admin.people.title')} onBack={() => navigate('/dashboard')} />
 
       <main className={styles.main}>
         {/* Tabs */}

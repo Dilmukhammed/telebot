@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAdminUser, useUpdateAdminUserRole } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
+import { getProfileCardStyle, hasProfileStatus, normalizeProfileTheme } from '../shared/profileTheme'
 import styles from './AdminUserProfile.module.css'
 
 export default function AdminUserProfile() {
@@ -40,7 +41,7 @@ export default function AdminUserProfile() {
   if (error || !user) {
     return (
       <div className={styles.page}>
-        <SiteHeader title={t('admin.profile.title')} onBack={() => navigate('/admin/people')} hideProfile />
+        <SiteHeader title={t('admin.profile.title')} onBack={() => navigate('/admin/people')} />
         <main className={styles.main}>
           <div className={styles.emptyState}>
             <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>person_off</span>
@@ -58,18 +59,19 @@ export default function AdminUserProfile() {
   }
 
   const roleLabel = user.role === 'admin' ? t('admin.profile.role_admin') : user.role === 'teacher' ? t('admin.profile.role_teacher') : t('admin.profile.role_student')
+  const profileTheme = normalizeProfileTheme(user.profile_theme)
+  const cardStyle = getProfileCardStyle(profileTheme)
 
   return (
     <div className={styles.page}>
       <SiteHeader
         title={`${user.first_name || ''} ${user.last_name || ''}`.trim() || t('admin.profile.title')}
         onBack={() => navigate('/admin/people')}
-        hideProfile
       />
 
       <main className={styles.main}>
         {/* Profile header */}
-        <div className={styles.profileCard}>
+        <div className={styles.profileCard} style={cardStyle}>
           <div className={styles.avatar}>
             {user.photo_url ? (
               <img src={user.photo_url} alt="" className={styles.avatarImg} />
@@ -86,6 +88,12 @@ export default function AdminUserProfile() {
                 {user.is_active ? t('admin.profile.active') : t('admin.profile.inactive')}
               </span>
             </div>
+            {hasProfileStatus(profileTheme) && (
+              <p className={styles.statusLine}>
+                {profileTheme.status_emoji && <span>{profileTheme.status_emoji}</span>}
+                {profileTheme.status_text && <span>{profileTheme.status_text}</span>}
+              </p>
+            )}
           </div>
         </div>
 

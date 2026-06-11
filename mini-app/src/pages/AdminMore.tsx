@@ -16,7 +16,7 @@ export default function AdminMore() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title={t('admin.more.title')} onBack={() => navigate('/dashboard')} hideProfile />
+      <SiteHeader title={t('admin.more.title')} onBack={() => navigate('/dashboard')} />
 
       <main className={styles.main}>
         <div className={styles.list}>

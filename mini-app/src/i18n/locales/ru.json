@@ -281,7 +281,20 @@
     "confirmDeleteSlot": "Удалить слот?",
     "confirmDeleteSlotText": "Это действие нельзя отменить",
     "deleteSlot": "Удалить",
-    "hoursPerWeek": "ч/неделю"
+    "hoursPerWeek": "ч/неделю",
+    "customize": "Оформление",
+    "themeColor": "Цвет карточки",
+    "statusEmoji": "Статус",
+    "statusPlaceholder": "Короткая подпись…",
+    "themes": {
+      "default": "Стандарт",
+      "lavender": "Лаванда",
+      "mint": "Мята",
+      "dusk": "Закат",
+      "slate": "Сланец",
+      "rose": "Роза",
+      "ocean": "Океан"
+    }
   },
   "days": {
     "monday": "Понедельник",

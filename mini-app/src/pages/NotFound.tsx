@@ -8,7 +8,7 @@ export default function NotFound() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <SiteHeader title="404" onBack={() => navigate(-1)} hideProfile />
+      <SiteHeader title="404" onBack={() => navigate(-1)} />
       <div style={{
         flex: 1,
         display: 'flex',

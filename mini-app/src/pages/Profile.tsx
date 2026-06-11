@@ -1,10 +1,14 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { updateName } from '../api/client'
+import { updateName, updateProfileTheme } from '../api/client'
 import { useAvailability, useCreateAvailability, useDeleteAvailability } from '../api/hooks'
 import { useUser } from '../context/UserContext'
+import { useAvatarUrl } from '../hooks/useAvatarUrl'
 import { CENTER } from '../config'
 import SiteHeader from '../components/SiteHeader'
+import ProfileThemeSheet from '../components/ProfileThemeSheet'
+import { getProfileCardStyle, hasProfileStatus, normalizeProfileTheme } from '../shared/profileTheme'
+import type { ProfileThemeOut } from '../shared/types'
 import TimePicker from '../components/TimePicker'
 import { Loading } from '../shared/components'
 import styles from './Profile.module.css'
@@ -29,6 +33,7 @@ function formatPhone(phone: string): string {
 export default function Profile() {
   const { t, i18n } = useTranslation()
   const { user, loading: userLoading, refresh: refreshUser } = useUser()
+  const avatarUrl = useAvatarUrl(user)
   const { data: availability = [] } = useAvailability()
   const createSlotMutation = useCreateAvailability()
   const deleteSlotMutation = useDeleteAvailability()
@@ -44,9 +49,8 @@ export default function Profile() {
   const [slotStart, setSlotStart] = useState('10:00')
   const [slotEnd, setSlotEnd] = useState('14:00')
   const [slotToDelete, setSlotToDelete] = useState<number | null>(null)
-
-  const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
-  const telegramAvatar = tgUser?.photo_url
+  const [showThemeSheet, setShowThemeSheet] = useState(false)
+  const [themeSaving, setThemeSaving] = useState(false)
 
   const handleSelectLang = (code: string) => {
     setSelectedLang(code)
@@ -89,6 +93,22 @@ export default function Profile() {
     }
   }
 
+  const handleSaveTheme = async (theme: ProfileThemeOut) => {
+    setThemeSaving(true)
+    try {
+      await updateProfileTheme({
+        card_theme: theme.card_theme,
+        status_emoji: theme.status_emoji ?? null,
+        status_text: theme.status_text ?? null,
+      })
+      await refreshUser()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : t('common.error'))
+    } finally {
+      setThemeSaving(false)
+    }
+  }
+
   const handleDeleteSlot = async () => {
     if (slotToDelete === null) return
     try {
@@ -114,18 +134,27 @@ export default function Profile() {
     )
   }
 
-  const avatarUrl = telegramAvatar || user.photo_url
   const displayName = user.first_name || (user.username ? `@${user.username}` : t('profile.user'))
   const roleLabel = user.role === 'admin' ? t('profile.admin') : user.role === 'teacher' ? t('profile.teacher') : t('profile.student')
+  const profileTheme = normalizeProfileTheme(user.profile_theme)
+  const cardStyle = getProfileCardStyle(profileTheme)
 
   return (
     <div className={styles.page}>
-      <SiteHeader title={t('profile.title')} hideProfile />
+      <SiteHeader title={t('profile.title')} />
 
       <main className={styles.main}>
         {/* Profile Hero Card */}
         <section className={styles.heroSection}>
-          <div className={styles.heroCard}>
+          <div className={styles.heroCard} style={cardStyle}>
+            <button
+              type="button"
+              className={styles.customizeBtn}
+              onClick={() => setShowThemeSheet(true)}
+              aria-label={t('profile.customize')}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>palette</span>
+            </button>
             <div className={styles.avatarWrapper}>
               <div className={styles.avatar}>
                 {avatarUrl ? (
@@ -151,6 +180,15 @@ export default function Profile() {
               >
                 @{user.username}
               </a>
+            )}
+
+            {hasProfileStatus(profileTheme) && (
+              <p className={styles.statusLine}>
+                {profileTheme.status_emoji && (
+                  <span className={styles.statusEmoji}>{profileTheme.status_emoji}</span>
+                )}
+                {profileTheme.status_text && <span>{profileTheme.status_text}</span>}
+              </p>
             )}
 
             <div className={styles.badges}>
@@ -252,6 +290,14 @@ export default function Profile() {
           </section>
         )}
       </main>
+
+      <ProfileThemeSheet
+        open={showThemeSheet}
+        theme={profileTheme}
+        saving={themeSaving}
+        onClose={() => setShowThemeSheet(false)}
+        onSave={handleSaveTheme}
+      />
 
       {/* Language Modal */}
       {showLangModal && (

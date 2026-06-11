@@ -7,7 +7,8 @@ from typing import Optional
 
 from database import get_db
 from models import User
-from schemas import UserOut, UserRoleUpdate, OnboardingData, TeacherCreateIn
+from profile_theme import merge_profile_theme, normalize_profile_theme
+from schemas import UserOut, UserRoleUpdate, OnboardingData, TeacherCreateIn, ProfileThemeUpdate
 from api.deps import require_admin, get_telegram_user
 
 router = APIRouter(prefix="/admin/users", tags=["users"])
@@ -31,6 +32,7 @@ def user_to_dict(user: User) -> dict:
         "is_active": user.is_active,
         "onboarded": user.onboarded,
         "phone_verified": user.phone_verified,
+        "profile_theme": normalize_profile_theme(user.profile_theme),
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
 
@@ -139,6 +141,21 @@ async def complete_onboarding(
 class UpdateNameData(BaseModel):
     first_name: str = Field(min_length=1, max_length=100)
     last_name: Optional[str] = Field(default=None, max_length=100)
+
+
+@user_router.patch("/me/profile-theme", response_model=UserOut)
+async def update_profile_theme(
+    data: ProfileThemeUpdate,
+    user: User = Depends(get_telegram_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user.profile_theme = merge_profile_theme(
+        user.profile_theme,
+        data.model_dump(exclude_unset=True),
+    )
+    await db.commit()
+    await db.refresh(user)
+    return user_to_dict(user)
 
 
 @user_router.put("/me/name", response_model=UserOut)

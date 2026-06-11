@@ -293,7 +293,7 @@ export default function AdminCourseDetail() {
   if (!isValidId) {
     return (
       <div className={styles.page}>
-        <SiteHeader title={t('common.error')} onBack={() => navigate('/admin/courses')} hideProfile />
+        <SiteHeader title={t('common.error')} onBack={() => navigate('/admin/courses')} />
         <div className={styles.emptyState}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>error</span>
           <p>{t('common.error')}</p>
@@ -313,7 +313,7 @@ export default function AdminCourseDetail() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title={course.name} onBack={() => navigate('/admin/courses')} hideProfile />
+      <SiteHeader title={course.name} onBack={() => navigate('/admin/courses')} />
 
       <nav className={styles.tabNav}>
         <button

@@ -14,9 +14,6 @@ export default function AdminDashboard() {
   const { data: announcements = [] } = useAnnouncements('admin')
   const unreadCount = announcements.filter(a => !a.is_read).length
 
-  const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
-  const telegramAvatar = tgUser?.photo_url
-
   if (isLoading) {
     return <Loading fullPage message={t('common.loading')} />
   }
@@ -45,7 +42,7 @@ export default function AdminDashboard() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader avatarUrl={telegramAvatar} announcementCount={unreadCount} announcementPath="/admin/announcements" />
+      <SiteHeader announcementCount={unreadCount} announcementPath="/admin/announcements" />
 
       <main>
         {/* Welcome Card */}

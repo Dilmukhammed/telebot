@@ -105,9 +105,6 @@ export default function Dashboard() {
     setUnreadCount(data.unread_count ?? 0)
   }, [data])
 
-  const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
-  const telegramAvatar = tgUser?.photo_url
-
   // Pull-to-refresh: detect swipe down at scroll top
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY
@@ -145,7 +142,6 @@ export default function Dashboard() {
   }
 
   const { profile, lessons, results } = data
-  const avatarUrl = telegramAvatar || profile.photo_url
 
   const getGreeting = (firstName: string) => {
     const utcHour = new Date().getUTCHours()
@@ -199,7 +195,7 @@ export default function Dashboard() {
       onTouchEnd={handleTouchEnd}
       style={{ overflow: 'auto', WebkitOverflowScrolling: 'touch' }}
     >
-      <SiteHeader avatarUrl={avatarUrl} announcementCount={unreadCount} />
+      <SiteHeader announcementCount={unreadCount} />
 
       {refreshing && (
         <div style={{

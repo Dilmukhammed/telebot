@@ -4,15 +4,13 @@ import { CENTER } from '../config'
 import styles from './SiteHeader.module.css'
 
 interface SiteHeaderProps {
-  avatarUrl?: string | null
   title?: string
   onBack?: () => void
-  hideProfile?: boolean
   announcementCount?: number
   announcementPath?: string
 }
 
-export default function SiteHeader({ title, onBack, hideProfile: _hideProfile, avatarUrl: _avatarUrl, announcementCount, announcementPath }: SiteHeaderProps) {
+export default function SiteHeader({ title, onBack, announcementCount, announcementPath }: SiteHeaderProps) {
   const navigate = useNavigate()
   const { t } = useTranslation()
 

@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useTeacherStudentDetail } from '../api/hooks'
 import SiteHeader from '../components/SiteHeader'
+import { getProfileCardStyle, hasProfileStatus, normalizeProfileTheme } from '../shared/profileTheme'
 import styles from './TeacherStudentDetail.module.css'
 
 export default function TeacherStudentDetail() {
@@ -21,26 +22,27 @@ export default function TeacherStudentDetail() {
   if (error || !student) {
     return (
       <div className={styles.page}>
-        <SiteHeader title={t('teacher.studentDetail')} onBack={() => navigate(-1)} hideProfile />
+        <SiteHeader title={t('teacher.studentDetail')} onBack={() => navigate(-1)} />
         <div className={styles.error}>{error?.message || t('common.error')}</div>
       </div>
     )
   }
 
   const displayName = student.first_name || (student.username ? `@${student.username}` : `#${student.id}`)
+  const profileTheme = normalizeProfileTheme(student.profile_theme)
+  const cardStyle = getProfileCardStyle(profileTheme)
 
   return (
     <div className={styles.page}>
       <SiteHeader
         title={t('teacher.studentDetail')}
         onBack={() => navigate(-1)}
-        hideProfile
       />
 
       <main className={styles.main}>
 
         {/* Student Profile */}
-        <div className={styles.profileCard}>
+        <div className={styles.profileCard} style={cardStyle}>
           <div className={styles.avatar}>
             {student.photo_url ? (
               <img src={student.photo_url} alt={displayName} className={styles.avatarImg} />
@@ -55,6 +57,12 @@ export default function TeacherStudentDetail() {
             </h2>
             {student.grade && (
               <span className={styles.grade}>{student.grade} {t('teacher.gradeClass')}</span>
+            )}
+            {hasProfileStatus(profileTheme) && (
+              <p className={styles.statusLine}>
+                {profileTheme.status_emoji && <span>{profileTheme.status_emoji}</span>}
+                {profileTheme.status_text && <span>{profileTheme.status_text}</span>}
+              </p>
             )}
           </div>
         </div>

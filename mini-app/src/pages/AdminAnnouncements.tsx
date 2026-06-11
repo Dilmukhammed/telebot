@@ -106,7 +106,7 @@ export default function AdminAnnouncements() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title={t('admin.announcements.title')} onBack={() => navigate('/dashboard')} hideProfile />
+      <SiteHeader title={t('admin.announcements.title')} onBack={() => navigate('/dashboard')} />
 
       <main className={styles.main}>
         <div className={styles.header}>

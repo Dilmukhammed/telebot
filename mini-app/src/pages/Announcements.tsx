@@ -20,7 +20,7 @@ export default function Announcements() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title={t('announcements.title')} onBack={() => navigate(-1)} hideProfile />
+      <SiteHeader title={t('announcements.title')} onBack={() => navigate(-1)} />
 
       <main className={styles.main}>
         {announcements.length > 0 ? (

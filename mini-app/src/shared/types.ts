@@ -77,6 +77,12 @@ export interface ApiResponse<T> {
   message: string;
 }
 
+export interface ProfileThemeOut {
+  card_theme: string;
+  status_emoji?: string;
+  status_text?: string;
+}
+
 export interface UserOut {
   id: number;
   telegram_id: number;
@@ -92,6 +98,7 @@ export interface UserOut {
   is_active: boolean;
   onboarded: boolean;
   phone_verified: boolean;
+  profile_theme?: ProfileThemeOut;
   created_at: string;
 }
 
@@ -400,6 +407,7 @@ export interface TeacherStudentDetailOut {
   photo_url?: string;
   phone?: string;
   grade?: string;
+  profile_theme?: ProfileThemeOut;
   courses: TeacherStudentCourseAttendance[];
 }
 

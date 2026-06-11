@@ -100,7 +100,7 @@ export default function Calendar() {
   if (error || !data) {
     return (
       <div className={styles.page}>
-        <SiteHeader title={t('calendar.title')} hideProfile />
+        <SiteHeader title={t('calendar.title')} />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '24px' }}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'var(--color-outline)' }}>error</span>
           <p style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center' }}>{error?.message || t('common.error')}</p>
@@ -122,7 +122,7 @@ export default function Calendar() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title={t('calendar.title')} hideProfile />
+      <SiteHeader title={t('calendar.title')} />
 
       {/* Calendar Navigation */}
       <div className={styles.calendarNav}>

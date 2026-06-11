@@ -37,7 +37,7 @@ export default function Courses() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title={t('courses.title')} hideProfile />
+      <SiteHeader title={t('courses.title')} />
 
       <main className={styles.main}>
         {/* Course Cards */}

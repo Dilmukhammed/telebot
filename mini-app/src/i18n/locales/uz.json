@@ -281,7 +281,20 @@
     "confirmDeleteSlot": "Slotni o'chirish?",
     "confirmDeleteSlotText": "Bu amalni bekor qilib bo'lmaydi",
     "deleteSlot": "O'chirish",
-    "hoursPerWeek": "soat/hafta"
+    "hoursPerWeek": "soat/hafta",
+    "customize": "Ko'rinish",
+    "themeColor": "Karta rangi",
+    "statusEmoji": "Status",
+    "statusPlaceholder": "Qisqa yozuv…",
+    "themes": {
+      "default": "Standart",
+      "lavender": "Lavanda",
+      "mint": "Yalpiz",
+      "dusk": "Quyosh botishi",
+      "slate": "Kulrang",
+      "rose": "Atirgul",
+      "ocean": "Okean"
+    }
   },
   "days": {
     "monday": "Dushanba",

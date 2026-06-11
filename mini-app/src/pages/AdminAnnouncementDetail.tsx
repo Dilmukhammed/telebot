@@ -42,7 +42,7 @@ export default function AdminAnnouncementDetail() {
   if (error || !announcement) {
     return (
       <div className={styles.page}>
-        <SiteHeader title={t('admin.announcements.detail_title')} onBack={() => navigate(-1)} hideProfile />
+        <SiteHeader title={t('admin.announcements.detail_title')} onBack={() => navigate(-1)} />
         <div className={styles.errorState}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#ba1a1a' }}>error</span>
           <p>{error?.message || t('common.error')}</p>
@@ -68,7 +68,7 @@ export default function AdminAnnouncementDetail() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title={t('admin.announcements.detail_title')} onBack={() => navigate(-1)} hideProfile />
+      <SiteHeader title={t('admin.announcements.detail_title')} onBack={() => navigate(-1)} />
 
       <main className={styles.main}>
         <div className={styles.card}>

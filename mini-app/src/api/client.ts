@@ -279,6 +279,17 @@ export function getAnnouncementDetail(id: number): Promise<AnnouncementOut> {
   return api<AnnouncementOut>(`/api/dashboard/announcements/${id}`)
 }
 
+export function updateProfileTheme(data: {
+  card_theme?: string
+  status_emoji?: string | null
+  status_text?: string | null
+}): Promise<UserOut> {
+  return api<UserOut>('/api/users/me/profile-theme', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
 export function updateName(first_name: string, last_name?: string): Promise<UserOut> {
   return api<UserOut>('/api/users/me/name', {
     method: 'PUT',

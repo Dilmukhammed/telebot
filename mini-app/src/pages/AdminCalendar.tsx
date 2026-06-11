@@ -201,7 +201,7 @@ export default function AdminCalendar() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title={t('admin.courses.schedule')} onBack={() => navigate('/dashboard')} hideProfile />
+      <SiteHeader title={t('admin.courses.schedule')} onBack={() => navigate('/dashboard')} />
 
       {/* Calendar Navigation */}
       <div className={styles.calendarNav}>

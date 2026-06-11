@@ -47,7 +47,7 @@ export default function AdminCourses() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title={t('admin.courses.title')} onBack={() => navigate('/dashboard')} hideProfile />
+      <SiteHeader title={t('admin.courses.title')} onBack={() => navigate('/dashboard')} />
 
       <main className={styles.main}>
         <div className={styles.tabs}>

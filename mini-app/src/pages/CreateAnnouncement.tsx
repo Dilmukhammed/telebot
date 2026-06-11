@@ -152,7 +152,7 @@ export default function CreateAnnouncement() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title={t('createAnnouncement.title')} onBack={() => navigate(-1)} hideProfile />
+      <SiteHeader title={t('createAnnouncement.title')} onBack={() => navigate(-1)} />
 
       <main className={styles.main}>
         {/* Title */}

@@ -45,7 +45,6 @@ export default function JoinCourse() {
       <SiteHeader
         title={submitted ? t('joinCourse.successTitle') : t('joinCourse.title')}
         onBack={handleClose}
-        hideProfile
       />
 
       <main className={styles.main}>

@@ -72,6 +72,21 @@ class ResultUpdate(BaseModel):
     comment: Optional[str] = None
 
 
+class ProfileThemeOut(BaseModel):
+    card_theme: str = "default"
+    status_emoji: Optional[str] = None
+    status_text: Optional[str] = None
+
+
+class ProfileThemeUpdate(BaseModel):
+    card_theme: Optional[str] = Field(
+        default=None,
+        pattern="^(default|lavender|mint|dusk|slate|rose|ocean)$",
+    )
+    status_emoji: Optional[str] = Field(default=None, max_length=8)
+    status_text: Optional[str] = Field(default=None, max_length=60)
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -89,6 +104,7 @@ class UserOut(BaseModel):
     is_active: bool
     onboarded: bool
     phone_verified: bool = False
+    profile_theme: ProfileThemeOut = ProfileThemeOut()
     created_at: str
 
 

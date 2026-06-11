@@ -150,7 +150,7 @@ export default function LessonDetail() {
   if (error || !lesson) {
     return (
       <div className={styles.page}>
-        <SiteHeader title={t('lessonDetail.title')} onBack={() => navigate(-1)} hideProfile />
+        <SiteHeader title={t('lessonDetail.title')} onBack={() => navigate(-1)} />
         <div className={styles.errorState}>
           <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#ba1a1a' }}>error</span>
           <p>{error?.message || t('common.error')}</p>
@@ -170,7 +170,7 @@ export default function LessonDetail() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader title={t('lessonDetail.title')} onBack={() => navigate(-1)} hideProfile />
+      <SiteHeader title={t('lessonDetail.title')} onBack={() => navigate(-1)} />
 
       <main className={styles.main}>
         {/* Header Section */}

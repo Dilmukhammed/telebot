@@ -281,7 +281,20 @@
     "confirmDeleteSlot": "Delete slot?",
     "confirmDeleteSlotText": "This action cannot be undone",
     "deleteSlot": "Delete",
-    "hoursPerWeek": "h/week"
+    "hoursPerWeek": "h/week",
+    "customize": "Appearance",
+    "themeColor": "Card color",
+    "statusEmoji": "Status",
+    "statusPlaceholder": "Short note…",
+    "themes": {
+      "default": "Default",
+      "lavender": "Lavender",
+      "mint": "Mint",
+      "dusk": "Dusk",
+      "slate": "Slate",
+      "rose": "Rose",
+      "ocean": "Ocean"
+    }
   },
   "days": {
     "monday": "Monday",

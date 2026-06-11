@@ -35,7 +35,6 @@ export default function TeacherStudents() {
       <SiteHeader
         title={`${t('teacher.studentsTitle')} (${students.length})`}
         onBack={() => navigate('/dashboard')}
-        hideProfile
       />
 
       <main className={styles.main}>

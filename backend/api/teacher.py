@@ -33,6 +33,8 @@ def _get_day_label(lesson_day: int, today: int) -> str:
 
 # Schemas (inline for simplicity)
 from pydantic import BaseModel
+from profile_theme import normalize_profile_theme
+from schemas import ProfileThemeOut
 
 
 class TeacherDashboardProfileOut(BaseModel):
@@ -193,6 +195,7 @@ class TeacherStudentOut(BaseModel):
     photo_url: str | None = None
     phone: str | None = None
     grade: str | None = None
+    profile_theme: ProfileThemeOut | None = None
 
 
 class TeacherStudentsOut(BaseModel):
@@ -243,6 +246,7 @@ async def get_teacher_students(
             photo_url=student.photo_url,
             phone=student.phone,
             grade=student.grade,
+            profile_theme=ProfileThemeOut(**normalize_profile_theme(student.profile_theme)),
         ))
 
     return TeacherStudentsOut(students=students, total=len(students))
@@ -266,6 +270,7 @@ class TeacherStudentDetailOut(BaseModel):
     photo_url: str | None = None
     phone: str | None = None
     grade: str | None = None
+    profile_theme: ProfileThemeOut | None = None
     courses: list[TeacherStudentCourseAttendance]
 
 
@@ -382,6 +387,7 @@ async def get_teacher_student_detail(
         photo_url=student.photo_url,
         phone=student.phone,
         grade=student.grade,
+        profile_theme=ProfileThemeOut(**normalize_profile_theme(student.profile_theme)),
         courses=courses,
     )
 
@@ -389,7 +395,6 @@ async def get_teacher_student_detail(
 
 # Teacher announcements
 from typing import Optional
-from pydantic import BaseModel
 
 
 class TeacherAnnouncementOut(BaseModel):

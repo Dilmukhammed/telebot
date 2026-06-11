@@ -243,9 +243,6 @@ export default function TeacherDashboard() {
     n => !n.is_read && n.sender_id !== user?.id
   ).length
 
-  const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
-  const telegramAvatar = tgUser?.photo_url
-
   if (isLoading) {
     return <Loading fullPage message={t('common.loading')} />
   }
@@ -268,7 +265,6 @@ export default function TeacherDashboard() {
   }
 
   const { profile, stats, lessons } = data
-  const avatarUrl = telegramAvatar || profile.photo_url
   const getGreeting = (firstName: string) => {
     const utcHour = new Date().getUTCHours()
     const tashkentHour = (utcHour + 5) % 24
@@ -315,7 +311,7 @@ export default function TeacherDashboard() {
 
   return (
     <div className={styles.page}>
-      <SiteHeader avatarUrl={avatarUrl} announcementCount={unreadCount} />
+      <SiteHeader announcementCount={unreadCount} />
 
       <main className={styles.main}>
         {/* Welcome Section */}

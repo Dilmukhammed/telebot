@@ -93,34 +93,6 @@
   white-space: nowrap;
 }
 
-.headerButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  border-radius: 50%;
-  transition: background 0.2s ease;
-  margin-left: 12px;
-  flex-shrink: 0;
-}
-
-.headerButton:hover {
-  background: rgba(99, 14, 212, 0.08);
-}
-
-.avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1.5px solid rgba(124, 58, 237, 0.3);
-  box-shadow: 0 1px 4px rgba(124, 58, 237, 0.15);
-}
-
 .bellButton {
   display: flex;
   align-items: center;

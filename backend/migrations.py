@@ -131,6 +131,14 @@ async def ensure_critical_schema(conn: AsyncConnection, dialect: str) -> None:
 
     await _ensure_materials_image_type(conn, dialect)
 
+    if await _table_exists(conn, "users", dialect):
+        if not await _column_exists(conn, "users", "profile_theme", dialect):
+            logger.info("Adding users.profile_theme (critical)")
+            if dialect == "postgresql":
+                await conn.execute(text("ALTER TABLE users ADD COLUMN profile_theme JSONB"))
+            else:
+                await conn.execute(text("ALTER TABLE users ADD COLUMN profile_theme TEXT"))
+
 
 async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
     logger.info("Running schema migrations (dialect=%s)", dialect)
