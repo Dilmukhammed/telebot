@@ -1,7 +1,17 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAdminSubjectDetail, useAdminAuditLog, useAdminUsers } from '../api/hooks'
+import {
+  useCourseDetail,
+  useCourseStudents,
+  useMaterials,
+  useCreateMaterial,
+  useUploadMaterial,
+  useDeleteMaterial,
+  useAdminSubjectDetail,
+  useAdminAuditLog,
+  useAdminUsers,
+} from '../api/hooks'
 import {
   updateSubject,
   adminCreateLesson,
@@ -10,21 +20,50 @@ import {
   archiveAdminSubject,
   unarchiveAdminSubject,
 } from '../api/client'
+import type { MaterialCreate } from '../shared/types'
 import SiteHeader from '../components/SiteHeader'
-import { Toast } from '../shared/components'
-import { langToLocale } from '../shared/utils/formatDate'
-import styles from './AdminCourseDetail.module.css'
+import MaterialCard from '../components/MaterialCard'
+import MaterialForm from '../components/MaterialForm'
+import { Loading, Toast, Modal } from '../shared/components'
+import {
+  TodayLessonCard,
+  UpcomingLessonCard,
+  PastLessonCard,
+} from './CourseDetail'
+import styles from './CourseDetail.module.css'
+import modalStyles from './AdminCourseDetail.module.css'
+
+type Tab = 'lessons' | 'materials' | 'about' | 'students'
+
+const MONTH_NAMES = {
+  ru: ['ЯНВ', 'ФЕВ', 'МАР', 'АПР', 'МАЙ', 'ИЮН', 'ИЮЛ', 'АВГ', 'СЕН', 'ОКТ', 'НОЯ', 'ДЕК'],
+  en: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
+  uz: ['YAN', 'FEV', 'MAR', 'APR', 'MAY', 'IYU', 'IYUL', 'AVG', 'SEN', 'OKT', 'NOY', 'DEK'],
+}
 
 export default function AdminCourseDetail() {
+  const { t, i18n } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { t, i18n } = useTranslation()
-  const currentLocale = langToLocale(i18n.language)
-  const dayNames = Array.from({ length: 7 }, (_, i) => t(`courseDetail.daysShort.${i}`))
   const courseId = Number(id)
-  const { data: course, isLoading, error, refetch } = useAdminSubjectDetail(courseId)
+  const isValidId = !isNaN(courseId) && courseId > 0
+
+  const { data: course, isLoading, refetch: refetchCourse } = useCourseDetail(isValidId ? courseId : 0)
+  const { data: adminMeta, refetch: refetchAdmin } = useAdminSubjectDetail(isValidId ? courseId : 0)
+  const { data: students = [], isLoading: studentsLoading, refetch: refetchStudents } = useCourseStudents(isValidId ? courseId : 0)
   const { data: auditLogs = [] } = useAdminAuditLog({ entity_type: 'subject', entity_id: courseId, limit: 20 })
   const { data: allStudents = [] } = useAdminUsers('student')
+
+  const [activeTab, setActiveTab] = useState<Tab>('lessons')
+  const [copied, setCopied] = useState(false)
+  const [showMaterialForm, setShowMaterialForm] = useState(false)
+  const [materialToDelete, setMaterialToDelete] = useState<number | null>(null)
+  const [showAudit, setShowAudit] = useState(false)
+
+  const { data: materials = [] } = useMaterials(courseId)
+  const createMaterial = useCreateMaterial()
+  const uploadMaterial = useUploadMaterial()
+  const deleteMaterial = useDeleteMaterial()
 
   // Subject edit modal
   const [showSubjectEdit, setShowSubjectEdit] = useState(false)
@@ -43,40 +82,44 @@ export default function AdminCourseDetail() {
   const [showEnrollModal, setShowEnrollModal] = useState(false)
   const [enrollFilter, setEnrollFilter] = useState('')
 
-  // Audit log
-  const [showAudit, setShowAudit] = useState(false)
-  const [copied, setCopied] = useState(false)
-
   // Archive
   const [showArchiveModal, setShowArchiveModal] = useState(false)
   const [archiveConfirmName, setArchiveConfirmName] = useState('')
   const [archiveSubmitting, setArchiveSubmitting] = useState(false)
 
-  const handleArchive = async () => {
-    if (!course) return
-    if (archiveConfirmName.trim() !== course.name) return
-    setArchiveSubmitting(true)
-    try {
-      await archiveAdminSubject(course.id)
-      navigate('/admin/courses')
-    } catch (e: any) {
-      alert(e.message || t('admin.course_detail.archive_error'))
-    } finally {
-      setArchiveSubmitting(false)
+  const dayNames = Array.from({ length: 7 }, (_, i) => t(`courseDetail.daysShort.${i}`))
+  const lang = i18n.language as 'ru' | 'en' | 'uz'
+  const monthNames = MONTH_NAMES[lang] || MONTH_NAMES.ru
+
+  const lessonSlotIds = course ? [...new Set(course.lessons.map(l => l.id))] : []
+
+  const refetchAll = async () => {
+    await Promise.all([refetchCourse(), refetchAdmin(), refetchStudents()])
+  }
+
+  const formatStartDate = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00')
+    const locale = i18n.language === 'en' ? 'en-US' : i18n.language === 'uz' ? 'uz-UZ' : 'ru-RU'
+    return d.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })
+  }
+
+  const handleMaterialSubmit = (data: MaterialCreate & { file?: File }) => {
+    if (data.type === 'file' && data.file) {
+      uploadMaterial.mutate({ file: data.file, title: data.title, subjectId: courseId })
+    } else {
+      createMaterial.mutate({
+        title: data.title,
+        type: data.type,
+        subject_id: courseId,
+        url: data.url,
+        content: data.content,
+      })
     }
   }
 
-  const handleUnarchive = async () => {
-    if (!course) return
-    try {
-      await unarchiveAdminSubject(course.id)
-      await refetch()
-    } catch (e: any) {
-      alert(e.message || t('admin.course_detail.unarchive_error'))
-    }
-  }
+  const isMaterialPending = createMaterial.isPending || uploadMaterial.isPending
+  const isMaterialSuccess = createMaterial.isSuccess || uploadMaterial.isSuccess
 
-  // ── Subject Edit ──
   const openSubjectEdit = () => {
     if (!course) return
     const indefinite = !course.duration_weeks
@@ -97,7 +140,7 @@ export default function AdminCourseDetail() {
     setSubjectSubmitting(true)
     setSubjectError('')
     try {
-      const data: any = {}
+      const data: Record<string, unknown> = {}
       if (subjectForm.name) data.name = subjectForm.name
       data.description = subjectForm.description || null
       if (subjectForm.start_date) data.start_date = subjectForm.start_date
@@ -105,15 +148,14 @@ export default function AdminCourseDetail() {
       if (subjectForm.duration_minutes) data.duration_minutes = Number(subjectForm.duration_minutes)
       await updateSubject(course.id, data)
       setShowSubjectEdit(false)
-      refetch()
-    } catch (e: any) {
-      setSubjectError(e.message || t('admin.course_detail.save_error'))
+      await refetchAll()
+    } catch (e: unknown) {
+      setSubjectError(e instanceof Error ? e.message : t('admin.course_detail.save_error'))
     } finally {
       setSubjectSubmitting(false)
     }
   }
 
-  // ── Create Lesson ──
   const openCreateLesson = () => {
     setLessonForm({ teacher_name: '', teacher_id: '', day_of_week: '0', time: '', room: '', max_capacity: '15' })
     setLessonError('')
@@ -134,505 +176,640 @@ export default function AdminCourseDetail() {
         max_capacity: Number(lessonForm.max_capacity) || 15,
       })
       setShowCreateLesson(false)
-      refetch()
-    } catch (e: any) {
-      setLessonError(e.message || t('admin.course_detail.create_error'))
+      await refetchAll()
+    } catch (e: unknown) {
+      setLessonError(e instanceof Error ? e.message : t('admin.course_detail.create_error'))
     } finally {
       setLessonSubmitting(false)
     }
   }
 
-  // ── Enroll / Unenroll ──
-  const openEnroll = () => {
-    setShowEnrollModal(true)
-    setEnrollFilter('')
-  }
-
   const handleEnroll = async (userId: number) => {
-    const lessons = course?.lessons
-    if (!lessons || lessons.length === 0) { alert(t('admin.course_detail.no_lessons_for_enroll')); return }
+    if (lessonSlotIds.length === 0) {
+      alert(t('admin.course_detail.no_lessons_for_enroll'))
+      return
+    }
     try {
-      await Promise.all(lessons.map(l => adminEnrollStudent(l.id, userId)))
+      await Promise.all(lessonSlotIds.map(lid => adminEnrollStudent(lid, userId)))
       setShowEnrollModal(false)
-      refetch()
-    } catch (e: any) {
-      alert(e.message || t('admin.course_detail.enroll_error'))
+      await refetchAll()
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : t('admin.course_detail.enroll_error'))
     }
   }
 
   const handleUnenroll = async (userId: number) => {
-    const lessons = course?.lessons
-    if (!lessons || lessons.length === 0) return
+    if (lessonSlotIds.length === 0) return
     if (!confirm(t('admin.course_detail.unenroll_confirm'))) return
     try {
-      await Promise.all(lessons.map(l => adminUnenrollStudent(l.id, userId)))
-      refetch()
-    } catch (e: any) {
-      alert(e.message || t('admin.course_detail.unenroll_error'))
+      await Promise.all(lessonSlotIds.map(lid => adminUnenrollStudent(lid, userId)))
+      await refetchAll()
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : t('admin.course_detail.unenroll_error'))
     }
   }
 
-  // ── Audit Log ──
-  const toggleAudit = () => {
-    setShowAudit(!showAudit)
+  const handleArchive = async () => {
+    if (!course || archiveConfirmName.trim() !== course.name) return
+    setArchiveSubmitting(true)
+    try {
+      await archiveAdminSubject(course.id)
+      navigate('/admin/courses')
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : t('admin.course_detail.archive_error'))
+    } finally {
+      setArchiveSubmitting(false)
+    }
   }
 
-  // ── Helpers ──
-  const getStudentInitials = (s: any) => {
-    if (s.first_name) return s.first_name[0].toUpperCase()
-    if (s.username) return s.username[0].toUpperCase()
-    return '?'
+  const handleUnarchive = async () => {
+    if (!course) return
+    try {
+      await unarchiveAdminSubject(course.id)
+      await refetchAll()
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : t('admin.course_detail.unarchive_error'))
+    }
   }
 
-  const getStudentGradientClass = (name: string, styleMap: any) => {
-    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    const gradients = ['purple', 'teal', 'blue', 'orange', 'rose', 'green']
-    return styleMap[`gradient_${gradients[hash % gradients.length]}`] || ''
-  }
-
-  if (isLoading) return <div className={styles.loading}>{t('common.loading')}</div>
-  if (error || !course) {
+  if (!isValidId) {
     return (
       <div className={styles.page}>
-        <SiteHeader title={t('admin.course_detail.course')} onBack={() => navigate('/admin/courses')} hideProfile />
-        <main className={styles.main}>
-          <div className={styles.emptyState}>
-            <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>error</span>
-            <p>{error?.message || t('admin.course_detail.not_found')}</p>
-          </div>
-        </main>
+        <SiteHeader title={t('common.error')} onBack={() => navigate('/admin/courses')} hideProfile />
+        <div className={styles.emptyState}>
+          <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>error</span>
+          <p>{t('common.error')}</p>
+        </div>
       </div>
     )
   }
+
+  if (isLoading || !course) {
+    return <Loading fullPage message={t('common.loading')} />
+  }
+
+  const todayLessons = course.lessons.filter(l => l.status === 'today')
+  const upcomingLessons = course.lessons.filter(l => l.status === 'upcoming')
+  const pastLessons = course.lessons.filter(l => l.status === 'past')
+  const isArchived = adminMeta?.is_archived ?? false
 
   return (
     <div className={styles.page}>
       <SiteHeader title={course.name} onBack={() => navigate('/admin/courses')} hideProfile />
 
+      <nav className={styles.tabNav}>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'lessons' ? styles.tabButtonActive : ''}`}
+          onClick={() => setActiveTab('lessons')}
+        >
+          {t('courseDetail.lessons')}
+        </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'materials' ? styles.tabButtonActive : ''}`}
+          onClick={() => setActiveTab('materials')}
+        >
+          {t('courseDetail.materials')}
+        </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'about' ? styles.tabButtonActive : ''}`}
+          onClick={() => setActiveTab('about')}
+        >
+          {t('courseDetail.about')}
+        </button>
+        <button
+          className={`${styles.tabButton} ${activeTab === 'students' ? styles.tabButtonActive : ''}`}
+          onClick={() => setActiveTab('students')}
+        >
+          {t('courseDetail.studentsTab', { defaultValue: 'Ученики' })}
+        </button>
+      </nav>
+
       <main className={styles.main}>
-        {/* Header card */}
-        <div className={styles.headerCard}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ flex: 1 }}>
-              <h1 className={styles.title}>{course.name}</h1>
-              {course.description && <p className={styles.desc}>{course.description}</p>}
-              <div className={styles.metaRow}>
-                <span className={styles.metaTag}>{t('admin.course_detail.minutes_short', { count: course.duration_minutes })}</span>
-                {course.duration_weeks && <span className={styles.metaTag}>{t('admin.course_detail.weeks_short', { count: course.duration_weeks })}</span>}
-                {course.start_date && (
-                  <span className={styles.metaTag}>{t('admin.course_detail.from_date', { date: new Date(course.start_date).toLocaleDateString(currentLocale) })}</span>
-                )}
+        {isArchived && (
+          <div className={styles.archivedBanner}>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>archive</span>
+            {t('admin.course_detail.course_in_archive')}
+          </div>
+        )}
+
+        {activeTab === 'lessons' && (
+          <>
+            <div className={styles.tabSectionHeader}>
+              <h2 className={styles.sectionTitle}>{t('courseDetail.lessons')}</h2>
+              <button className={`${styles.adminChipBtn} ${styles.adminChipBtnPrimary}`} onClick={openCreateLesson}>
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add</span>
+                {t('admin.course_detail.lesson')}
+              </button>
+            </div>
+
+            {todayLessons.length > 0 && (
+              <section className={styles.section}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>{t('courseDetail.today')}</h2>
+                  <span className={styles.liveDot} />
+                </div>
+                {todayLessons.map(lesson => (
+                  <TodayLessonCard
+                    key={`${lesson.id}-${lesson.date}`}
+                    lesson={lesson}
+                    durationMinutes={course.duration_minutes}
+                    onClick={() => navigate(`/admin/lessons/${lesson.id}?date=${lesson.date}`)}
+                  />
+                ))}
+              </section>
+            )}
+
+            {upcomingLessons.length > 0 && (
+              <section className={styles.section}>
+                <h2 className={styles.sectionTitle}>{t('courseDetail.upcoming')}</h2>
+                <div className={styles.lessonList}>
+                  {upcomingLessons.map(lesson => (
+                    <UpcomingLessonCard
+                      key={`${lesson.id}-${lesson.date}`}
+                      lesson={lesson}
+                      monthNames={monthNames}
+                      onClick={() => navigate(`/admin/lessons/${lesson.id}?date=${lesson.date}`)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {pastLessons.length > 0 && (
+              <section className={styles.section}>
+                <h2 className={styles.sectionTitleMuted}>{t('courseDetail.past')}</h2>
+                <div className={styles.lessonList}>
+                  {pastLessons.map(lesson => (
+                    <PastLessonCard
+                      key={`${lesson.id}-${lesson.date}`}
+                      lesson={lesson}
+                      monthNames={monthNames}
+                      onClick={() => navigate(`/admin/lessons/${lesson.id}?date=${lesson.date}`)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {todayLessons.length === 0 && upcomingLessons.length === 0 && pastLessons.length === 0 && (
+              <div className={styles.emptyState}>
+                <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>event_busy</span>
+                <p>{t('courseDetail.noLessons')}</p>
               </div>
+            )}
+          </>
+        )}
+
+        {activeTab === 'materials' && (
+          <>
+            {materials.length > 0 ? (
+              <section className={styles.section}>
+                <div className={styles.materialsList}>
+                  {materials.map((m) => (
+                    <MaterialCard
+                      key={m.id}
+                      material={m}
+                      canDelete
+                      onDelete={(mid) => setMaterialToDelete(mid)}
+                    />
+                  ))}
+                </div>
+              </section>
+            ) : (
+              <div className={styles.emptyState}>
+                <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#7b7487' }}>folder_open</span>
+                <p>{t('courseDetail.noMaterials')}</p>
+              </div>
+            )}
+            <button className={styles.fab} onClick={() => setShowMaterialForm(true)}>
+              <span className="material-symbols-outlined">add</span>
+            </button>
+          </>
+        )}
+
+        {activeTab === 'about' && (
+          <section className={styles.aboutSection}>
+            <div className={styles.tabSectionHeader}>
+              <h3 className={styles.aboutLabel} style={{ margin: 0 }}>{t('courseDetail.about')}</h3>
+              <button className={styles.adminChipBtn} onClick={openSubjectEdit}>
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
+                {t('admin.course_detail.edit_course')}
+              </button>
+            </div>
+
+            <div className={styles.aboutCard}>
+              {course.description && (
+                <>
+                  <h3 className={styles.aboutLabel}>{t('courseDetail.description')}</h3>
+                  <p className={styles.descriptionText}>{course.description}</p>
+                </>
+              )}
+              <div className={styles.aboutRow}>
+                <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)', fontSize: '20px' }}>person</span>
+                <span className={styles.aboutRowLabel}>{t('courseDetail.teacher')}</span>
+                <span className={styles.aboutRowValue}>{course.teacher_name}</span>
+              </div>
+              {course.location && (
+                <div className={styles.aboutRow}>
+                  <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)', fontSize: '20px' }}>location_on</span>
+                  <span className={styles.aboutRowLabel}>{t('courseDetail.location')}</span>
+                  <span className={styles.aboutRowValue}>{course.location}</span>
+                </div>
+              )}
               {course.invite_code && (
                 <div
+                  className={styles.aboutRow}
                   onClick={() => { navigator.clipboard.writeText(course.invite_code!); setCopied(true) }}
-                  style={{ marginTop: '8px', padding: '6px 12px', background: 'rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '14px', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, letterSpacing: '2px' }}
+                  style={{ cursor: 'pointer' }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>key</span>
-                  {course.invite_code}
-                  <span className="material-symbols-outlined" style={{ fontSize: '14px', opacity: 0.7 }}>content_copy</span>
+                  <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)', fontSize: '20px' }}>key</span>
+                  <span className={styles.aboutRowLabel}>{t('courseDetail.inviteCode')}</span>
+                  <span className={styles.aboutRowValue} style={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: '2px' }}>
+                    {course.invite_code}
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px', marginLeft: '8px', verticalAlign: 'middle', opacity: 0.6 }}>content_copy</span>
+                  </span>
                 </div>
               )}
             </div>
-            <button
-              onClick={openSubjectEdit}
-              style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#fff' }}>edit</span>
-            </button>
-          </div>
-          {course.is_archived && (
-            <div style={{ marginTop: '8px', padding: '6px 12px', background: 'rgba(255,255,255,0.15)', borderRadius: '8px', fontSize: '13px', color: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>archive</span>
-              {t('admin.course_detail.course_in_archive')}
-            </div>
-          )}
-        </div>
 
-        {/* Lessons */}
-        <section className={styles.section}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-sm)' }}>
-            <h3 className={styles.sectionTitle} style={{ margin: 0 }}>{t('admin.course_detail.schedule_count', { count: course.lessons.length })}</h3>
-            <button
-              onClick={openCreateLesson}
-              style={{ background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-full)', padding: '6px 14px', cursor: 'pointer', fontSize: 'var(--font-xs)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add</span>
-              {t('admin.course_detail.lesson')}
-            </button>
-          </div>
-          {course.lessons.length === 0 ? (
-            <div className={styles.emptyState}>
-              <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#7b7487' }}>event_busy</span>
-              <p>{t('admin.course_detail.no_lessons')}</p>
-            </div>
-          ) : (
-            <div className={styles.list}>
-              {course.lessons.map(l => {
-                const statusClass = l.lesson_status === 'cancelled' ? styles.cancelled
-                  : l.lesson_status === 'happened' ? styles.happened
-                  : l.lesson_status === 'rescheduled' ? styles.rescheduled : ''
-                return (
-                  <div
-                    key={l.id}
-                    className={`${styles.lessonCard} ${statusClass}`}
-                    onClick={() => navigate(`/admin/lessons/${l.id}?date=${l.date}`)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div className={styles.lessonMainContent}>
-                      <div className={styles.lessonTimeBlock}>
-                        <span className={styles.timeBlockDate}>
-                          {new Date(l.date).toLocaleDateString(currentLocale, { day: 'numeric', month: 'short' })}
-                        </span>
-                        <span className={styles.timeBlockDay}>{l.day_name}</span>
-                        <span className={styles.timeBlockTime}>{l.time}</span>
+            <div className={styles.aboutCard}>
+              <h3 className={styles.aboutLabel}>{t('courseDetail.schedule')}</h3>
+              <div className={styles.scheduleList}>
+                {course.lessons
+                  .filter((lesson, index, self) =>
+                    index === self.findIndex(l => l.day_of_week === lesson.day_of_week && l.time === lesson.time)
+                  )
+                  .map(lesson => {
+                    const dayName = t(`courseDetail.daysShort.${lesson.day_of_week}`, { defaultValue: lesson.day_name })
+                    return (
+                      <div key={`${lesson.day_of_week}-${lesson.time}`} className={styles.scheduleItem}>
+                        <span className={styles.scheduleDay}>{dayName}</span>
+                        <span className={styles.scheduleTime}>{lesson.time}</span>
+                        <span className={styles.scheduleRoom}>{lesson.room}</span>
                       </div>
-
-                      <div className={styles.lessonDetails}>
-                        <div className={styles.lessonMetaRow}>
-                          <div className={styles.lessonMetaItem}>
-                            <span className="material-symbols-outlined">school</span>
-                            <span>{l.teacher_name}</span>
-                          </div>
-                          {l.room && (
-                            <div className={styles.lessonMetaItem}>
-                              <span className="material-symbols-outlined">meeting_room</span>
-                              <span>{t('admin.course_detail.room_short', { room: l.room })}</span>
-                            </div>
-                          )}
-                          <div className={styles.lessonMetaItem}>
-                            <span className="material-symbols-outlined">groups</span>
-                            <span>{t('admin.course_detail.students_short', { count: l.student_count })}</span>
-                          </div>
-                        </div>
-
-                        <div className={styles.lessonStatusRow}>
-                          <span className={`${styles.statusBadge} ${styles[`status_${l.lesson_status || 'planned'}`]}`}>
-                            {l.lesson_status === 'cancelled' ? t('admin.course_detail.status_cancelled')
-                              : l.lesson_status === 'happened' ? t('admin.course_detail.status_happened')
-                              : l.lesson_status === 'rescheduled' ? t('admin.course_detail.status_rescheduled')
-                              : t('admin.course_detail.status_planned')}
-                          </span>
-                        </div>
-                      </div>
-
-                      <span className="material-symbols-outlined" style={{ color: 'var(--color-on-surface-variant)', opacity: 0.5, fontSize: '18px' }}>chevron_right</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* Students */}
-        <section className={styles.section}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-sm)' }}>
-            <h3 className={styles.sectionTitle} style={{ margin: 0 }}>{t('admin.course_detail.students_count', { count: course.students?.length || 0 })}</h3>
-            <button
-              onClick={openEnroll}
-              style={{ background: 'var(--color-gray-100)', border: 'none', borderRadius: 'var(--radius-full)', padding: '6px 14px', cursor: 'pointer', fontSize: 'var(--font-xs)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>person_add</span>
-              {t('admin.course_detail.add')}
-            </button>
-          </div>
-          {!course.students || course.students.length === 0 ? (
-            <div className={styles.emptyState}>
-              <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#7b7487' }}>group</span>
-              <p>{t('admin.course_detail.no_students_enrolled')}</p>
-            </div>
-          ) : (
-            <div className={styles.studentList}>
-              {course.students.map(s => (
-                <div key={s.id} className={styles.studentCard}>
-                  <div className={`${styles.studentAvatar} ${getStudentGradientClass(s.first_name || '', styles)}`} onClick={() => navigate(`/admin/people/${s.id}`)}>
-                    {s.photo_url ? <img src={s.photo_url} alt="" className={styles.avatarImg} /> : getStudentInitials(s)}
-                  </div>
-                  <div className={styles.studentInfo} onClick={() => navigate(`/admin/people/${s.id}`)}>
-                    <div className={styles.studentName}>{s.first_name} {s.last_name || ''}</div>
-                    {s.grade && <div className={styles.studentMeta}>{t('admin.people.grade', { grade: s.grade })}</div>}
-                  </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleUnenroll(s.id) }}
-                    title={t('admin.course_detail.unenroll')}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-danger)', padding: '4px' }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person_remove</span>
-                  </button>
+                    )
+                  })}
+              </div>
+              <div className={styles.aboutDivider} />
+              <div className={styles.aboutDetailsGrid}>
+                <div className={styles.aboutDetail}>
+                  <span className={styles.aboutDetailValue}>{course.lesson_count}</span>
+                  <span className={styles.aboutDetailLabel}>{t('courseDetail.perWeek')}</span>
                 </div>
-              ))}
+                <div className={styles.aboutDetail}>
+                  <span className={styles.aboutDetailValue}>{course.duration_minutes} {t('courseDetail.minutes')}</span>
+                  <span className={styles.aboutDetailLabel}>{t('courseDetail.lessonDuration', { defaultValue: 'Длительность урока' })}</span>
+                </div>
+                <div className={styles.aboutDetail}>
+                  <span className={styles.aboutDetailValue}>
+                    {course.duration_weeks
+                      ? `${course.duration_weeks} ${t('courseDetail.weeks')}`
+                      : t('courseDetail.indefiniteDuration', { defaultValue: 'Постоянный курс' })}
+                  </span>
+                  <span className={styles.aboutDetailLabel}>{t('courseDetail.duration')}</span>
+                </div>
+                {course.start_date && (
+                  <div className={styles.aboutDetail}>
+                    <span className={styles.aboutDetailValue}>{formatStartDate(course.start_date)}</span>
+                    <span className={styles.aboutDetailLabel}>{t('courseDetail.startDate', { defaultValue: 'Дата запуска' })}</span>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </section>
 
-        {/* Audit Log */}
-        <section className={styles.section}>
-          <button
-            onClick={toggleAudit}
-            style={{ background: 'var(--color-gray-100)', border: 'none', borderRadius: 'var(--radius-full)', padding: '8px 16px', cursor: 'pointer', fontSize: 'var(--font-xs)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>history</span>
-            {showAudit ? t('admin.course_detail.hide_history') : t('admin.course_detail.history_changes')}
-          </button>
-          {showAudit && (
-            <div style={{ marginTop: '12px' }}>
-              {auditLogs.length === 0 ? (
-                <div className={styles.emptyState}><p>{t('admin.course_detail.no_history_records')}</p></div>
-              ) : (
-                <div className={styles.list}>
-                  {auditLogs.map(log => (
-                    <div key={log.id} className={styles.lessonCard} style={{ padding: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-xs)' }}>
-                        <span style={{ fontWeight: 600 }}>
-                          {log.performed_by_name || t('admin.course_detail.system')}
-                          <span style={{ color: 'var(--color-on-surface-variant)', fontWeight: 400, marginLeft: '6px' }}>
-                            ({log.performed_by_type === 'admin' ? t('admin.course_detail.admin_role') : t('admin.course_detail.teacher_role')})
+            <div className={styles.aboutCard}>
+              <button className={styles.adminChipBtn} onClick={() => setShowAudit(!showAudit)}>
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>history</span>
+                {showAudit ? t('admin.course_detail.hide_history') : t('admin.course_detail.history_changes')}
+              </button>
+              {showAudit && (
+                <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {auditLogs.length === 0 ? (
+                    <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-on-surface-variant)', margin: 0 }}>
+                      {t('admin.course_detail.no_history_records')}
+                    </p>
+                  ) : (
+                    auditLogs.map(log => (
+                      <div key={log.id} className={styles.auditCard}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                          <span style={{ fontWeight: 600 }}>
+                            {log.performed_by_name || t('admin.course_detail.system')}
                           </span>
-                        </span>
-                        <span style={{ color: 'var(--color-on-surface-variant)' }}>{log.performed_at}</span>
-                      </div>
-                      <div style={{ marginTop: '4px', fontSize: 'var(--font-xs)', color: 'var(--color-on-surface-variant)' }}>
-                        {log.entity_type === 'subject' ? t('admin.course_detail.course') : t('admin.course_detail.lesson')} #{log.entity_id}
-                        {' · '}{log.action === 'update' ? t('admin.course_detail.action_update') : log.action === 'create' ? t('admin.course_detail.action_create') : log.action === 'toggle_active' ? t('admin.course_detail.action_status') : log.action === 'enroll' ? t('admin.course_detail.action_enroll') : log.action === 'unenroll' ? t('admin.course_detail.action_unenroll') : log.action}
-                      </div>
-                      {log.field_name && (
-                        <div style={{ marginTop: '2px', fontSize: 'var(--font-xs)' }}>
-                          <span style={{ color: 'var(--color-primary)' }}>{log.field_name}</span>:
-                          {log.old_value && <span style={{ textDecoration: 'line-through', color: 'var(--color-danger)', marginLeft: '4px' }}>{log.old_value.substring(0, 50)}</span>}
-                          {log.new_value && <span style={{ color: '#4ab97e', marginLeft: '4px' }}>→ {log.new_value.substring(0, 50)}</span>}
+                          <span style={{ color: 'var(--color-on-surface-variant)' }}>{log.performed_at}</span>
                         </div>
+                        <div style={{ marginTop: '4px', color: 'var(--color-on-surface-variant)' }}>
+                          {log.entity_type === 'subject' ? t('admin.course_detail.course') : t('admin.course_detail.lesson')}
+                          {' · '}
+                          {log.action === 'update' ? t('admin.course_detail.action_update') : log.action === 'create' ? t('admin.course_detail.action_create') : log.action}
+                        </div>
+                        {log.field_name && (
+                          <div style={{ marginTop: '2px' }}>
+                            <span style={{ color: 'var(--color-primary)' }}>{log.field_name}</span>
+                            {log.old_value && <span style={{ textDecoration: 'line-through', color: 'var(--color-danger)', marginLeft: '4px' }}>{log.old_value.substring(0, 50)}</span>}
+                            {log.new_value && <span style={{ color: '#4ab97e', marginLeft: '4px' }}>→ {log.new_value.substring(0, 50)}</span>}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginTop: '8px' }}>
+              {isArchived ? (
+                <button className={styles.primaryOutlineBtn} onClick={handleUnarchive}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>unarchive</span>
+                  {t('admin.course_detail.unarchive_course')}
+                </button>
+              ) : (
+                <button className={styles.dangerBtn} onClick={() => { setArchiveConfirmName(''); setShowArchiveModal(true) }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>archive</span>
+                  {t('admin.course_detail.archive_course')}
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+
+        {activeTab === 'students' && (
+          <div className={styles.studentsTab}>
+            <div className={styles.tabSectionHeader}>
+              <h2 className={styles.sectionTitle}>{t('courseDetail.studentsTab', { defaultValue: 'Ученики' })}</h2>
+              <button className={`${styles.adminChipBtn} ${styles.adminChipBtnPrimary}`} onClick={() => { setShowEnrollModal(true); setEnrollFilter('') }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>person_add</span>
+                {t('admin.course_detail.add')}
+              </button>
+            </div>
+
+            {studentsLoading ? (
+              <div className={styles.loading}>{t('common.loading')}</div>
+            ) : students.length > 0 ? (
+              <div className={styles.studentsList}>
+                {students.map((student) => (
+                  <div key={student.id} className={styles.studentCard}>
+                    <div
+                      className={styles.studentAvatar}
+                      onClick={() => navigate(`/admin/people/${student.id}`)}
+                    >
+                      {student.photo_url ? (
+                        <img src={student.photo_url} alt="" className={styles.avatarImg} />
+                      ) : (
+                        <span className="material-symbols-outlined">person</span>
                       )}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* ── Subject Edit Modal ── */}
-        {showSubjectEdit && (
-          <div className={styles.modalOverlay} onClick={() => setShowSubjectEdit(false)}>
-            <div className={styles.modal} onClick={e => e.stopPropagation()}>
-              <div className={styles.modalHandle} />
-              <div className={styles.modalHeader}>
-                <h3 className={styles.modalTitle}>{t('admin.course_detail.edit_course')}</h3>
-                <button className={styles.modalClose} onClick={() => setShowSubjectEdit(false)}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-                </button>
-              </div>
-              {subjectError && <div className={styles.modalError}>{subjectError}</div>}
-              <div className={styles.modalActions}>
-                <div className={styles.field}>
-                  <label className={styles.fieldLabel}>{t('admin.course_detail.course_name')}</label>
-                  <input className={styles.timeInput} value={subjectForm.name} onChange={e => setSubjectForm(p => ({ ...p, name: e.target.value }))} />
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.fieldLabel}>{t('admin.course_detail.course_description')}</label>
-                  <input className={styles.timeInput} value={subjectForm.description} onChange={e => setSubjectForm(p => ({ ...p, description: e.target.value }))} />
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.fieldLabel}>{t('admin.course_detail.start_date')}</label>
-                  <input type="date" className={styles.timeInput} value={subjectForm.start_date} onChange={e => setSubjectForm(p => ({ ...p, start_date: e.target.value }))} />
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <div className={styles.field} style={{ flex: 1 }}>
-                    <label className={styles.fieldLabel}>{t('admin.course_detail.weeks')}</label>
-                    <input type="number" min="1" className={styles.timeInput} value={subjectForm.duration_weeks} onChange={e => setSubjectForm(p => ({ ...p, duration_weeks: e.target.value }))} disabled={isIndefinite} style={{ opacity: isIndefinite ? 0.5 : 1 }} />
+                    <div className={styles.studentInfo} onClick={() => navigate(`/admin/people/${student.id}`)}>
+                      <h3 className={styles.studentName}>
+                        {student.first_name || `@${student.username}`}
+                      </h3>
+                      <div className={styles.studentMeta}>
+                        {student.username && <span className={styles.metaItem}>@{student.username}</span>}
+                        {student.phone && <span className={styles.metaItem}>{student.phone}</span>}
+                        {student.grade && <span className={styles.metaItem}>{t('profile.grade', { grade: student.grade })}</span>}
+                      </div>
+                    </div>
+                    <div className={styles.studentCardActions}>
+                      <button
+                        className={styles.iconBtn}
+                        onClick={(e) => { e.stopPropagation(); handleUnenroll(student.id) }}
+                        title={t('admin.course_detail.unenroll')}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person_remove</span>
+                      </button>
+                      <span className="material-symbols-outlined" style={{ color: 'var(--color-on-surface-variant)', opacity: 0.7 }}>
+                        chevron_right
+                      </span>
+                    </div>
                   </div>
-                  <div className={styles.field} style={{ flex: 1 }}>
-                    <label className={styles.fieldLabel}>{t('admin.course_detail.minutes_per_lesson')}</label>
-                    <input type="number" min="1" className={styles.timeInput} value={subjectForm.duration_minutes} onChange={e => setSubjectForm(p => ({ ...p, duration_minutes: e.target.value }))} />
-                  </div>
-                </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={isIndefinite} onChange={e => setIsIndefinite(e.target.checked)} />
-                  <span style={{ fontSize: '14px' }}>{t('admin.course_detail.indefinite_course')}</span>
-                </label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className={styles.modalBtnSecondary} onClick={() => setShowSubjectEdit(false)} style={{ flex: 1 }}>{t('common.cancel')}</button>
-                  <button className={styles.modalBtn} onClick={handleSubjectSave} style={{ flex: 1 }} disabled={subjectSubmitting}>
-                    {subjectSubmitting ? t('admin.course_detail.saving') : t('common.save')}
-                  </button>
-                </div>
+                ))}
               </div>
-            </div>
+            ) : (
+              <div className={styles.emptyState}>
+                <span className="material-symbols-outlined" style={{ fontSize: '48px', color: 'var(--color-on-surface-variant)' }}>group</span>
+                <p>{t('admin.course_detail.no_students_enrolled')}</p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* ── Create Lesson Modal ── */}
-        {showCreateLesson && (
-          <div className={styles.modalOverlay} onClick={() => setShowCreateLesson(false)}>
-            <div className={styles.modal} onClick={e => e.stopPropagation()}>
-              <div className={styles.modalHandle} />
-              <div className={styles.modalHeader}>
-                <h3 className={styles.modalTitle}>{t('admin.course_detail.new_lesson')}</h3>
-                <button className={styles.modalClose} onClick={() => setShowCreateLesson(false)}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-                </button>
-              </div>
-              {lessonError && <div className={styles.modalError}>{lessonError}</div>}
-              <div className={styles.modalActions}>
-                <div className={styles.field}>
-                  <label className={styles.fieldLabel}>{t('admin.course_detail.teacher')}</label>
-                  <input className={styles.timeInput} value={lessonForm.teacher_name} onChange={e => setLessonForm(p => ({ ...p, teacher_name: e.target.value }))} />
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.fieldLabel}>{t('admin.course_detail.day_of_week')}</label>
-                  <select className={styles.timeInput} value={lessonForm.day_of_week} onChange={e => setLessonForm(p => ({ ...p, day_of_week: e.target.value }))}>
-                    {dayNames.map((d, i) => <option key={i} value={i}>{d}</option>)}
-                  </select>
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <div className={styles.field} style={{ flex: 1 }}>
-                    <label className={styles.fieldLabel}>{t('admin.course_detail.time')}</label>
-                    <input type="time" className={styles.timeInput} value={lessonForm.time} onChange={e => setLessonForm(p => ({ ...p, time: e.target.value }))} />
-                  </div>
-                  <div className={styles.field} style={{ flex: 1 }}>
-                    <label className={styles.fieldLabel}>{t('admin.course_detail.room')}</label>
-                    <input className={styles.timeInput} value={lessonForm.room} onChange={e => setLessonForm(p => ({ ...p, room: e.target.value }))} />
-                  </div>
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.fieldLabel}>{t('admin.course_detail.max_students')}</label>
-                  <input type="number" min="1" className={styles.timeInput} value={lessonForm.max_capacity} onChange={e => setLessonForm(p => ({ ...p, max_capacity: e.target.value }))} />
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className={styles.modalBtnSecondary} onClick={() => setShowCreateLesson(false)} style={{ flex: 1 }}>{t('common.cancel')}</button>
-                  <button className={styles.modalBtn} onClick={handleCreateLesson} style={{ flex: 1 }} disabled={lessonSubmitting || !lessonForm.teacher_name || !lessonForm.time || !lessonForm.room}>
-                    {lessonSubmitting ? t('admin.course_detail.creating') : t('admin.course_detail.create')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Enroll Student Modal ── */}
-        {showEnrollModal && (
-          <div className={styles.modalOverlay} onClick={() => setShowEnrollModal(false)}>
-            <div className={styles.modal} onClick={e => e.stopPropagation()}>
-              <div className={styles.modalHandle} />
-              <div className={styles.modalHeader}>
-                <h3 className={styles.modalTitle}>{t('admin.course_detail.enroll_student')}</h3>
-                <button className={styles.modalClose} onClick={() => setShowEnrollModal(false)}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-                </button>
-              </div>
-              <input
-                className={styles.timeInput}
-                placeholder={t('admin.course_detail.search_by_name')}
-                value={enrollFilter}
-                onChange={e => setEnrollFilter(e.target.value)}
-              />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '300px', overflowY: 'auto' }}>
-                {allStudents
-                  .filter(s => {
-                    const enrolledIds = new Set(course?.students?.map(st => st.id) || [])
-                    if (enrolledIds.has(s.id)) return false
-                    if (!enrollFilter) return true
-                    const name = `${s.first_name || ''} ${s.last_name || ''} ${s.username || ''}`.toLowerCase()
-                    return name.includes(enrollFilter.toLowerCase())
-                  })
-                  .map(s => (
-                    <button
-                      key={s.id}
-                      onClick={() => handleEnroll(s.id)}
-                      className={styles.modalBtnSecondary}
-                      style={{ textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                    >
-                      <span>{s.first_name} {s.last_name || ''}</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add</span>
-                    </button>
-                  ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Archive / Unarchive Section ── */}
-        <section className={styles.section} style={{ marginTop: '24px' }}>
-          {course.is_archived ? (
-            <button
-              onClick={handleUnarchive}
-              style={{
-                width: '100%', padding: '14px', borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--color-primary)', background: 'var(--color-primary-container)',
-                color: 'var(--color-primary)', fontWeight: 600, fontSize: 'var(--font-sm)',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-              }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>unarchive</span>
-              {t('admin.course_detail.unarchive_course')}
-            </button>
-          ) : (
-            <button
-              onClick={() => { setArchiveConfirmName(''); setShowArchiveModal(true) }}
-              style={{
-                width: '100%', padding: '14px', borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--color-error, #d32f2f)', background: 'transparent',
-                color: 'var(--color-error, #d32f2f)', fontWeight: 600, fontSize: 'var(--font-sm)',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-              }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>archive</span>
-              {t('admin.course_detail.archive_course')}
-            </button>
-          )}
-        </section>
-
-        {/* ── Archive Confirmation Modal ── */}
-        {showArchiveModal && course && (
-          <div className={styles.modalOverlay} onClick={() => setShowArchiveModal(false)}>
-            <div className={styles.modal} onClick={e => e.stopPropagation()}>
-              <div className={styles.modalHandle} />
-              <div className={styles.modalHeader}>
-                <h3 className={styles.modalTitle}>{t('admin.course_detail.archive_course')}</h3>
-                <button className={styles.modalClose} onClick={() => setShowArchiveModal(false)}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-                </button>
-              </div>
-              <div className={styles.modalActions}>
-                <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-on-surface-variant)', marginBottom: '12px' }}>
-                  {t('admin.course_detail.archive_hint_1')}
-                </p>
-                <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-on-surface-variant)', marginBottom: '8px' }}>
-                  {t('admin.course_detail.archive_hint_2')}
-                </p>
-                <p style={{ fontSize: 'var(--font-sm)', fontWeight: 600, marginBottom: '12px', color: 'var(--color-on-surface)' }}>
-                  {course.name}
-                </p>
-                <div className={styles.field}>
-                  <input
-                    className={styles.timeInput}
-                    value={archiveConfirmName}
-                    onChange={e => setArchiveConfirmName(e.target.value)}
-                    placeholder={t('admin.course_detail.enter_name_placeholder')}
-                    autoFocus
-                  />
-                </div>
-                <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                  <button className={styles.modalBtnSecondary} onClick={() => setShowArchiveModal(false)} style={{ flex: 1 }}>
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    className={styles.modalBtnPrimary}
-                    onClick={handleArchive}
-                    disabled={archiveConfirmName.trim() !== course.name || archiveSubmitting}
-                    style={{ flex: 1, opacity: archiveConfirmName.trim() !== course.name ? 0.5 : 1, background: '#d32f2f', color: '#fff' }}
-                  >
-                    {archiveSubmitting ? t('admin.course_detail.archiving') : t('admin.course_detail.archive')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <div className={styles.bottomSpacer} />
       </main>
 
       {copied && (
         <Toast message={t('admin.course_detail.code_copied')} onClose={() => setCopied(false)} />
+      )}
+
+      {showMaterialForm && (
+        <MaterialForm
+          onSubmit={handleMaterialSubmit}
+          onClose={() => { setShowMaterialForm(false); createMaterial.reset(); uploadMaterial.reset() }}
+          isPending={isMaterialPending}
+          isSuccess={isMaterialSuccess}
+        />
+      )}
+
+      {materialToDelete !== null && (
+        <Modal
+          isOpen={materialToDelete !== null}
+          onClose={() => setMaterialToDelete(null)}
+          title={t('courseDetail.deleteConfirmTitle')}
+        >
+          <div className={styles.deleteConfirmContent}>
+            <p className={styles.deleteConfirmText}>{t('courseDetail.deleteConfirmText')}</p>
+            <div className={styles.deleteConfirmButtons}>
+              <button className={styles.deleteCancelBtn} onClick={() => setMaterialToDelete(null)}>
+                {t('common.cancel')}
+              </button>
+              <button
+                className={styles.deleteConfirmBtn}
+                onClick={() => {
+                  deleteMaterial.mutate(materialToDelete, { onSuccess: () => setMaterialToDelete(null) })
+                }}
+              >
+                {t('common.delete', { defaultValue: 'Удалить' })}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showSubjectEdit && (
+        <div className={modalStyles.modalOverlay} onClick={() => setShowSubjectEdit(false)}>
+          <div className={modalStyles.modal} onClick={e => e.stopPropagation()}>
+            <div className={modalStyles.modalHandle} />
+            <div className={modalStyles.modalHeader}>
+              <h3 className={modalStyles.modalTitle}>{t('admin.course_detail.edit_course')}</h3>
+              <button className={modalStyles.modalClose} onClick={() => setShowSubjectEdit(false)}>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            </div>
+            {subjectError && <div className={modalStyles.modalError}>{subjectError}</div>}
+            <div className={modalStyles.modalActions}>
+              <div className={modalStyles.field}>
+                <label className={modalStyles.fieldLabel}>{t('admin.course_detail.course_name')}</label>
+                <input className={modalStyles.timeInput} value={subjectForm.name} onChange={e => setSubjectForm(p => ({ ...p, name: e.target.value }))} />
+              </div>
+              <div className={modalStyles.field}>
+                <label className={modalStyles.fieldLabel}>{t('admin.course_detail.course_description')}</label>
+                <input className={modalStyles.timeInput} value={subjectForm.description} onChange={e => setSubjectForm(p => ({ ...p, description: e.target.value }))} />
+              </div>
+              <div className={modalStyles.field}>
+                <label className={modalStyles.fieldLabel}>{t('admin.course_detail.start_date')}</label>
+                <input type="date" className={modalStyles.timeInput} value={subjectForm.start_date} onChange={e => setSubjectForm(p => ({ ...p, start_date: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <div className={modalStyles.field} style={{ flex: 1 }}>
+                  <label className={modalStyles.fieldLabel}>{t('admin.course_detail.weeks')}</label>
+                  <input type="number" min="1" className={modalStyles.timeInput} value={subjectForm.duration_weeks} onChange={e => setSubjectForm(p => ({ ...p, duration_weeks: e.target.value }))} disabled={isIndefinite} style={{ opacity: isIndefinite ? 0.5 : 1 }} />
+                </div>
+                <div className={modalStyles.field} style={{ flex: 1 }}>
+                  <label className={modalStyles.fieldLabel}>{t('admin.course_detail.minutes_per_lesson')}</label>
+                  <input type="number" min="1" className={modalStyles.timeInput} value={subjectForm.duration_minutes} onChange={e => setSubjectForm(p => ({ ...p, duration_minutes: e.target.value }))} />
+                </div>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input type="checkbox" checked={isIndefinite} onChange={e => setIsIndefinite(e.target.checked)} />
+                <span style={{ fontSize: '14px' }}>{t('admin.course_detail.indefinite_course')}</span>
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className={modalStyles.modalBtnSecondary} onClick={() => setShowSubjectEdit(false)} style={{ flex: 1 }}>{t('common.cancel')}</button>
+                <button className={modalStyles.modalBtn} onClick={handleSubjectSave} style={{ flex: 1 }} disabled={subjectSubmitting}>
+                  {subjectSubmitting ? t('admin.course_detail.saving') : t('common.save')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateLesson && (
+        <div className={modalStyles.modalOverlay} onClick={() => setShowCreateLesson(false)}>
+          <div className={modalStyles.modal} onClick={e => e.stopPropagation()}>
+            <div className={modalStyles.modalHandle} />
+            <div className={modalStyles.modalHeader}>
+              <h3 className={modalStyles.modalTitle}>{t('admin.course_detail.new_lesson')}</h3>
+              <button className={modalStyles.modalClose} onClick={() => setShowCreateLesson(false)}>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            </div>
+            {lessonError && <div className={modalStyles.modalError}>{lessonError}</div>}
+            <div className={modalStyles.modalActions}>
+              <div className={modalStyles.field}>
+                <label className={modalStyles.fieldLabel}>{t('admin.course_detail.teacher')}</label>
+                <input className={modalStyles.timeInput} value={lessonForm.teacher_name} onChange={e => setLessonForm(p => ({ ...p, teacher_name: e.target.value }))} />
+              </div>
+              <div className={modalStyles.field}>
+                <label className={modalStyles.fieldLabel}>{t('admin.course_detail.day_of_week')}</label>
+                <select className={modalStyles.timeInput} value={lessonForm.day_of_week} onChange={e => setLessonForm(p => ({ ...p, day_of_week: e.target.value }))}>
+                  {dayNames.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <div className={modalStyles.field} style={{ flex: 1 }}>
+                  <label className={modalStyles.fieldLabel}>{t('admin.course_detail.time')}</label>
+                  <input type="time" className={modalStyles.timeInput} value={lessonForm.time} onChange={e => setLessonForm(p => ({ ...p, time: e.target.value }))} />
+                </div>
+                <div className={modalStyles.field} style={{ flex: 1 }}>
+                  <label className={modalStyles.fieldLabel}>{t('admin.course_detail.room')}</label>
+                  <input className={modalStyles.timeInput} value={lessonForm.room} onChange={e => setLessonForm(p => ({ ...p, room: e.target.value }))} />
+                </div>
+              </div>
+              <div className={modalStyles.field}>
+                <label className={modalStyles.fieldLabel}>{t('admin.course_detail.max_students')}</label>
+                <input type="number" min="1" className={modalStyles.timeInput} value={lessonForm.max_capacity} onChange={e => setLessonForm(p => ({ ...p, max_capacity: e.target.value }))} />
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className={modalStyles.modalBtnSecondary} onClick={() => setShowCreateLesson(false)} style={{ flex: 1 }}>{t('common.cancel')}</button>
+                <button className={modalStyles.modalBtn} onClick={handleCreateLesson} style={{ flex: 1 }} disabled={lessonSubmitting || !lessonForm.teacher_name || !lessonForm.time || !lessonForm.room}>
+                  {lessonSubmitting ? t('admin.course_detail.creating') : t('admin.course_detail.create')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEnrollModal && (
+        <div className={modalStyles.modalOverlay} onClick={() => setShowEnrollModal(false)}>
+          <div className={modalStyles.modal} onClick={e => e.stopPropagation()}>
+            <div className={modalStyles.modalHandle} />
+            <div className={modalStyles.modalHeader}>
+              <h3 className={modalStyles.modalTitle}>{t('admin.course_detail.enroll_student')}</h3>
+              <button className={modalStyles.modalClose} onClick={() => setShowEnrollModal(false)}>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            </div>
+            <input
+              className={modalStyles.timeInput}
+              placeholder={t('admin.course_detail.search_by_name')}
+              value={enrollFilter}
+              onChange={e => setEnrollFilter(e.target.value)}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '300px', overflowY: 'auto' }}>
+              {allStudents
+                .filter(s => {
+                  const enrolledIds = new Set(students.map(st => st.id))
+                  if (enrolledIds.has(s.id)) return false
+                  if (!enrollFilter) return true
+                  const name = `${s.first_name || ''} ${s.last_name || ''} ${s.username || ''}`.toLowerCase()
+                  return name.includes(enrollFilter.toLowerCase())
+                })
+                .map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => handleEnroll(s.id)}
+                    className={modalStyles.modalBtnSecondary}
+                    style={{ textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  >
+                    <span>{s.first_name} {s.last_name || ''}</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add</span>
+                  </button>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showArchiveModal && (
+        <div className={modalStyles.modalOverlay} onClick={() => setShowArchiveModal(false)}>
+          <div className={modalStyles.modal} onClick={e => e.stopPropagation()}>
+            <div className={modalStyles.modalHandle} />
+            <div className={modalStyles.modalHeader}>
+              <h3 className={modalStyles.modalTitle}>{t('admin.course_detail.archive_course')}</h3>
+              <button className={modalStyles.modalClose} onClick={() => setShowArchiveModal(false)}>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            </div>
+            <div className={modalStyles.modalActions}>
+              <p style={{ fontSize: 'var(--font-sm)', color: 'var(--color-on-surface-variant)', margin: 0 }}>
+                {t('admin.course_detail.archive_hint_1')}
+              </p>
+              <p style={{ fontSize: 'var(--font-sm)', fontWeight: 600, margin: '8px 0' }}>{course.name}</p>
+              <div className={modalStyles.field}>
+                <input
+                  className={modalStyles.timeInput}
+                  value={archiveConfirmName}
+                  onChange={e => setArchiveConfirmName(e.target.value)}
+                  placeholder={t('admin.course_detail.enter_name_placeholder')}
+                  autoFocus
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className={modalStyles.modalBtnSecondary} onClick={() => setShowArchiveModal(false)} style={{ flex: 1 }}>
+                  {t('common.cancel')}
+                </button>
+                <button
+                  className={modalStyles.modalBtn}
+                  onClick={handleArchive}
+                  disabled={archiveConfirmName.trim() !== course.name || archiveSubmitting}
+                  style={{ flex: 1, background: '#d32f2f' }}
+                >
+                  {archiveSubmitting ? t('admin.course_detail.archiving') : t('admin.course_detail.archive')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -424,7 +424,7 @@ export default function CourseDetail() {
   )
 }
 
-function TodayLessonCard({ lesson, durationMinutes, onClick }: { lesson: CourseLessonOut; durationMinutes: number; onClick?: () => void }) {
+export function TodayLessonCard({ lesson, durationMinutes, onClick }: { lesson: CourseLessonOut; durationMinutes: number; onClick?: () => void }) {
   const { t } = useTranslation()
   return (
     <div className={styles.todayCard} onClick={onClick} style={{ cursor: onClick ? 'pointer' : undefined }}>
@@ -452,7 +452,7 @@ function TodayLessonCard({ lesson, durationMinutes, onClick }: { lesson: CourseL
   )
 }
 
-function UpcomingLessonCard({ lesson, monthNames, onClick }: { lesson: CourseLessonOut; monthNames: string[]; onClick?: () => void }) {
+export function UpcomingLessonCard({ lesson, monthNames, onClick }: { lesson: CourseLessonOut; monthNames: string[]; onClick?: () => void }) {
   const { t } = useTranslation()
   const date = new Date(lesson.date + 'T00:00:00')
   const dayName = t(`courseDetail.daysShort.${lesson.day_of_week}`, { defaultValue: lesson.day_name })
@@ -473,7 +473,7 @@ function UpcomingLessonCard({ lesson, monthNames, onClick }: { lesson: CourseLes
   )
 }
 
-function PastLessonCard({ lesson, monthNames, onClick }: { lesson: CourseLessonOut; monthNames: string[]; onClick?: () => void }) {
+export function PastLessonCard({ lesson, monthNames, onClick }: { lesson: CourseLessonOut; monthNames: string[]; onClick?: () => void }) {
   const { t } = useTranslation()
   const date = new Date(lesson.date + 'T00:00:00')
   return (
