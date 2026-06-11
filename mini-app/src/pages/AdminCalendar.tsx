@@ -647,6 +647,7 @@ function AdminLessonCard({ lesson, todayStr, onClick }: { lesson: AdminLessonOut
   const isUnmarked = status === 'unmarked'
   const isCancelled = status === 'cancelled'
   const isRescheduled = status === 'rescheduled'
+  const isActionable = isUnmarked || status === 'today'
 
   const borderColor = isCancelled ? 'var(--color-error, #ba1a1a)'
     : isRescheduled ? '#d97706'
@@ -657,7 +658,7 @@ function AdminLessonCard({ lesson, todayStr, onClick }: { lesson: AdminLessonOut
   const cardClass = `${styles.lessonCard} ${isCompleted ? styles.lessonCardCompleted : ''} ${isUnmarked ? styles.lessonCardUnmarked : ''} ${isCancelled ? styles.lessonCardCancelled : ''} ${isRescheduled ? styles.lessonCardRescheduled : ''}`
 
   return (
-    <div className={cardClass} style={{ borderLeftColor: borderColor, cursor: 'pointer' }} onClick={onClick}>
+    <div className={cardClass} style={{ borderLeftColor: borderColor, cursor: isActionable ? 'pointer' : 'default' }} onClick={isActionable ? onClick : undefined}>
       <div className={styles.lessonTime}>
         <span className={styles.lessonStartTime}>{lesson.time}</span>
         <span className={styles.lessonEndTime}>{lesson.end_time}</span>
@@ -702,6 +703,7 @@ function AdminLessonBlock({ lesson, todayStr, onClick }: { lesson: AdminLessonOu
   const isUnmarked = status === 'unmarked'
   const isCancelled = status === 'cancelled'
   const isRescheduled = status === 'rescheduled'
+  const isActionable = isUnmarked || status === 'today'
 
   const bgVar = isCancelled
     ? 'var(--color-surface-container-high)'
@@ -723,8 +725,8 @@ function AdminLessonBlock({ lesson, todayStr, onClick }: { lesson: AdminLessonOu
   return (
     <div
       className={blockClass}
-      style={{ top: `${top}px`, height: `${height}px`, backgroundColor: bgVar, borderLeftColor: borderVar, cursor: 'pointer' }}
-      onClick={onClick}
+      style={{ top: `${top}px`, height: `${height}px`, backgroundColor: bgVar, borderLeftColor: borderVar, cursor: isActionable ? 'pointer' : 'default' }}
+      onClick={isActionable ? onClick : undefined}
     >
       <span className={styles.blockSubject}>{prefix}{lesson.subject_name}</span>
       <span className={styles.blockTime}>{lesson.time} - {lesson.end_time}</span>
