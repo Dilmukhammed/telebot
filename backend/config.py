@@ -1,7 +1,7 @@
+import hashlib
 import sys
 
 from pydantic_settings import BaseSettings
-import os
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,9 +30,21 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-if not settings.DEV_MODE and len(settings.ADMIN_JWT_SECRET) < 32:
-    logger.error(
-        "ADMIN_JWT_SECRET is not set or too short (< 32 chars). "
-        "Set a strong secret in .env. Refusing to start in production mode."
-    )
-    sys.exit(1)
+if len(settings.ADMIN_JWT_SECRET) < 32 and not settings.DEV_MODE:
+    if settings.BOT_TOKEN:
+        # Railway/deploy convenience: BOT_TOKEN is always required and long enough
+        secret_len = len(settings.ADMIN_JWT_SECRET)
+        settings.ADMIN_JWT_SECRET = hashlib.sha256(
+            f"admin-jwt-v1:{settings.BOT_TOKEN}".encode()
+        ).hexdigest()
+        logger.warning(
+            "ADMIN_JWT_SECRET not set or too short (%d chars); using value derived from BOT_TOKEN. "
+            "Set ADMIN_JWT_SECRET explicitly (min 32 chars) for independent rotation.",
+            secret_len,
+        )
+    else:
+        logger.error(
+            "ADMIN_JWT_SECRET is not set or too short (< 32 chars) and BOT_TOKEN is missing. "
+            "Set ADMIN_JWT_SECRET in Railway Variables (min 32 chars)."
+        )
+        sys.exit(1)
