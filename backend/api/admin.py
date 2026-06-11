@@ -848,6 +848,48 @@ async def cancel_lesson(
     admin_id = admin.id if hasattr(admin, 'id') else None
     await _log_audit(db, "lesson", lesson_id, "cancel", "lesson_status", None, "cancelled", admin_id)
     await db.commit()
+
+    # ── Notifications ──
+    from utils.constants import DAY_NAMES_RU
+    from bot.bot import bot
+
+    subject = (await db.execute(select(Subject).where(Subject.id == lesson.subject_id))).scalar_one_or_none()
+    subject_name = subject.name if subject else "занятие"
+    day_name = DAY_NAMES_RU[target_date.weekday()]
+    msg_text = (
+        f"❌ <b>Отмена занятия</b>\n\n"
+        f"Предмет: <b>{subject_name}</b>\n"
+        f"Дата: <b>{target_date.strftime('%d.%m.%Y')}</b> ({day_name}) в <b>{lesson.time}</b>\n\n"
+        f"Занятие отменено администратором."
+    )
+
+    # Telegram to teacher
+    if lesson.teacher_id:
+        teacher = (await db.execute(select(User).where(User.id == lesson.teacher_id))).scalar_one_or_none()
+        if teacher and teacher.telegram_id:
+            try:
+                await bot.send_message(chat_id=teacher.telegram_id, text=msg_text, parse_mode="HTML")
+            except Exception as e:
+                logger.warning("Failed to send cancel notification to teacher %s: %s", lesson.teacher_id, e)
+
+    # Announcement + Telegram to enrolled students
+    enrolled = (await db.execute(select(LessonEnrollment.user_id).where(LessonEnrollment.lesson_id == lesson_id))).scalars().all()
+    if enrolled:
+        notification = Notification(sender_id=admin_id, title=f"Отмена: {subject_name}", message=msg_text, target_type="course")
+        db.add(notification)
+        await db.flush()
+        for uid in enrolled:
+            db.add(NotificationRecipient(notification_id=notification.id, user_id=uid))
+        await db.commit()
+
+        for uid in enrolled:
+            student = (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
+            if student and student.telegram_id:
+                try:
+                    await bot.send_message(chat_id=student.telegram_id, text=msg_text, parse_mode="HTML")
+                except Exception as e:
+                    logger.warning("Failed to send cancel notification to student %s: %s", uid, e)
+
     return {"ok": True}
 
 
