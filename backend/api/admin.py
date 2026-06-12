@@ -387,7 +387,7 @@ async def get_admin_lessons(
 
 @router.get("/search", response_model=SearchResultOut)
 async def search_courses(
-    days: list[int] = Query(..., ge=0, le=6),
+    days: list[int] = Query(...),
     time_from: str = Query(..., pattern=r"^\d{2}:\d{2}(:\d{2})?$"),
     time_to: str = Query(..., pattern=r"^\d{2}:\d{2}(:\d{2})?$"),
     teacher_id: int | None = None,
@@ -395,6 +395,10 @@ async def search_courses(
     admin=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    # Validate days range (ge/le doesn't work on list[int] in Pydantic v2)
+    for d in days:
+        if d < 0 or d > 6:
+            raise HTTPException(status_code=400, detail="days values must be 0-6")
     time_from = _normalize_hhmm(time_from)
     time_to = _normalize_hhmm(time_to)
     if not time_from or not time_to:
