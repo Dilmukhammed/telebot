@@ -322,7 +322,7 @@ async def get_admin_lessons(
         if lesson.specific_date:
             instance_date = lesson.specific_date
             # Skip if not in current week
-            if instance_date < start_monday.date() or instance_date >= (start_monday + timedelta(days=7)).date():
+            if instance_date < start_monday or instance_date >= start_monday + timedelta(days=7):
                 continue
         else:
             instance_date = start_monday + timedelta(days=lesson.day_of_week)
