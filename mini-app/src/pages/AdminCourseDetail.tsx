@@ -896,7 +896,26 @@ export default function AdminCourseDetail() {
             <div className={modalStyles.modalActions}>
               <div className={modalStyles.field}>
                 <label className={modalStyles.fieldLabel}>{t('admin.course_detail.teacher')}</label>
-                <input className={modalStyles.timeInput} value={lessonForm.teacher_name} onChange={e => setLessonForm(p => ({ ...p, teacher_name: e.target.value }))} />
+                <select
+                  className={modalStyles.timeInput}
+                  value={lessonForm.teacher_id}
+                  onChange={e => {
+                    const tid = e.target.value
+                    const t = teachers.find(t => String(t.id) === tid)
+                    setLessonForm(p => ({
+                      ...p,
+                      teacher_id: tid,
+                      teacher_name: t ? `${t.first_name || ''} ${t.last_name || ''}`.trim() : '',
+                    }))
+                  }}
+                >
+                  <option value="">{t('admin.course_detail.select_teacher')}</option>
+                  {teachers.map(teacher => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.first_name} {teacher.last_name || ''}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className={modalStyles.field}>
                 <label className={modalStyles.fieldLabel}>Дата</label>
@@ -914,7 +933,7 @@ export default function AdminCourseDetail() {
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button className={modalStyles.modalBtnSecondary} onClick={() => setShowCreateLesson(false)} style={{ flex: 1 }}>{t('common.cancel')}</button>
-                <button className={modalStyles.modalBtn} onClick={handleCreateLesson} style={{ flex: 1 }} disabled={lessonSubmitting || !lessonForm.teacher_name || !lessonForm.time || !lessonForm.room || !lessonForm.specific_date}>
+                <button className={modalStyles.modalBtn} onClick={handleCreateLesson} style={{ flex: 1 }} disabled={lessonSubmitting || !lessonForm.teacher_id || !lessonForm.time || !lessonForm.room || !lessonForm.specific_date}>
                   {lessonSubmitting ? t('admin.course_detail.creating') : slotRequestSent ? 'Запрос отправлен' : t('admin.course_detail.create')}
                 </button>
               </div>
