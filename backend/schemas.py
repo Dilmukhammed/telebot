@@ -569,7 +569,8 @@ class LessonStatusMarkIn(BaseModel):
 class AdminLessonCreate(BaseModel):
     teacher_name: str = Field(max_length=200)
     teacher_id: Optional[int] = None
-    day_of_week: int = Field(ge=0, le=6)
+    day_of_week: Optional[int] = Field(default=None, ge=0, le=6)  # Auto-computed from specific_date if not provided
+    specific_date: Optional[str] = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")  # One-time lesson date
     time: str = Field(pattern=r"^\d{2}:\d{2}$")
     room: str = Field(max_length=100)
     location: Optional[str] = None

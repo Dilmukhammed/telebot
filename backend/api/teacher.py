@@ -113,16 +113,25 @@ async def get_teacher_dashboard(
         enrollment_counts = dict(counts_result.all())
 
     # Build upcoming lessons list
+    today_date = now.date()
     upcoming_lessons = []
     for lesson, subject in teacher_lessons:
         student_count = enrollment_counts.get(lesson.id, 0)
-
-        # Calculate days until lesson
-        lesson_day = lesson.day_of_week
         lesson_time = lesson.time
-        days_until = (lesson_day - today) % 7
-        if days_until == 0 and lesson_time <= current_time:
-            days_until = 7
+
+        if lesson.specific_date:
+            # One-time lesson: compute days until specific date
+            days_until = (lesson.specific_date - today_date).days
+            if days_until < 0:
+                continue  # Past one-time lesson, skip
+            if days_until == 0 and lesson_time <= current_time:
+                continue  # Already passed today
+        else:
+            # Recurring lesson
+            lesson_day = lesson.day_of_week
+            days_until = (lesson_day - today) % 7
+            if days_until == 0 and lesson_time <= current_time:
+                days_until = 7
 
         upcoming_lessons.append({
             'lesson': lesson,
@@ -136,7 +145,6 @@ async def get_teacher_dashboard(
     upcoming_lessons.sort(key=lambda x: x['sort_key'])
 
     # Filter out cancelled lessons by checking LessonStatus for each instance date
-    today_date = now.date()
     cancelled_set: set[tuple[int, str]] = set()
     if lesson_ids:
         # Compute instance dates for the first few upcoming lessons (check up to 10 to account for cancellations)

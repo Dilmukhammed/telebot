@@ -318,7 +318,15 @@ async def get_admin_lessons(
 
     out = []
     for lesson, subject, ls, student_count in rows:
-        instance_date = start_monday + timedelta(days=lesson.day_of_week)
+        # One-time lessons: only show on their specific_date
+        if lesson.specific_date:
+            instance_date = lesson.specific_date
+            # Skip if not in current week
+            if instance_date < start_monday.date() or instance_date >= (start_monday + timedelta(days=7)).date():
+                continue
+        else:
+            instance_date = start_monday + timedelta(days=lesson.day_of_week)
+
         # Skip lessons before course start_date (same logic as teacher calendar)
         course_start = subject.start_date.date() if subject.start_date else None
         if course_start and instance_date < course_start:
@@ -1973,7 +1981,12 @@ async def admin_create_lesson(
     admin=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Admin: create a new lesson slot for a subject."""
+    """Admin: create a new lesson slot for a subject.
+
+    If specific_date is provided, creates a one-time lesson for that date.
+    If teacher_id is set and teacher has no open slot for that date/time,
+    creates an availability request instead (teacher must approve).
+    """
     subject = (await db.execute(select(Subject).where(Subject.id == subject_id, Subject.is_deleted == False))).scalar_one_or_none()
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
@@ -1981,11 +1994,135 @@ async def admin_create_lesson(
     today = _get_tashkent_now().date()
     effective_from = subject.start_date.date() if subject.start_date else today
 
+    # Compute day_of_week from specific_date if provided
+    specific_date_obj = None
+    computed_dow = data.day_of_week
+    if data.specific_date:
+        specific_date_obj = datetime.strptime(data.specific_date, "%Y-%m-%d").date()
+        computed_dow = specific_date_obj.weekday()
+    elif data.day_of_week is None:
+        raise HTTPException(status_code=400, detail="Either specific_date or day_of_week is required")
+    end_time = _calculate_end_time(data.time, subject.duration_minutes or 90)
+
+    # For one-time lessons with a teacher, check if teacher has an open slot
+    if specific_date_obj and data.teacher_id:
+        from models import TeacherAvailability
+        avail_result = await db.execute(
+            select(TeacherAvailability).where(
+                and_(
+                    TeacherAvailability.teacher_id == data.teacher_id,
+                    TeacherAvailability.is_active == True,
+                    or_(
+                        # Recurring slot matching day_of_week
+                        and_(TeacherAvailability.specific_date.is_(None), TeacherAvailability.day_of_week == computed_dow),
+                        # One-off slot matching exact date
+                        TeacherAvailability.specific_date == specific_date_obj,
+                    ),
+                )
+            )
+        )
+        slots = avail_result.scalars().all()
+        has_slot = False
+        for slot in slots:
+            if _times_overlap(slot.start_time, slot.end_time, data.time, end_time):
+                has_slot = True
+                break
+
+        if not has_slot:
+            # No open slot → create availability request (teacher must approve)
+            existing = (await db.execute(
+                select(AvailabilityRequest).where(
+                    and_(
+                        AvailabilityRequest.teacher_id == data.teacher_id,
+                        AvailabilityRequest.date == specific_date_obj,
+                        AvailabilityRequest.start_time == data.time,
+                        AvailabilityRequest.status == "pending",
+                    )
+                )
+            )).scalar_one_or_none()
+            if existing:
+                raise HTTPException(status_code=400, detail="Запрос уже отправлен и ожидает ответа")
+
+            admin_id = admin.id if hasattr(admin, 'id') else None
+            # For availability request we need a lesson_id — create a temporary inactive lesson first
+            temp_lesson = Lesson(
+                subject_id=subject_id,
+                teacher_id=data.teacher_id,
+                teacher_name=data.teacher_name,
+                day_of_week=computed_dow,
+                specific_date=specific_date_obj,
+                time=data.time,
+                room=data.room,
+                location=data.location,
+                max_capacity=data.max_capacity,
+                effective_from=effective_from,
+                is_active=False,  # Inactive until teacher approves
+            )
+            db.add(temp_lesson)
+            await db.flush()
+            temp_lesson.slot_group_id = temp_lesson.id
+
+            req = AvailabilityRequest(
+                lesson_id=temp_lesson.id,
+                teacher_id=data.teacher_id,
+                requested_by=admin_id,
+                original_date=specific_date_obj,
+                date=specific_date_obj,
+                start_time=data.time,
+                end_time=end_time,
+            )
+            db.add(req)
+            await db.commit()
+            await db.refresh(req)
+
+            # Send Telegram notification to teacher
+            from bot.bot import bot
+            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+            from config import settings
+            teacher = (await db.execute(select(User).where(User.id == data.teacher_id))).scalar_one_or_none()
+            if teacher and teacher.telegram_id:
+                day_name = DAY_NAMES_RU[specific_date_obj.weekday()]
+                kb = InlineKeyboardMarkup(inline_keyboard=[
+                    [
+                        InlineKeyboardButton(text="✅ Согласовать", callback_data=f"avail_approve:{req.id}"),
+                        InlineKeyboardButton(text="❌ Отклонить", callback_data=f"avail_reject:{req.id}"),
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            text="📅 Открыть календарь",
+                            web_app=WebAppInfo(url=f"{settings.WEBAPP_URL}/dashboard"),
+                        ),
+                    ],
+                ])
+                try:
+                    await bot.send_message(
+                        chat_id=teacher.telegram_id,
+                        text=(
+                            f"📅 <b>Запрос на открытие слота</b>\n\n"
+                            f"Предмет: <b>{subject.name}</b>\n"
+                            f"Дата: <b>{specific_date_obj.strftime('%d.%m.%Y')}</b> ({day_name})\n"
+                            f"Время: <b>{data.time} — {end_time}</b>\n\n"
+                            f"Админ просит открыть слот для нового занятия.\n"
+                            f"Нажмите «Согласовать», чтобы открыть слот на это время."
+                        ),
+                        reply_markup=kb,
+                        parse_mode="HTML",
+                    )
+                except Exception as e:
+                    logger.warning("Failed to send availability request to teacher %s: %s", data.teacher_id, e)
+
+            raise HTTPException(
+                status_code=409,
+                detail="У учителя нет открытого слота на это время. Запрос отправлен учителю."
+            )
+
+    # Create the lesson (either recurring or one-time)
     lesson = Lesson(
         subject_id=subject_id,
         teacher_id=data.teacher_id,
         teacher_name=data.teacher_name,
-        day_of_week=data.day_of_week,
+        day_of_week=computed_dow,
+        specific_date=specific_date_obj,
         time=data.time,
         room=data.room,
         location=data.location,
@@ -1997,13 +2134,12 @@ async def admin_create_lesson(
     lesson.slot_group_id = lesson.id
 
     admin_id = admin.id if hasattr(admin, 'id') else None
+    date_label = specific_date_obj.strftime("%d.%m.%Y") if specific_date_obj else DAY_NAMES_SHORT_RU[computed_dow]
     await _log_audit(db, "lesson", lesson.id, "create", None, None,
-                     f"{data.teacher_name} {DAY_NAMES_SHORT_RU[data.day_of_week]} {data.time}", admin_id)
+                     f"{data.teacher_name} {date_label} {data.time}", admin_id)
     await db.commit()
     await db.refresh(lesson)
     await _sync_subject_drive_folder_after_update(db, subject_id)
-
-    end_time = _calculate_end_time(lesson.time, subject.duration_minutes or 90)
 
     return AdminLessonOut(
         id=lesson.id,
@@ -2018,7 +2154,7 @@ async def admin_create_lesson(
         room=lesson.room,
         student_count=0,
         lesson_status=None,
-        date="",
+        date=specific_date_obj.strftime("%Y-%m-%d") if specific_date_obj else "",
     )
 
 

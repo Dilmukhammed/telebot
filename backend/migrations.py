@@ -453,6 +453,7 @@ async def run_migrations(conn: AsyncConnection, dialect: str) -> None:
             ("effective_from", "DATE"),
             ("effective_until", "DATE"),
             ("slot_group_id", "INTEGER"),
+            ("specific_date", "DATE"),
         ]:
             if not await _column_exists(conn, "lessons", col, dialect):
                 logger.info("Adding lessons.%s", col)

@@ -81,9 +81,10 @@ export default function AdminCourseDetail() {
 
   // Create lesson modal
   const [showCreateLesson, setShowCreateLesson] = useState(false)
-  const [lessonForm, setLessonForm] = useState({ teacher_name: '', teacher_id: '', day_of_week: '0', time: '', room: '', max_capacity: '15' })
+  const [lessonForm, setLessonForm] = useState({ teacher_name: '', teacher_id: '', specific_date: todayIsoDate(), time: '', room: '', max_capacity: '15' })
   const [lessonSubmitting, setLessonSubmitting] = useState(false)
   const [lessonError, setLessonError] = useState('')
+  const [slotRequestSent, setSlotRequestSent] = useState(false)
 
   // Edit schedule slot modal
   const [showScheduleEdit, setShowScheduleEdit] = useState(false)
@@ -213,8 +214,9 @@ export default function AdminCourseDetail() {
   }
 
   const openCreateLesson = () => {
-    setLessonForm({ teacher_name: '', teacher_id: '', day_of_week: '0', time: '', room: '', max_capacity: '15' })
+    setLessonForm({ teacher_name: '', teacher_id: '', specific_date: todayIsoDate(), time: '', room: '', max_capacity: '15' })
     setLessonError('')
+    setSlotRequestSent(false)
     setShowCreateLesson(true)
   }
 
@@ -222,11 +224,12 @@ export default function AdminCourseDetail() {
     if (!course) return
     setLessonSubmitting(true)
     setLessonError('')
+    setSlotRequestSent(false)
     try {
       await adminCreateLesson(course.id, {
         teacher_name: lessonForm.teacher_name,
         teacher_id: lessonForm.teacher_id ? Number(lessonForm.teacher_id) : undefined,
-        day_of_week: Number(lessonForm.day_of_week),
+        specific_date: lessonForm.specific_date,
         time: lessonForm.time,
         room: lessonForm.room,
         max_capacity: Number(lessonForm.max_capacity) || 15,
@@ -234,7 +237,14 @@ export default function AdminCourseDetail() {
       setShowCreateLesson(false)
       await refetchAll()
     } catch (e: unknown) {
-      setLessonError(e instanceof Error ? e.message : t('admin.course_detail.create_error'))
+      const msg = e instanceof Error ? e.message : t('admin.course_detail.create_error')
+      // 409 = slot request sent to teacher
+      if (msg.includes('Запрос') || msg.includes('request') || msg.includes('409')) {
+        setSlotRequestSent(true)
+        setLessonError('')
+      } else {
+        setLessonError(msg)
+      }
     } finally {
       setLessonSubmitting(false)
     }
@@ -877,16 +887,20 @@ export default function AdminCourseDetail() {
               </button>
             </div>
             {lessonError && <div className={modalStyles.modalError}>{lessonError}</div>}
+            {slotRequestSent && (
+              <div style={{ padding: '12px 16px', background: 'rgba(33, 150, 243, 0.08)', borderRadius: '12px', fontSize: '13px', color: '#1976d2', lineHeight: 1.5 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '16px', verticalAlign: 'middle', marginRight: 4 }}>send</span>
+                Запрос отправлен учителю. После согласования занятие появится в расписании.
+              </div>
+            )}
             <div className={modalStyles.modalActions}>
               <div className={modalStyles.field}>
                 <label className={modalStyles.fieldLabel}>{t('admin.course_detail.teacher')}</label>
                 <input className={modalStyles.timeInput} value={lessonForm.teacher_name} onChange={e => setLessonForm(p => ({ ...p, teacher_name: e.target.value }))} />
               </div>
               <div className={modalStyles.field}>
-                <label className={modalStyles.fieldLabel}>{t('admin.course_detail.day_of_week')}</label>
-                <select className={modalStyles.timeInput} value={lessonForm.day_of_week} onChange={e => setLessonForm(p => ({ ...p, day_of_week: e.target.value }))}>
-                  {dayNames.map((d, i) => <option key={i} value={i}>{d}</option>)}
-                </select>
+                <label className={modalStyles.fieldLabel}>Дата</label>
+                <input className={modalStyles.timeInput} type="date" min={todayIsoDate()} value={lessonForm.specific_date} onChange={e => setLessonForm(p => ({ ...p, specific_date: e.target.value }))} />
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <div className={modalStyles.field} style={{ flex: 1 }}>
@@ -900,8 +914,8 @@ export default function AdminCourseDetail() {
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button className={modalStyles.modalBtnSecondary} onClick={() => setShowCreateLesson(false)} style={{ flex: 1 }}>{t('common.cancel')}</button>
-                <button className={modalStyles.modalBtn} onClick={handleCreateLesson} style={{ flex: 1 }} disabled={lessonSubmitting || !lessonForm.teacher_name || !lessonForm.time || !lessonForm.room}>
-                  {lessonSubmitting ? t('admin.course_detail.creating') : t('admin.course_detail.create')}
+                <button className={modalStyles.modalBtn} onClick={handleCreateLesson} style={{ flex: 1 }} disabled={lessonSubmitting || !lessonForm.teacher_name || !lessonForm.time || !lessonForm.room || !lessonForm.specific_date}>
+                  {lessonSubmitting ? t('admin.course_detail.creating') : slotRequestSent ? 'Запрос отправлен' : t('admin.course_detail.create')}
                 </button>
               </div>
             </div>

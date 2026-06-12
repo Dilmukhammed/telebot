@@ -51,6 +51,7 @@ class Lesson(Base):
     teacher_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # FK to teacher
     teacher_name: Mapped[str] = mapped_column(String, nullable=False)  # Keep for backward compatibility
     day_of_week: Mapped[int] = mapped_column(Integer, nullable=False)  # 0=Mon, 1=Tue, ..., 6=Sun
+    specific_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True, index=True)  # One-time lesson date (if set, shows only on this date)
     time: Mapped[str] = mapped_column(String, nullable=False)  # "16:00"
     room: Mapped[str] = mapped_column(String, nullable=False)  # "Каб. 3"
     location: Mapped[str | None] = mapped_column(String, nullable=True)  # "г. Ташкент, ул. Фидокор, 7А"

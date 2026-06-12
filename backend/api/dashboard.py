@@ -31,6 +31,7 @@ async def get_dashboard(
 ):
     now = _get_tashkent_now()
     today = now.weekday()  # 0=Mon, 6=Sun
+    today_date = now.date()
     current_time = now.strftime("%H:%M")
 
     # Profile
@@ -65,14 +66,21 @@ async def get_dashboard(
     # Filter and sort upcoming lessons
     upcoming_lessons = []
     for lesson, subject in enrolled_lessons:
-        lesson_day = lesson.day_of_week
         lesson_time = lesson.time
 
-        # Calculate days until lesson
-        days_until = (lesson_day - today) % 7
-        if days_until == 0 and lesson_time <= current_time:
-            # Lesson already passed today, show it next week
-            days_until = 7
+        if lesson.specific_date:
+            # One-time lesson: compute days until specific date
+            days_until = (lesson.specific_date - today_date).days
+            if days_until < 0:
+                continue  # Past one-time lesson, skip
+            if days_until == 0 and lesson_time <= current_time:
+                continue  # Already passed today
+        else:
+            # Recurring lesson: compute days until next weekday occurrence
+            lesson_day = lesson.day_of_week
+            days_until = (lesson_day - today) % 7
+            if days_until == 0 and lesson_time <= current_time:
+                days_until = 7
 
         upcoming_lessons.append({
             'lesson': lesson,
@@ -85,7 +93,6 @@ async def get_dashboard(
     upcoming_lessons.sort(key=lambda x: x['sort_key'])
 
     # Filter out cancelled lessons by checking LessonStatus
-    today_date = now.date()
     cancelled_set: set[tuple[int, str]] = set()
     lesson_ids = [les.id for les, _ in enrolled_lessons]
     if lesson_ids:
@@ -597,10 +604,49 @@ async def get_calendar(
 
     # Group lessons by day_of_week, filtering by start_date and marking status
     # Handle rescheduled lessons: skip original date, show on override date
+    # Handle one-time lessons (specific_date): show only on that date
     lessons_by_day: dict[int, list] = {}
     for lesson, subject in all_lessons:
-        day = lesson.day_of_week
         start = subject.start_date.date() if subject.start_date else None
+
+        # One-time lessons: only show on specific_date if it falls in this week
+        if lesson.specific_date:
+            if lesson.specific_date not in week_dates:
+                continue
+            i = week_dates.index(lesson.specific_date)
+            date = lesson.specific_date
+            # Skip if before course start_date
+            if start and date < start:
+                continue
+            # Process this one-time lesson (same logic below but for a single date)
+            date_str = date.isoformat()
+            ls = lesson_statuses.get((lesson.id, date_str))
+            # For one-time lessons, no reschedule handling needed — just determine status
+            if ls == "cancelled":
+                status = "cancelled"
+            elif date == today:
+                status = "today"
+            elif date < today:
+                status = "unmarked"
+            else:
+                status = "planned"
+            duration = subject.duration_minutes or 90
+            t_name = teachers_map.get(lesson.teacher_id, lesson.teacher_name) if lesson.teacher_id else lesson.teacher_name
+            if i not in lessons_by_day:
+                lessons_by_day[i] = []
+            lessons_by_day[i].append(CalendarLessonOut(
+                id=lesson.id,
+                subject_name=subject.name,
+                teacher_name=t_name,
+                day_of_week=i,
+                time=lesson.time,
+                end_time=_calculate_end_time(lesson.time, duration),
+                room=lesson.room,
+                status=status,
+            ))
+            continue
+
+        day = lesson.day_of_week
         for i, date in enumerate(week_dates):
             if i != day:
                 continue

@@ -556,7 +556,7 @@ export function updateSubject(id: number, data: { name?: string; description?: s
   })
 }
 
-export function adminCreateLesson(subjectId: number, data: { teacher_name: string; teacher_id?: number; day_of_week: number; time: string; room: string; location?: string; max_capacity?: number }): Promise<AdminLessonOut> {
+export function adminCreateLesson(subjectId: number, data: { teacher_name: string; teacher_id?: number; day_of_week?: number; specific_date?: string; time: string; room: string; location?: string; max_capacity?: number }): Promise<AdminLessonOut> {
   return api<AdminLessonOut>(`/api/admin/subjects/${subjectId}/lessons`, {
     method: 'POST',
     body: JSON.stringify(data),
