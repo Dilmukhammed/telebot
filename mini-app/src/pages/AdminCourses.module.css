@@ -286,6 +286,14 @@
   border-radius: var(--radius-lg);
   padding: var(--spacing-md);
   box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  transition: background 0.15s;
+}
+
+.resultCard:active {
+  background: var(--color-surface-container);
 }
 
 .resultCardAccent {

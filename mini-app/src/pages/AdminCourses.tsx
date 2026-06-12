@@ -534,6 +534,7 @@ function CreateCourseModal({ onClose, onCreated }: { onClose: () => void; onCrea
 
 function SearchView() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const dayNames = Array.from({ length: 7 }, (_, i) => t(`courseDetail.daysShort.${i}`))
   const [selectedDays, setSelectedDays] = useState<number[]>([])
   const [timeFrom, setTimeFrom] = useState('09:00')
@@ -617,14 +618,24 @@ function SearchView() {
             </div>
           ) : (
             results.courses.map(c => (
-              <div key={c.lesson_id} className={styles.resultCard}>
-                <div className={styles.resultName}>{c.name}</div>
-                <div className={styles.resultMeta}>
-                  {c.teacher_name} · {c.day_name} {c.time}–{c.end_time} · {c.room}
+              <div
+                key={c.lesson_id}
+                className={styles.resultCard}
+                onClick={() => navigate(`/admin/courses/${c.id}`)}
+                style={{ cursor: 'pointer' }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className={styles.resultName}>{c.name}</div>
+                  <div className={styles.resultMeta}>
+                    {c.teacher_name} · {c.day_name} {c.time}–{c.end_time} · {c.room}
+                  </div>
+                  <div className={styles.resultMeta}>
+                    {t('admin.courses.spots_left_info', { spots_left: c.spots_left, max_capacity: c.max_capacity })}
+                  </div>
                 </div>
-                <div className={styles.resultMeta}>
-                  {t('admin.courses.spots_left_info', { spots_left: c.spots_left, max_capacity: c.max_capacity })}
-                </div>
+                <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--color-outline)', flexShrink: 0 }}>
+                  chevron_right
+                </span>
               </div>
             ))
           )}
@@ -637,11 +648,21 @@ function SearchView() {
             </div>
           ) : (
             results.open_slots.map(s => (
-              <div key={`${s.teacher_id}-${s.day_of_week}-${s.start_time}`} className={`${styles.resultCard} ${styles.resultCardAccent}`}>
-                <div className={styles.resultName}>{s.teacher_name}</div>
-                <div className={styles.resultMeta}>
-                  {s.day_name} {s.start_time}–{s.end_time}
+              <div
+                key={`${s.teacher_id}-${s.day_of_week}-${s.start_time}`}
+                className={`${styles.resultCard} ${styles.resultCardAccent}`}
+                onClick={() => navigate(`/admin/calendar?teacher_id=${s.teacher_id}`)}
+                style={{ cursor: 'pointer' }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className={styles.resultName}>{s.teacher_name}</div>
+                  <div className={styles.resultMeta}>
+                    {s.day_name} {s.start_time}–{s.end_time}
+                  </div>
                 </div>
+                <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--color-outline)', flexShrink: 0 }}>
+                  chevron_right
+                </span>
               </div>
             ))
           )}

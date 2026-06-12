@@ -116,10 +116,13 @@ export default function AdminCalendar() {
   })
 
   const [weekOffset, setWeekOffset] = useState(0)
+  const urlTeacherId = searchParams.get('teacher_id')
   const [filterMode, setFilterMode] = useState<'teacher' | 'student'>(() => {
+    if (urlTeacherId) return 'teacher'
     return (localStorage.getItem('calendar_filter_mode') as 'teacher' | 'student') || 'teacher'
   })
   const [selectedUserId, setSelectedUserId] = useState<number | undefined>(() => {
+    if (urlTeacherId) return Number(urlTeacherId)
     const saved = localStorage.getItem('calendar_selected_user_id')
     return saved ? Number(saved) : undefined
   })
