@@ -132,9 +132,40 @@ async def get_teacher_dashboard(
             'sort_key': days_until * 10000 + int(lesson_time.split(':')[0]) * 60 + int(lesson_time.split(':')[1]),
         })
 
-    # Sort by nearest upcoming and take first 3
+    # Sort by nearest upcoming
     upcoming_lessons.sort(key=lambda x: x['sort_key'])
-    upcoming_lessons = upcoming_lessons[:3]
+
+    # Filter out cancelled lessons by checking LessonStatus for each instance date
+    today_date = now.date()
+    cancelled_set: set[tuple[int, str]] = set()
+    if lesson_ids:
+        # Compute instance dates for the first few upcoming lessons (check up to 10 to account for cancellations)
+        check_dates = []
+        for item in upcoming_lessons[:10]:
+            instance_date = today_date + timedelta(days=item['days_until'])
+            check_dates.append((item['lesson'].id, instance_date))
+        if check_dates:
+            status_conditions = or_(*(
+                and_(LessonStatus.lesson_id == lid, LessonStatus.date == dt)
+                for lid, dt in check_dates
+            ))
+            status_result = await db.execute(
+                select(LessonStatus.lesson_id, LessonStatus.date, LessonStatus.status)
+                .where(status_conditions)
+            )
+            for row in status_result.all():
+                if row[2] == "cancelled":
+                    cancelled_set.add((row[0], row[1].isoformat() if hasattr(row[1], 'isoformat') else str(row[1])))
+
+    # Filter cancelled and take first 3
+    filtered_lessons = []
+    for item in upcoming_lessons:
+        instance_date = (today_date + timedelta(days=item['days_until'])).isoformat()
+        if (item['lesson'].id, instance_date) not in cancelled_set:
+            filtered_lessons.append(item)
+        if len(filtered_lessons) >= 3:
+            break
+    upcoming_lessons = filtered_lessons
 
     lessons_with_students = []
     for item in upcoming_lessons:
@@ -150,7 +181,7 @@ async def get_teacher_dashboard(
         else:
             day_label = DAY_NAMES_RU[lesson.day_of_week]
 
-        instance_date = now.date() + _dt.timedelta(days=days_until)
+        instance_date = now.date() + timedelta(days=days_until)
 
         lessons_with_students.append(TeacherDashboardLessonOut(
             id=lesson.id,
