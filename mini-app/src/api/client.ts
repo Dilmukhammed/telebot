@@ -527,6 +527,13 @@ export function adminEnrollStudent(lessonId: number, userId: number): Promise<{ 
   })
 }
 
+export function adminEnrollStudentInCourse(subjectId: number, userId: number): Promise<{ ok: boolean; enrolled_count: number }> {
+  return api<{ ok: boolean; enrolled_count: number }>(`/api/admin/courses/${subjectId}/enroll`, {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId }),
+  })
+}
+
 export function adminUnenrollStudent(lessonId: number, userId: number): Promise<{ ok: boolean }> {
   return api<{ ok: boolean }>(`/api/admin/lessons/${lessonId}/enroll/${userId}`, { method: 'DELETE' })
 }

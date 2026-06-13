@@ -612,6 +612,10 @@ class EnrollStudentIn(BaseModel):
     user_id: int
 
 
+class EnrollInCourseIn(BaseModel):
+    user_id: int
+
+
 # --- Audit Log ---
 
 class AuditLogOut(BaseModel):

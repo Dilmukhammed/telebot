@@ -14,7 +14,7 @@ import {
   updateSubject,
   adminCreateLesson,
   adminUpdateLessonSchedule,
-  adminEnrollStudent,
+  adminEnrollStudentInCourse,
   adminUnenrollStudent,
   archiveAdminSubject,
   unarchiveAdminSubject,
@@ -256,7 +256,7 @@ export default function AdminCourseDetail() {
       return
     }
     try {
-      await Promise.all(lessonSlotIds.map(lid => adminEnrollStudent(lid, userId)))
+      await adminEnrollStudentInCourse(courseId, userId)
       setShowEnrollModal(false)
       await refetchAll()
     } catch (e: unknown) {

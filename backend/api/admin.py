@@ -24,7 +24,7 @@ from schemas import (
     AdminSubjectOut, AdminSubjectDetailOut, LessonStatusMarkIn, UserOut,
     LessonUpdateIn, LessonDetailOut, LessonStatusOut,
     AttendanceBulkIn, AttendanceListOut, AttendanceRecordOut,
-    AdminLessonCreate, EnrollStudentIn, AuditLogOut, CancelLessonIn,
+    AdminLessonCreate, EnrollStudentIn, EnrollInCourseIn, AuditLogOut, CancelLessonIn,
     AdminSubjectCreate, AdminSubjectUpdate, ScheduleTimeSlot,
     AdminLessonScheduleUpdate, AvailabilityRequestIn, AvailabilityRequestOut,
 )
@@ -2360,6 +2360,91 @@ async def admin_unenroll_student(
     await db.commit()
 
     return {"ok": True}
+
+
+@router.post("/courses/{subject_id}/enroll")
+async def admin_enroll_student_in_course(
+    subject_id: int,
+    data: EnrollInCourseIn,
+    admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: enroll a student in all active lessons of a course + send notifications."""
+    subject = (await db.execute(select(Subject).where(Subject.id == subject_id, Subject.is_deleted == False))).scalar_one_or_none()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    user = (await db.execute(select(User).where(User.id == data.user_id))).scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get all active lessons for this course
+    lessons = (await db.execute(
+        select(Lesson).where(and_(Lesson.subject_id == subject_id, Lesson.is_active == True))
+    )).scalars().all()
+
+    if not lessons:
+        raise HTTPException(status_code=400, detail="No active lessons in this course")
+
+    # Enroll student in each lesson (skip duplicates)
+    enrolled_count = 0
+    admin_id = admin.id if hasattr(admin, 'id') else None
+    for lesson in lessons:
+        existing = (await db.execute(
+            select(LessonEnrollment).where(
+                and_(LessonEnrollment.lesson_id == lesson.id, LessonEnrollment.user_id == data.user_id)
+            )
+        )).scalar_one_or_none()
+        if not existing:
+            enrollment = LessonEnrollment(lesson_id=lesson.id, user_id=data.user_id)
+            db.add(enrollment)
+            await _log_audit(db, "enrollment", lesson.id, "enroll", None, None, f"user_id={data.user_id}", admin_id)
+            enrolled_count += 1
+
+    await db.commit()
+
+    if enrolled_count == 0:
+        return {"ok": True, "enrolled_count": 0, "message": "Already enrolled in all lessons"}
+
+    # Build schedule summary for notification
+    DAYS_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+    schedule_lines: list[str] = []
+    for lesson in lessons:
+        day_name = DAYS_RU[lesson.day_of_week] if lesson.day_of_week is not None and 0 <= lesson.day_of_week <= 6 else "?"
+        schedule_lines.append(f"  • {day_name} в {lesson.time.strftime('%H:%M')}, каб. {lesson.room}")
+    schedule_text = "\n".join(schedule_lines)
+
+    telegram_msg = (
+        f"📚 <b>Вас добавили в курс!</b>\n\n"
+        f"Курс: <b>{subject.name}</b>\n"
+        f"Расписание:\n{schedule_text}\n\n"
+        f"Откройте приложение для подробностей."
+    )
+
+    # Send Telegram notification
+    if user.telegram_id:
+        try:
+            from bot.bot import bot
+            await bot.send_message(chat_id=user.telegram_id, text=telegram_msg, parse_mode="HTML")
+        except Exception as e:
+            logger.warning("Failed to send enrollment notification to user %s: %s", data.user_id, e)
+
+    # Create in-app notification
+    notification = Notification(
+        sender_id=admin_id,
+        title=f"Добавление в курс: {subject.name}",
+        message=telegram_msg,
+        target_type="specific_students",
+        target_id=subject_id,
+    )
+    db.add(notification)
+    await db.flush()
+
+    recipient = NotificationRecipient(notification_id=notification.id, user_id=data.user_id)
+    db.add(recipient)
+    await db.commit()
+
+    return {"ok": True, "enrolled_count": enrolled_count}
 
 
 # ── Audit Log ────────────────────────────────────────────────────────
