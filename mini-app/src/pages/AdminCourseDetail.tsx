@@ -15,7 +15,7 @@ import {
   adminCreateLesson,
   adminUpdateLessonSchedule,
   adminEnrollStudentInCourse,
-  adminUnenrollStudent,
+  adminUnenrollStudentFromCourse,
   archiveAdminSubject,
   unarchiveAdminSubject,
 } from '../api/client'
@@ -268,7 +268,7 @@ export default function AdminCourseDetail() {
     if (!studentToUnenroll || lessonSlotIds.length === 0) return
     setUnenrollSubmitting(true)
     try {
-      await Promise.all(lessonSlotIds.map(lid => adminUnenrollStudent(lid, studentToUnenroll.id)))
+      await adminUnenrollStudentFromCourse(courseId, studentToUnenroll.id)
       setStudentToUnenroll(null)
       await refetchAll()
     } catch (e: unknown) {

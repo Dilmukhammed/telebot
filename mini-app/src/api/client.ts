@@ -534,6 +534,10 @@ export function adminEnrollStudentInCourse(subjectId: number, userId: number): P
   })
 }
 
+export function adminUnenrollStudentFromCourse(subjectId: number, userId: number): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/api/admin/courses/${subjectId}/enroll/${userId}`, { method: 'DELETE' })
+}
+
 export function adminUnenrollStudent(lessonId: number, userId: number): Promise<{ ok: boolean }> {
   return api<{ ok: boolean }>(`/api/admin/lessons/${lessonId}/enroll/${userId}`, { method: 'DELETE' })
 }

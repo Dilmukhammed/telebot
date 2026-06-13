@@ -2362,6 +2362,85 @@ async def admin_unenroll_student(
     return {"ok": True}
 
 
+@router.delete("/courses/{subject_id}/enroll/{user_id}")
+async def admin_unenroll_student_from_course(
+    subject_id: int,
+    user_id: int,
+    admin=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: unenroll a student from all lessons of a course + send notifications."""
+    subject = (await db.execute(select(Subject).where(Subject.id == subject_id, Subject.is_deleted == False))).scalar_one_or_none()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get all active lessons for this course
+    lessons = (await db.execute(
+        select(Lesson).where(and_(Lesson.subject_id == subject_id, Lesson.is_active == True))
+    )).scalars().all()
+
+    if not lessons:
+        raise HTTPException(status_code=400, detail="No active lessons in this course")
+
+    lesson_ids = [l.id for l in lessons]
+
+    # Delete all enrollments for this student in these lessons
+    enrollments = (await db.execute(
+        select(LessonEnrollment).where(
+            and_(LessonEnrollment.lesson_id.in_(lesson_ids), LessonEnrollment.user_id == user_id)
+        )
+    )).scalars().all()
+
+    if not enrollments:
+        raise HTTPException(status_code=404, detail="Student not enrolled in this course")
+
+    admin_id = admin.id if hasattr(admin, 'id') else None
+    for enr in enrollments:
+        await _log_audit(db, "enrollment", enr.lesson_id, "unenroll", None, f"user_id={user_id}", None, admin_id)
+        await db.delete(enr)
+
+    await db.commit()
+
+    telegram_msg = (
+        f"📚 <b>Вас убрали из курса</b>\n\n"
+        f"Курс: <b>{subject.name}</b>\n\n"
+        f"Если это ошибка — обратитесь к администратору."
+    )
+
+    logger.info("Unenrollment notification for user %s (tg_id=%s) from course '%s'",
+                user_id, user.telegram_id, subject.name)
+
+    # Send Telegram notification
+    if user.telegram_id:
+        try:
+            from bot.bot import bot
+            await bot.send_message(chat_id=user.telegram_id, text=telegram_msg, parse_mode="HTML")
+            logger.info("Telegram unenrollment notification sent to user %s", user_id)
+        except Exception as e:
+            logger.warning("Failed to send unenrollment notification to user %s: %s", user_id, e)
+
+    # Create in-app notification
+    notification = Notification(
+        sender_id=admin_id,
+        title=f"Удаление из курса: {subject.name}",
+        message=telegram_msg,
+        target_type="specific_students",
+        target_id=subject_id,
+    )
+    db.add(notification)
+    await db.flush()
+
+    recipient = NotificationRecipient(notification_id=notification.id, user_id=user_id)
+    db.add(recipient)
+    await db.commit()
+
+    return {"ok": True}
+
+
 @router.post("/courses/{subject_id}/enroll")
 async def admin_enroll_student_in_course(
     subject_id: int,
