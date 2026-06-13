@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCourseDetail, useCourseStudents, useMaterials, useDeleteMaterial } from '../api/hooks'
 import { toggleMaterialPin } from '../api/client'
 import { useUser } from '../context/UserContext'
-import type { CourseLessonOut } from '../shared/types'
+import type { CourseLessonOut, MaterialOut } from '../shared/types'
 import Avatar from '../components/Avatar'
 import SiteHeader from '../components/SiteHeader'
 import MaterialCard from '../components/MaterialCard'
@@ -46,8 +46,17 @@ export default function CourseDetail() {
   const queryClient = useQueryClient()
   const handlePin = useCallback(async (id: number) => {
     try {
-      await toggleMaterialPin(id)
-      await queryClient.invalidateQueries({ queryKey: ['materials'] })
+      const updated = await toggleMaterialPin(id)
+      // Update all materials queries in cache
+      queryClient.setQueriesData({ queryKey: ['materials'] }, (old: unknown) => {
+        if (!Array.isArray(old)) return old
+        const list = old.map((m: MaterialOut) => m.id === updated.id ? updated : m)
+        // Re-sort: pinned first, then by created_at desc
+        return list.sort((a: MaterialOut, b: MaterialOut) => {
+          if (a.is_pinned !== b.is_pinned) return (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0)
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        })
+      })
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Ошибка закрепления')
     }

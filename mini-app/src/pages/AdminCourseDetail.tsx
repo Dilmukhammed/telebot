@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
+import type { MaterialOut } from '../shared/types'
 import {
   useCourseDetail,
   useCourseStudents,
@@ -144,8 +145,17 @@ export default function AdminCourseDetail() {
   const queryClient = useQueryClient()
   const handlePin = useCallback(async (id: number) => {
     try {
-      await toggleMaterialPin(id)
-      await queryClient.invalidateQueries({ queryKey: ['materials'] })
+      const updated = await toggleMaterialPin(id)
+      // Update all materials queries in cache
+      queryClient.setQueriesData({ queryKey: ['materials'] }, (old: unknown) => {
+        if (!Array.isArray(old)) return old
+        const list = old.map((m: MaterialOut) => m.id === updated.id ? updated : m)
+        // Re-sort: pinned first, then by created_at desc
+        return list.sort((a: MaterialOut, b: MaterialOut) => {
+          if (a.is_pinned !== b.is_pinned) return (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0)
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        })
+      })
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Ошибка закрепления')
     }
