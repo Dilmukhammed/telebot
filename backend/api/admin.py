@@ -2403,9 +2403,6 @@ async def admin_enroll_student_in_course(
 
     await db.commit()
 
-    if enrolled_count == 0:
-        return {"ok": True, "enrolled_count": 0, "message": "Already enrolled in all lessons"}
-
     # Build schedule summary for notification
     DAYS_RU = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
     schedule_lines: list[str] = []
@@ -2421,13 +2418,19 @@ async def admin_enroll_student_in_course(
         f"Откройте приложение для подробностей."
     )
 
+    logger.info("Enrollment notification for user %s (tg_id=%s) in course '%s', enrolled_count=%s",
+                data.user_id, user.telegram_id, subject.name, enrolled_count)
+
     # Send Telegram notification
     if user.telegram_id:
         try:
             from bot.bot import bot
             await bot.send_message(chat_id=user.telegram_id, text=telegram_msg, parse_mode="HTML")
+            logger.info("Telegram enrollment notification sent to user %s", data.user_id)
         except Exception as e:
             logger.warning("Failed to send enrollment notification to user %s: %s", data.user_id, e)
+    else:
+        logger.warning("User %s has no telegram_id, skipping Telegram notification", data.user_id)
 
     # Create in-app notification
     notification = Notification(
