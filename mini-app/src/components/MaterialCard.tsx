@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { MaterialOut } from '../shared/types'
 import styles from './MaterialCard.module.css'
@@ -65,14 +65,14 @@ function parseInlineMarkdown(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = []
   const boldLinkRegex = /(\*\*.*?\*\*|\[.*?\]\(.*?\))/g
   const matches = [...text.matchAll(boldLinkRegex)]
-  
+
   let lastIndex = 0
   matches.forEach((match, matchIdx) => {
     const start = match.index!
     if (start > lastIndex) {
       parts.push(text.substring(lastIndex, start))
     }
-    
+
     const token = match[0]
     if (token.startsWith('**') && token.endsWith('**')) {
       parts.push(<strong key={`b-${matchIdx}`}>{token.slice(2, -2)}</strong>)
@@ -88,11 +88,11 @@ function parseInlineMarkdown(text: string): React.ReactNode[] {
     }
     lastIndex = start + token.length
   })
-  
+
   if (lastIndex < text.length) {
     parts.push(text.substring(lastIndex))
   }
-  
+
   return parts.length > 0 ? parts : [text]
 }
 
@@ -117,15 +117,74 @@ function renderMarkdown(content?: string) {
   })
 }
 
+/* ── Three-dot context menu ─────────────────────────────────────── */
+
+function CardMenu({ material, canPin, onPin, canDelete, onDelete }: {
+  material: MaterialOut
+  canPin?: boolean
+  onPin?: (id: number) => void
+  canDelete?: boolean
+  onDelete?: (id: number) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const handlePin = useCallback(() => {
+    setOpen(false)
+    onPin?.(material.id)
+  }, [onPin, material.id])
+
+  const handleDelete = useCallback(() => {
+    setOpen(false)
+    onDelete?.(material.id)
+  }, [onDelete, material.id])
+
+  if (!canPin && !canDelete) return null
+
+  return (
+    <div className={styles.menuWrap} ref={ref}>
+      <button
+        className={styles.menuBtn}
+        onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
+        title="Ещё"
+      >
+        <span className="material-symbols-outlined">more_vert</span>
+      </button>
+      {open && (
+        <div className={styles.menuDropdown} onClick={(e) => e.stopPropagation()}>
+          {canPin && onPin && (
+            <button className={styles.menuItem} onClick={handlePin}>
+              <span className="material-symbols-outlined" style={material.is_pinned ? { color: 'var(--color-primary)' } : undefined}>push_pin</span>
+              {material.is_pinned ? 'Открепить' : 'Закрепить'}
+            </button>
+          )}
+          {canDelete && onDelete && (
+            <button className={`${styles.menuItem} ${styles.menuItemDanger}`} onClick={handleDelete}>
+              <span className="material-symbols-outlined">delete</span>
+              Удалить
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Main card component ────────────────────────────────────────── */
+
 const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onDelete, canPin, onPin }: MaterialCardProps) {
   const { t } = useTranslation()
   const [isPlayerOpen, setIsPlayerOpen] = useState(false)
   const [isTextCollapsed, setIsTextCollapsed] = useState(true)
-
-  // Satisfy TypeScript unused locals check
-  if (canPin === undefined && onPin === undefined) {
-    // No-op
-  }
 
   const renderedMarkdown = useMemo(
     () => renderMarkdown(material.content),
@@ -157,6 +216,8 @@ const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onD
     }
   }
 
+  const menuProps = { material, canPin, onPin, canDelete, onDelete }
+
   if (material.type === 'image' && material.url) {
     return (
       <>
@@ -173,27 +234,7 @@ const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onD
               {material.is_pinned && <span className="material-symbols-outlined" style={{ fontSize: '16px', verticalAlign: 'middle', marginRight: '4px', color: 'var(--color-primary)' }}>push_pin</span>}
               {material.title}
             </h3>
-            <div style={{ display: 'flex', gap: '4px' }}>
-              {canPin && onPin && (
-                <button
-                  className={styles.cardDeleteBtn}
-                  onClick={(e) => { e.stopPropagation(); onPin(material.id) }}
-                  title={material.is_pinned ? 'Открепить' : 'Закрепить'}
-                  style={material.is_pinned ? { color: 'var(--color-primary)' } : undefined}
-                >
-                  <span className="material-symbols-outlined">push_pin</span>
-                </button>
-              )}
-              {canDelete && onDelete && (
-                <button
-                  className={styles.cardDeleteBtn}
-                  onClick={(e) => { e.stopPropagation(); onDelete(material.id) }}
-                  title="Удалить"
-                >
-                  <span className="material-symbols-outlined">delete</span>
-                </button>
-              )}
-            </div>
+            <CardMenu {...menuProps} />
           </div>
         </div>
 
@@ -214,7 +255,7 @@ const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onD
 
   // Render YouTube or Direct Video Card
   if (isVideo) {
-    const thumbUrl = youtubeId 
+    const thumbUrl = youtubeId
       ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`
       : 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=640&auto=format&fit=crop&q=60' // Fallback preview gradient
 
@@ -240,29 +281,9 @@ const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onD
             </h3>
             <div className={styles.videoMeta}>
               <span>Смотреть в приложении</span>
-              {(canPin && onPin || canDelete && onDelete) && (
-                <div style={{ position: 'absolute', right: '12px', bottom: '12px', display: 'flex', gap: '4px' }}>
-                  {canPin && onPin && (
-                    <button
-                      className={styles.cardDeleteBtn}
-                      onClick={(e) => { e.stopPropagation(); onPin(material.id) }}
-                      title={material.is_pinned ? 'Открепить' : 'Закрепить'}
-                      style={material.is_pinned ? { color: 'var(--color-primary)' } : undefined}
-                    >
-                      <span className="material-symbols-outlined">push_pin</span>
-                    </button>
-                  )}
-                  {canDelete && onDelete && (
-                    <button
-                      className={styles.cardDeleteBtn}
-                      onClick={(e) => { e.stopPropagation(); onDelete(material.id) }}
-                      title="Удалить"
-                    >
-                      <span className="material-symbols-outlined">delete</span>
-                    </button>
-                  )}
-                </div>
-              )}
+              <div style={{ position: 'absolute', right: '12px', bottom: '12px' }}>
+                <CardMenu {...menuProps} />
+              </div>
             </div>
           </div>
         </div>
@@ -317,27 +338,7 @@ const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onD
               <span className={styles.textMeta}>Текстовый материал</span>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '4px' }}>
-            {canPin && onPin && (
-              <button
-                className={styles.cardDeleteBtn}
-                onClick={(e) => { e.stopPropagation(); onPin(material.id) }}
-                title={material.is_pinned ? 'Открепить' : 'Закрепить'}
-                style={material.is_pinned ? { color: 'var(--color-primary)' } : undefined}
-              >
-                <span className="material-symbols-outlined">push_pin</span>
-              </button>
-            )}
-            {canDelete && onDelete && (
-              <button
-                className={styles.cardDeleteBtn}
-                onClick={(e) => { e.stopPropagation(); onDelete(material.id) }}
-                title="Удалить"
-              >
-                <span className="material-symbols-outlined">delete</span>
-              </button>
-            )}
-          </div>
+          <CardMenu {...menuProps} />
         </div>
         {material.content && (
           <div className={`${styles.textContent} ${isLong && isTextCollapsed ? styles.textContentCollapsed : ''}`}>
@@ -346,7 +347,7 @@ const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onD
           </div>
         )}
         {isLong && (
-          <button 
+          <button
             className={styles.toggleTextBtn}
             onClick={(e) => { e.stopPropagation(); setIsTextCollapsed(!isTextCollapsed) }}
           >
@@ -405,31 +406,10 @@ const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onD
           </span>
           {isFile ? 'Скачать' : 'Открыть'}
         </button>
-
-        {canPin && onPin && (
-          <button
-            className={styles.cardDeleteBtn}
-            onClick={(e) => { e.stopPropagation(); onPin(material.id) }}
-            title={material.is_pinned ? 'Открепить' : 'Закрепить'}
-            style={material.is_pinned ? { color: 'var(--color-primary)' } : undefined}
-          >
-            <span className="material-symbols-outlined">push_pin</span>
-          </button>
-        )}
-
-        {canDelete && onDelete && (
-          <button
-            className={styles.cardDeleteBtn}
-            onClick={(e) => { e.stopPropagation(); onDelete(material.id) }}
-            title="Удалить"
-          >
-            <span className="material-symbols-outlined">delete</span>
-          </button>
-        )}
+        <CardMenu {...menuProps} />
       </div>
     </div>
   )
 })
 
 export default MaterialCard
-
