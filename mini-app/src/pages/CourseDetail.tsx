@@ -43,6 +43,16 @@ export default function CourseDetail() {
     setMaterialToDelete(id)
   }
 
+  const queryClient = useQueryClient()
+  const handlePin = useCallback(async (id: number) => {
+    try {
+      await toggleMaterialPin(id)
+      await queryClient.invalidateQueries({ queryKey: ['materials'] })
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Ошибка закрепления')
+    }
+  }, [queryClient])
+
   const lang = i18n.language as 'ru' | 'en' | 'uz'
   const monthNames = MONTH_NAMES[lang] || MONTH_NAMES.ru
 
@@ -200,6 +210,8 @@ export default function CourseDetail() {
                       material={m}
                       canDelete={isTeacherOrAdmin}
                       onDelete={handleMaterialDelete}
+                      canPin={isTeacherOrAdmin}
+                      onPin={handlePin}
                     />
                   ))}
                 </div>
