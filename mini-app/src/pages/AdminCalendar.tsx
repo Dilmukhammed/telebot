@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAdminLessons, useAdminUsers } from '../api/hooks'
 import { rescheduleLesson, cancelAdminLesson, markAdminLessonStatus, createAvailabilityRequest } from '../api/client'
 import type { AdminLessonOut } from '../shared/types'
@@ -101,6 +102,7 @@ export default function AdminCalendar() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { t, i18n } = useTranslation()
+  const queryClient = useQueryClient()
   const currentLocale = langToLocale(i18n.language)
 
   const dayNames = Array.from({ length: 7 }, (_, i) => t(`courseDetail.daysShort.${i}`))
@@ -241,6 +243,11 @@ export default function AdminCalendar() {
         await markAdminLessonStatus(selectedLesson.id, { date: selectedLesson.date, status: 'happened' })
       }
       await refetch()
+      queryClient.invalidateQueries({ queryKey: ['admin-subjects'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-lessons'] })
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['course'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-stats'] })
       setSelectedLesson(null)
       setModalType('options')
       setNewDate('')

@@ -75,6 +75,8 @@ export function useCreateAvailability() {
       createAvailability(data.day_of_week, data.start_time, data.end_time),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['availability'] })
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['teacher-dashboard'] })
     },
   })
 }
@@ -85,6 +87,8 @@ export function useDeleteAvailability() {
     mutationFn: (id: number) => deleteAvailability(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['availability'] })
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['teacher-dashboard'] })
     },
   })
 }
@@ -104,6 +108,7 @@ export function useApproveAvailabilityRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['availability-requests'] })
       queryClient.invalidateQueries({ queryKey: ['availability'] })
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
       queryClient.invalidateQueries({ queryKey: ['teacher-dashboard'] })
     },
   })
@@ -115,6 +120,7 @@ export function useRejectAvailabilityRequest() {
     mutationFn: (id: number) => rejectAvailabilityRequest(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['availability-requests'] })
+      queryClient.invalidateQueries({ queryKey: ['teacher-dashboard'] })
     },
   })
 }

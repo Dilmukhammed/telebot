@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { createAvailability, deleteAvailability } from '../api/client'
@@ -41,6 +42,7 @@ export default function Calendar() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [weekOffset, setWeekOffset] = useState(0)
   const { data, isLoading, error, refetch } = useCalendar(weekOffset)
+  const queryClient = useQueryClient()
   const [view, setView] = useState<'day' | 'week'>(() => searchParams.get('view') === 'week' ? 'week' : 'day')
   const [selectedDay, setSelectedDay] = useState(0)
   const [now, setNow] = useState(getTashkentDate())
@@ -345,6 +347,8 @@ export default function Calendar() {
                       await deleteAvailability(selectedSlot.slotId)
                     }
                     refetch()
+                    await queryClient.invalidateQueries({ queryKey: ['availability'] })
+                    await queryClient.invalidateQueries({ queryKey: ['teacher-dashboard'] })
                   } catch (err) {
                     alert(err instanceof Error ? err.message : t('common.error'))
                   }

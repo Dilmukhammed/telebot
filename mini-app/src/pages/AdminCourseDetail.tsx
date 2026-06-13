@@ -138,11 +138,17 @@ export default function AdminCourseDetail() {
 
   const lessonSlotIds = scheduleSlots.map(s => s.id)
 
+  const queryClient = useQueryClient()
+
   const refetchAll = async () => {
     await Promise.all([refetchCourse(), refetchAdmin(), refetchStudents()])
+    await queryClient.invalidateQueries({ queryKey: ['admin-subjects'] })
+    await queryClient.invalidateQueries({ queryKey: ['admin-lessons'] })
+    await queryClient.invalidateQueries({ queryKey: ['admin-stats'] })
+    await queryClient.invalidateQueries({ queryKey: ['calendar'] })
   }
 
-  const queryClient = useQueryClient()
+
   const handlePin = useCallback(async (id: number) => {
     try {
       const updated = await toggleMaterialPin(id)

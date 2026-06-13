@@ -138,7 +138,11 @@ export function useAdminMarkAttendance() {
   return useMutation({
     mutationFn: (data: { lessonId: number; date: string; records: { user_id: number; present: boolean }[] }) =>
       adminMarkAttendance(data.lessonId, data.date, data.records),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-lesson-attendance'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-lesson-attendance'] })
+      qc.invalidateQueries({ queryKey: ['admin-lessons'] })
+      qc.invalidateQueries({ queryKey: ['calendar'] })
+    },
   })
 }
 
@@ -200,7 +204,10 @@ export function useArchiveSubject() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => archiveAdminSubject(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-subjects'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-subjects'] })
+      qc.invalidateQueries({ queryKey: ['admin-subject'] })
+    },
   })
 }
 
@@ -208,7 +215,10 @@ export function useUnarchiveSubject() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => unarchiveAdminSubject(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-subjects'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-subjects'] })
+      qc.invalidateQueries({ queryKey: ['admin-subject'] })
+    },
   })
 }
 
@@ -216,7 +226,10 @@ export function useDeleteAdminSubject() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => deleteAdminSubject(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-subjects'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-subjects'] })
+      qc.invalidateQueries({ queryKey: ['admin-subject'] })
+    },
   })
 }
 
