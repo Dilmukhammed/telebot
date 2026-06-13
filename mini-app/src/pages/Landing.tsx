@@ -118,6 +118,10 @@ export default function Landing() {
             <div className={styles.heroDecorTopRight} />
             <div className={styles.heroDecorBottomLeft} />
             <div className={styles.heroContent}>
+              <div className={styles.heroTag}>
+                <span className="material-symbols-outlined" style={{ fontSize: '14px', fontVariationSettings: "'FILL' 1" }}>sparkles</span>
+                Новый сезон 2026
+              </div>
               <h2 className={styles.heroTitle}>Раскрой свой потенциал в {CENTER.name}</h2>
               <p className={styles.heroSubtitle}>
                 Офлайн и онлайн занятия в Узбекистане с экспертами для вашего карьерного роста и успеха.
@@ -137,14 +141,23 @@ export default function Landing() {
         {/* Stats Row */}
         <section className={styles.statsSection}>
           <div className={styles.statCard}>
+            <div className={`${styles.statIcon} ${styles.statIconBranches}`}>
+              <span className="material-symbols-outlined">location_on</span>
+            </div>
             <span className={styles.statValue}>3+</span>
             <span className={styles.statLabel}>Филиала</span>
           </div>
           <div className={styles.statCard}>
+            <div className={`${styles.statIcon} ${styles.statIconStudents}`}>
+              <span className="material-symbols-outlined">school</span>
+            </div>
             <span className={styles.statValue}>1.5k+</span>
             <span className={styles.statLabel}>Учеников</span>
           </div>
           <div className={styles.statCard}>
+            <div className={`${styles.statIcon} ${styles.statIconTutors}`}>
+              <span className="material-symbols-outlined">workspace_premium</span>
+            </div>
             <span className={styles.statValue}>25+</span>
             <span className={styles.statLabel}>Репетиторов</span>
           </div>
@@ -195,7 +208,7 @@ export default function Landing() {
           <div className={styles.featuresList}>
             {features.map((feature, index) => (
               <div key={index} className={styles.featureCard}>
-                <div className={styles.featureIcon}>
+                <div className={`${styles.featureIcon} ${styles[`featureIcon_${index}`]}`}>
                   <span className="material-symbols-outlined">{feature.icon}</span>
                 </div>
                 <div className={styles.featureText}>
@@ -210,7 +223,13 @@ export default function Landing() {
         {/* CTA */}
         <section className={styles.ctaSection}>
           <div className={styles.ctaCard}>
-            <span className="material-symbols-outlined" style={{ fontSize: '40px', color: 'var(--color-primary)' }}>rocket_launch</span>
+            <div className={styles.ctaIconWrapper}>
+              <span className="material-symbols-outlined">rocket_launch</span>
+            </div>
+            <h3 className={styles.ctaTitle}>Начни обучение прямо сейчас</h3>
+            <p className={styles.ctaSubtitle}>
+              Получи доступ к онлайн расписанию, домашним заданиям, тестам и статистике успеваемости.
+            </p>
             <button className={styles.ctaButton} onClick={handleCabinetClick}>
               Войти в личный кабинет
             </button>

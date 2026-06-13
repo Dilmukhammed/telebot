@@ -104,6 +104,7 @@ def _material_to_out(m: Material) -> MaterialOut:
         file_size=m.file_size,
         created_by=m.created_by,
         created_at=m.created_at.isoformat() if m.created_at else "",
+        is_pinned=bool(m.is_pinned),
     )
 
 
@@ -148,7 +149,7 @@ async def list_materials(
     elif subject_id is not None:
         query = query.where(Material.lesson_id.is_(None))
 
-    query = query.order_by(Material.created_at.desc())
+    query = query.order_by(Material.is_pinned.desc(), Material.created_at.desc())
     result = await db.execute(query)
     materials = result.scalars().all()
     return [_material_to_out(m) for m in materials]
@@ -403,3 +404,25 @@ async def delete_material(
 
     logger.info("Material deleted: id=%d by user=%d", material_id, user.id)
     return {"message": "Material deleted"}
+
+
+@router.patch("/{material_id}/pin")
+async def toggle_material_pin(
+    material_id: int,
+    user: User = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle pin status of a material (teacher/admin only)."""
+    material = await db.get(Material, material_id)
+    if not material:
+        raise HTTPException(status_code=404, detail="Material not found")
+
+    if not await _user_can_manage_material(user, material, db):
+        raise HTTPException(status_code=403, detail="Not allowed")
+
+    material.is_pinned = not material.is_pinned
+    await db.commit()
+    await db.refresh(material)
+
+    logger.info("Material %d pin toggled to %s by user=%d", material_id, material.is_pinned, user.id)
+    return _material_to_out(material)

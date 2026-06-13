@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   useCourseDetail,
   useCourseStudents,
@@ -18,6 +19,7 @@ import {
   adminUnenrollStudentFromCourse,
   archiveAdminSubject,
   unarchiveAdminSubject,
+  toggleMaterialPin,
 } from '../api/client'
 import Avatar from '../components/Avatar'
 import SiteHeader from '../components/SiteHeader'
@@ -138,6 +140,16 @@ export default function AdminCourseDetail() {
   const refetchAll = async () => {
     await Promise.all([refetchCourse(), refetchAdmin(), refetchStudents()])
   }
+
+  const queryClient = useQueryClient()
+  const handlePin = useCallback(async (id: number) => {
+    try {
+      await toggleMaterialPin(id)
+      await queryClient.invalidateQueries({ queryKey: ['materials'] })
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Ошибка закрепления')
+    }
+  }, [queryClient])
 
   const formatStartDate = (dateStr: string) => {
     const d = new Date(dateStr + 'T00:00:00')
@@ -442,6 +454,8 @@ export default function AdminCourseDetail() {
                       material={m}
                       canDelete
                       onDelete={(mid) => setMaterialToDelete(mid)}
+                      canPin
+                      onPin={handlePin}
                     />
                   ))}
                 </div>

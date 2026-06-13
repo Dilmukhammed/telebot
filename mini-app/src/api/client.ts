@@ -707,3 +707,7 @@ export function uploadMaterialWithProgress(
 export function deleteMaterial(id: number): Promise<void> {
   return api<void>(`/api/materials/${id}`, { method: 'DELETE' })
 }
+
+export function toggleMaterialPin(id: number): Promise<MaterialOut> {
+  return api<MaterialOut>(`/api/materials/${id}/pin`, { method: 'PATCH' })
+}

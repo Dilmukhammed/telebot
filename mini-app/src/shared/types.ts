@@ -286,6 +286,7 @@ export interface MaterialOut {
   file_size?: number;
   created_by: number;
   created_at: string;
+  is_pinned?: boolean;
 }
 
 export interface MaterialCreate {

@@ -345,6 +345,7 @@ class Material(Base):
     google_file_id: Mapped[str | None] = mapped_column(String, nullable=True)  # Google Drive file ID
     created_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow)
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False)
 
     subject: Mapped["Subject | None"] = relationship("Subject")
     lesson: Mapped["Lesson | None"] = relationship("Lesson")

@@ -210,6 +210,12 @@ async def ensure_critical_schema(conn: AsyncConnection, dialect: str) -> None:
         except Exception as exc:
             logger.debug("Reactivate archived lessons skipped: %s", exc)
 
+    # ── materials.is_pinned ──────────────────────────────────────────────
+    if await _table_exists(conn, "materials", dialect):
+        if not await _column_exists(conn, "materials", "is_pinned", dialect):
+            logger.info("Adding materials.is_pinned")
+            await conn.execute(text("ALTER TABLE materials ADD COLUMN is_pinned BOOLEAN DEFAULT FALSE"))
+
     await _ensure_materials_image_type(conn, dialect)
     await _ensure_notification_attachment_type(conn, dialect)
 

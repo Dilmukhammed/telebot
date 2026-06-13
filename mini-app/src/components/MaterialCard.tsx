@@ -7,6 +7,8 @@ interface MaterialCardProps {
   material: MaterialOut
   canDelete?: boolean
   onDelete?: (id: number) => void
+  canPin?: boolean
+  onPin?: (id: number) => void
 }
 
 function formatFileSize(bytes: number): string {
@@ -115,10 +117,15 @@ function renderMarkdown(content?: string) {
   })
 }
 
-const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onDelete }: MaterialCardProps) {
+const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onDelete, canPin, onPin }: MaterialCardProps) {
   const { t } = useTranslation()
   const [isPlayerOpen, setIsPlayerOpen] = useState(false)
   const [isTextCollapsed, setIsTextCollapsed] = useState(true)
+
+  // Satisfy TypeScript unused locals check
+  if (canPin === undefined && onPin === undefined) {
+    // No-op
+  }
 
   const renderedMarkdown = useMemo(
     () => renderMarkdown(material.content),
@@ -162,16 +169,31 @@ const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onD
             </div>
           </div>
           <div className={styles.imageInfo}>
-            <h3 className={styles.imageTitle}>{material.title}</h3>
-            {canDelete && onDelete && (
-              <button
-                className={styles.cardDeleteBtn}
-                onClick={(e) => { e.stopPropagation(); onDelete(material.id) }}
-                title="Удалить"
-              >
-                <span className="material-symbols-outlined">delete</span>
-              </button>
-            )}
+            <h3 className={styles.imageTitle}>
+              {material.is_pinned && <span className="material-symbols-outlined" style={{ fontSize: '16px', verticalAlign: 'middle', marginRight: '4px', color: 'var(--color-primary)' }}>push_pin</span>}
+              {material.title}
+            </h3>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              {canPin && onPin && (
+                <button
+                  className={styles.cardDeleteBtn}
+                  onClick={(e) => { e.stopPropagation(); onPin(material.id) }}
+                  title={material.is_pinned ? 'Открепить' : 'Закрепить'}
+                  style={material.is_pinned ? { color: 'var(--color-primary)' } : undefined}
+                >
+                  <span className="material-symbols-outlined">push_pin</span>
+                </button>
+              )}
+              {canDelete && onDelete && (
+                <button
+                  className={styles.cardDeleteBtn}
+                  onClick={(e) => { e.stopPropagation(); onDelete(material.id) }}
+                  title="Удалить"
+                >
+                  <span className="material-symbols-outlined">delete</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -212,18 +234,33 @@ const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onD
             </div>
           </div>
           <div className={styles.videoInfo}>
-            <h3 className={styles.videoTitle}>{material.title}</h3>
+            <h3 className={styles.videoTitle}>
+              {material.is_pinned && <span className="material-symbols-outlined" style={{ fontSize: '16px', verticalAlign: 'middle', marginRight: '4px', color: 'var(--color-primary)' }}>push_pin</span>}
+              {material.title}
+            </h3>
             <div className={styles.videoMeta}>
               <span>Смотреть в приложении</span>
-              {canDelete && onDelete && (
-                <div style={{ position: 'absolute', right: '12px', bottom: '12px' }}>
-                  <button
-                    className={styles.cardDeleteBtn}
-                    onClick={(e) => { e.stopPropagation(); onDelete(material.id) }}
-                    title="Удалить"
-                  >
-                    <span className="material-symbols-outlined">delete</span>
-                  </button>
+              {(canPin && onPin || canDelete && onDelete) && (
+                <div style={{ position: 'absolute', right: '12px', bottom: '12px', display: 'flex', gap: '4px' }}>
+                  {canPin && onPin && (
+                    <button
+                      className={styles.cardDeleteBtn}
+                      onClick={(e) => { e.stopPropagation(); onPin(material.id) }}
+                      title={material.is_pinned ? 'Открепить' : 'Закрепить'}
+                      style={material.is_pinned ? { color: 'var(--color-primary)' } : undefined}
+                    >
+                      <span className="material-symbols-outlined">push_pin</span>
+                    </button>
+                  )}
+                  {canDelete && onDelete && (
+                    <button
+                      className={styles.cardDeleteBtn}
+                      onClick={(e) => { e.stopPropagation(); onDelete(material.id) }}
+                      title="Удалить"
+                    >
+                      <span className="material-symbols-outlined">delete</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -273,19 +310,34 @@ const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onD
           <div className={styles.textTitleArea}>
             <span className={`material-symbols-outlined ${styles.textIcon}`}>article</span>
             <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-              <span className={styles.textTitle}>{material.title}</span>
+              <span className={styles.textTitle}>
+                {material.is_pinned && <span className="material-symbols-outlined" style={{ fontSize: '16px', verticalAlign: 'middle', marginRight: '4px', color: 'var(--color-primary)' }}>push_pin</span>}
+                {material.title}
+              </span>
               <span className={styles.textMeta}>Текстовый материал</span>
             </div>
           </div>
-          {canDelete && onDelete && (
-            <button
-              className={styles.cardDeleteBtn}
-              onClick={(e) => { e.stopPropagation(); onDelete(material.id) }}
-              title="Удалить"
-            >
-              <span className="material-symbols-outlined">delete</span>
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {canPin && onPin && (
+              <button
+                className={styles.cardDeleteBtn}
+                onClick={(e) => { e.stopPropagation(); onPin(material.id) }}
+                title={material.is_pinned ? 'Открепить' : 'Закрепить'}
+                style={material.is_pinned ? { color: 'var(--color-primary)' } : undefined}
+              >
+                <span className="material-symbols-outlined">push_pin</span>
+              </button>
+            )}
+            {canDelete && onDelete && (
+              <button
+                className={styles.cardDeleteBtn}
+                onClick={(e) => { e.stopPropagation(); onDelete(material.id) }}
+                title="Удалить"
+              >
+                <span className="material-symbols-outlined">delete</span>
+              </button>
+            )}
+          </div>
         </div>
         {material.content && (
           <div className={`${styles.textContent} ${isLong && isTextCollapsed ? styles.textContentCollapsed : ''}`}>
@@ -326,7 +378,10 @@ const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onD
       )}
 
       <div className={styles.rowContent}>
-        <span className={styles.rowTitle}>{material.title}</span>
+        <span className={styles.rowTitle}>
+          {material.is_pinned && <span className="material-symbols-outlined" style={{ fontSize: '16px', verticalAlign: 'middle', marginRight: '4px', color: 'var(--color-primary)' }}>push_pin</span>}
+          {material.title}
+        </span>
         <div className={styles.rowMeta}>
           {isFile ? (
             <>
@@ -350,6 +405,17 @@ const MaterialCard = React.memo(function MaterialCard({ material, canDelete, onD
           </span>
           {isFile ? 'Скачать' : 'Открыть'}
         </button>
+
+        {canPin && onPin && (
+          <button
+            className={styles.cardDeleteBtn}
+            onClick={(e) => { e.stopPropagation(); onPin(material.id) }}
+            title={material.is_pinned ? 'Открепить' : 'Закрепить'}
+            style={material.is_pinned ? { color: 'var(--color-primary)' } : undefined}
+          >
+            <span className="material-symbols-outlined">push_pin</span>
+          </button>
+        )}
 
         {canDelete && onDelete && (
           <button

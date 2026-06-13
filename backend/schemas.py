@@ -200,6 +200,7 @@ class MaterialOut(BaseModel):
     file_size: Optional[int] = None
     created_by: int
     created_at: str
+    is_pinned: bool = False
 
 
 class MaterialCreate(BaseModel):
