@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import type { MaterialOut } from '../shared/types'
 import styles from './MaterialCard.module.css'
@@ -117,7 +118,7 @@ function renderMarkdown(content?: string) {
   })
 }
 
-/* ── Three-dot context menu ─────────────────────────────────────── */
+/* ── Three-dot context menu (portal-based) ─────────────────────── */
 
 function CardMenu({ material, canPin, onPin, canDelete, onDelete }: {
   material: MaterialOut
@@ -127,12 +128,26 @@ function CardMenu({ material, canPin, onPin, canDelete, onDelete }: {
   onDelete?: (id: number) => void
 }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ top: 0, right: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const toggle = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+    }
+    setOpen(!open)
+  }, [open])
 
   useEffect(() => {
     if (!open) return
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
+          btnRef.current && !btnRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -151,16 +166,22 @@ function CardMenu({ material, canPin, onPin, canDelete, onDelete }: {
   if (!canPin && !canDelete) return null
 
   return (
-    <div className={styles.menuWrap} ref={ref}>
+    <div className={styles.menuWrap}>
       <button
+        ref={btnRef}
         className={styles.menuBtn}
-        onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
+        onClick={toggle}
         title="Ещё"
       >
         <span className="material-symbols-outlined">more_vert</span>
       </button>
-      {open && (
-        <div className={styles.menuDropdown} onClick={(e) => e.stopPropagation()}>
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          className={styles.menuDropdown}
+          style={{ position: 'fixed', top: pos.top, right: pos.right }}
+          onClick={(e) => e.stopPropagation()}
+        >
           {canPin && onPin && (
             <button className={styles.menuItem} onClick={handlePin}>
               <span className="material-symbols-outlined" style={material.is_pinned ? { color: 'var(--color-primary)' } : undefined}>push_pin</span>
@@ -173,7 +194,8 @@ function CardMenu({ material, canPin, onPin, canDelete, onDelete }: {
               Удалить
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
