@@ -2408,7 +2408,8 @@ async def admin_enroll_student_in_course(
     schedule_lines: list[str] = []
     for lesson in lessons:
         day_name = DAYS_RU[lesson.day_of_week] if lesson.day_of_week is not None and 0 <= lesson.day_of_week <= 6 else "?"
-        schedule_lines.append(f"  • {day_name} в {lesson.time.strftime('%H:%M')}, каб. {lesson.room}")
+        time_str = lesson.time.strftime('%H:%M') if hasattr(lesson.time, 'strftime') else str(lesson.time)[:5]
+        schedule_lines.append(f"  • {day_name} в {time_str}, каб. {lesson.room}")
     schedule_text = "\n".join(schedule_lines)
 
     telegram_msg = (
